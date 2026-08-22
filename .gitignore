@@ -18,6 +18,7 @@ tools/m2-repo/*
 **/*.log
 report-web/e2e/shots/
 report-web/e2e/_*.mjs
+report-web/e2e/_*.sql
 
 # ── 不入库的本机参考 / 过程文档 ────────────────────────
 功能点.md

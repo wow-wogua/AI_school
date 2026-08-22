@@ -51,7 +51,14 @@ aischool:
     base-url: ""
     api-key: ""
     model: ""
-    timeout-seconds: 60
+    # 任务队列 worker 并发 = 对 LLM 的最大同时在途请求数。
+    # DeepSeek 并发上限：flash 2500/账号、pro 500/账号（超限返回 429 不封号，未配置时降级模板）。
+    # 16 = flash 的 0.6%，覆盖多位老师同时批量（5 位老师×50 人 ≈ 2 分钟跑完）；
+    # 换供应商/模型时按其速率上限经 AISCHOOL_AI_CONCURRENCY 环境变量调整，无需改代码。
+    concurrency: 16
+    # LLM 单次调用读超时：deepseek 偶发慢响应实测可达 60s+，留 2 分钟余量，
+    # 超时则该条降级为模板草稿（任务不失败）；批量慢任务由队列消化，不占前端
+    timeout-seconds: 120
 
 logging:
   level:

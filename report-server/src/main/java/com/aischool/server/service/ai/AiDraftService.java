@@ -31,7 +31,8 @@ public class AiDraftService {
 
     private static final String SYSTEM_TEACHER = "你是一位经验丰富、温和严谨的中学班主任。"
             + "写作时只允许使用用户提供的数据，严禁编造或修改任何数字与事实；"
-            + "语气真诚具体，避免空话套话；不出现「根据数据显示」这类机械表述。";
+            + "语气真诚具体，避免空话套话；不出现「根据数据显示」这类机械表述；"
+            + "输出纯文本，禁止使用任何 Markdown 标记（如**加粗、#标题、-列表）。";
 
     // ───────────────── 学业分析（结构化，规则为主） ─────────────────
 
@@ -80,6 +81,7 @@ public class AiDraftService {
                         + "先肯定具体亮点，再中肯指出 1 个待改进点并给出期望，结尾鼓励。不要罗列全部数字，挑选关键事实。\n\n"
                         + toJson(facts);
                 draft = aiClient.chat(SYSTEM_TEACHER, user);
+                draft = stripMd(draft); // 提示词已禁 Markdown，此处兜底清洗残留
                 source = "llm";
             } catch (Exception e) {
                 log.warn("LLM 寄语生成失败，降级模板: {}", e.getMessage());
@@ -145,7 +147,7 @@ public class AiDraftService {
                 String user = "请根据以下数据为该学生生成本学期成长总结，分四块输出，"
                         + "每块 2~4 句：\n本学期亮点：\n学习发展：\n综合素质发展：\n下一阶段建议：\n\n"
                         + "要求避免只看成绩，结合九格综合素质表现。\n\n" + toJson(facts);
-                String text = aiClient.chat(SYSTEM_TEACHER, user);
+                String text = stripMd(aiClient.chat(SYSTEM_TEACHER, user));
                 m.put("raw", text);
                 m.put("blocks", parseBlocks(text));
                 m.put("source", "llm");
@@ -229,16 +231,31 @@ public class AiDraftService {
                 .map(g -> String.valueOf(g.get("维度"))).orElse("") + "、";
     }
 
+    /** 解析四块：兼容「标题：内容同行」与「标题独占一行、内容跨多行」两种 LLM 输出格式 */
     private Map<String, String> parseBlocks(String text) {
         Map<String, String> blocks = new LinkedHashMap<>();
+        List<String> keys = List.of("本学期亮点", "学习发展", "综合素质发展", "下一阶段建议");
+        String current = null;
+        StringBuilder val = new StringBuilder();
         for (String line : text.split("\\r?\\n")) {
-            for (String key : List.of("本学期亮点", "学习发展", "综合素质发展", "下一阶段建议")) {
-                if (line.startsWith(key)) {
-                    blocks.put(key, line.substring(key.length()).replaceFirst("^[:：]\\s*", "").trim());
-                }
+            String clean = line.replaceFirst("^[#>\\s*\\-•·]+", ""); // 剥 Markdown/项目符号前缀再匹配
+            String hit = keys.stream().filter(clean::startsWith).findFirst().orElse(null);
+            if (hit != null) {
+                if (current != null) blocks.put(current, val.toString().trim());
+                current = hit;
+                val = new StringBuilder(clean.substring(hit.length()).replaceFirst("^[:：]\\s*", "").trim());
+            } else if (current != null && !clean.isBlank()) {
+                if (val.length() > 0) val.append('\n');
+                val.append(clean);
             }
         }
+        if (current != null) blocks.put(current, val.toString().trim());
         return blocks;
+    }
+
+    /** 清洗 LLM 输出中的加粗/标题残留（提示词已禁止，双保险） */
+    private String stripMd(String s) {
+        return s == null ? s : s.replace("**", "");
     }
 
     private String toJson(Object o) {

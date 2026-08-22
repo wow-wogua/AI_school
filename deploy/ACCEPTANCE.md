@@ -101,3 +101,18 @@ bash scripts/run_regression.sh                          # 十脚本全链（从 
 | 目检材料 | — | docs/img_embed_check/cmp_p01..08.png（原版 vs 生成并排） |
 
 复跑：`cd report-renderer && mvn -s settings.xml package -DskipTests`，然后 `cd ../report-server && PYTHONIOENCODING=utf-8 python scripts/verify_contract.py`（需后端 8080）
+
+## 2026-08-22 增补验收：一键容器化 + AI 接入 + AI 任务队列
+
+范围：①docker compose 五容器一键部署（详见 架构设计.md §11.11）；②DeepSeek 真实 key 三类 AI 功能接入与降级链路；③AI 分析任务化 t_ai_task（切页/关浏览器不中断、整班批量、并发 16、用户隔离，详见 §11.12）。
+
+| 验证 | 结果 | 证据 |
+|---|------|---|
+| 五容器部署 | PASS | mysql/redis/minio/report-server/report-web 全 healthy；web 80 端口可访问 |
+| 容器化 E2E 回归 | **PASS 94/94** | BASE_URL=http://localhost 下 verify_web 32 + m6_web 20 + m7_web 42 |
+| 真实 key AI（flash） | PASS | 寄语/总结 source=llm；证书 vision 识别 4 字段全中；坏 key 自动降级模板零崩溃 |
+| AI 任务 API | **PASS 9/9** | 去重复用 / 并发上限实测=16 且超出发排队（17 任务：生成中 16 排队 1）/ 排队位次 / 草稿落库 / mine 用户隔离 0 泄漏 |
+| AI 任务 UX | **PASS 12/12** | 切页后台继续 + badge、切回自动恢复、浏览器重开恢复、本班全部生成、任务面板（状态/学生名）、总结四块渲染、console 0 错 |
+| LLM 输出健壮性 | PASS | Markdown 前缀/标题独行兼容（四块全解析）；慢响应 61s 完成不降级 |
+
+复跑：AI 任务 API 验证思路——POST /api/ai/tasks 后轮询 /api/ai/tasks/{id}（状态/queuePosition/result）与 /api/ai/tasks/mine；E2E 基线须关闭 AI（override 移开重启 server），跑完恢复。

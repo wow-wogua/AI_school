@@ -32,6 +32,7 @@
           <router-link v-if="auth.role === 'ADMIN'" to="/admin">系统管理</router-link>
         </nav>
         <span v-if="auth.token" class="user">
+          <AiTaskPanel />
           {{ auth.realName }}
           <el-button link size="small" @click="logout">退出</el-button>
         </span>
@@ -51,17 +52,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { MotionConfig, motion, useScroll, useSpring } from 'motion-v'
 import { useAuthStore } from './stores/auth'
+import { useAiTasksStore } from './stores/aiTasks'
+import AiTaskPanel from './components/AiTaskPanel.vue'
 
 const auth = useAuthStore()
+const aiTasks = useAiTasksStore()
 const router = useRouter()
 function logout() {
   auth.logout()
   router.push('/login')
 }
+
+/* AI 任务轮询随登录态启停（登录即恢复展示后台跑的任务，退出即停并清空） */
+watch(() => auth.token, (t) => (t ? aiTasks.start() : aiTasks.stop()), { immediate: true })
 
 /* 滚动进度条：el-main 是页面真正的滚动容器（overflow:auto），取其实例根元素 */
 const mainRef = ref<{ $el?: HTMLElement }>()

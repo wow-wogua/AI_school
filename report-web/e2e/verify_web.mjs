@@ -113,20 +113,23 @@ async function fullFlow(browser, { name, width, height, mobile }) {
         const t = document.querySelector('textarea')
         return t && t.value.length > 20 // load() 回填已有寄语
       }, { timeout: 15_000 })
-      let draftResp = null
-      const capDraft = page.waitForResponse(
-        (r) => r.url().includes('/api/ai/comment-draft') && r.status() === 200,
-      ).then(async (r) => (draftResp = (await r.json()).data))
+      // 任务化：点击提交 → 轮询 → 完成后回填（捕获任务详情响应比对，模板输出确定性重复也不影响）
+      let taskDetail = null
+      const capDetail = page.waitForResponse(
+        (r) => /\/api\/ai\/tasks\/\d+$/.test(r.url()) && r.status() === 200,
+      ).then(async (r) => (taskDetail = (await r.json()).data))
       await page.getByRole('button', { name: 'AI 生成草稿' }).click()
-      await capDraft
-      // 草稿回填编辑框（与接口返回一致）
+      await capDetail
       await page.waitForFunction(
-        (d) => document.querySelector('textarea')?.value === d?.draft,
-        draftResp,
+        (d) => {
+          const t = document.querySelector('textarea')
+          return t && d?.result?.draft && t.value === d.result.draft
+        },
+        taskDetail,
         { timeout: 10_000 },
       )
       const draft = await page.locator('textarea').inputValue()
-      check('desktop AI 草稿生成并回填', draft === draftResp.draft && draft.includes('同学'), draft.slice(0, 30))
+      check('desktop AI 草稿生成并回填', draft === taskDetail.result.draft && draft.includes('同学'), draft.slice(0, 30))
       await page.getByRole('button', { name: '确认生效' }).click()
       await page.waitForSelector('.el-message--success', { timeout: 10_000 })
       check('desktop 寄语确认生效', true)

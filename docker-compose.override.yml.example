@@ -8,6 +8,10 @@
 #       班主任寄语/成长总结草稿 → 纯文本模型即可（如 deepseek-v4-flash）
 #       荣誉证书图片识别       → 必须多模态模型（如 deepseek-v4-flash-vision-exp / qwen-vl / glm-4v）
 #     要同时用两个功能，请配多模态模型
+#   - 可选：AI 任务并发（默认 16 = 对大模型的最大同时在途请求数，超出的任务排队）。
+#     DeepSeek 并发上限 flash 2500/账号、pro 500/账号，16 远低于两者；
+#     换其他供应商时按其速率上限调整，例如：
+#       AISCHOOL_AI_CONCURRENCY: 16
 services:
   report-server:
     environment:

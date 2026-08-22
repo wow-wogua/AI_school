@@ -38,6 +38,7 @@ TRUNCATE t_growth_level;
 TRUNCATE t_growth_symbol_stat;
 TRUNCATE t_comprehensive;
 TRUNCATE t_comment;
+TRUNCATE t_ai_task;
 TRUNCATE t_report_template;
 TRUNCATE t_report_task;
 TRUNCATE t_report;

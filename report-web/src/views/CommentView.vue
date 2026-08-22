@@ -7,13 +7,15 @@
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
       <el-select v-model="studentId" filterable placeholder="选择学生" style="min-width: 160px" @change="load">
-        <el-option v-for="s in students" :key="s.id" :label="s.name" :value="s.id" />
+        <el-option v-for="s in students" :key="s.id" :label="optLabel(s.id, s.name)" :value="s.id" />
       </el-select>
       <el-select v-model="termId" placeholder="学期" style="min-width: 160px" @change="load">
         <el-option v-for="t in terms" :key="t.id" :label="t.name" :value="t.id" />
       </el-select>
-      <el-button :disabled="!studentId" :loading="drafting" @click="makeDraft">AI 生成草稿</el-button>
-      <el-tag v-if="status !== '无'" size="small">{{ status }}</el-tag>
+      <el-button :disabled="!studentId" :loading="!!isRunning" @click="makeDraft">AI 生成草稿</el-button>
+      <el-button :disabled="!students.length || !termId" :loading="batchLoading" @click="batchAll">本班全部生成</el-button>
+      <el-tag v-if="isRunning" size="small" type="primary">{{ cur?.status === '排队' ? '排队中' : '生成中' }}，可切页后台继续</el-tag>
+      <el-tag v-else-if="status !== '无'" size="small">{{ status }}</el-tag>
     </div>
 
     <el-card v-if="studentId">
@@ -28,10 +30,15 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
 import { api } from '../api/http'
+import { useAiTasksStore } from '../stores/aiTasks'
+
+const store = useAiTasksStore()
+const route = useRoute()
 
 const classes = ref<{ id: number; name: string }[]>([])
 const terms = ref<{ id: number; name: string }[]>([])
@@ -41,7 +48,28 @@ const termId = ref<number>()
 const studentId = ref<number>()
 const content = ref('')
 const status = ref('无')
-const drafting = ref(false)
+const batchLoading = ref(false)
+
+/** 当前学生+学期的寄语任务（全局轮询驱动，切页回来状态仍在） */
+const cur = computed(() => studentId.value && termId.value
+  ? store.byKey.get(`COMMENT-${studentId.value}-${termId.value}`) : undefined)
+const isRunning = computed(() => cur.value && (cur.value.status === '排队' || cur.value.status === '生成中'))
+
+let myTaskId = 0        // 本页提交的任务：完成即回填草稿
+let appliedTaskId = 0   // 已回填过的任务：防轮询重复回填
+
+// 自己提交的任务完成 → 回填草稿（点击生成即明确意图，直接覆盖编辑框，教师可再改）
+watch(cur, async (t) => {
+  if (!t || t.status !== '成功' || t.taskId !== myTaskId || appliedTaskId === t.taskId) return
+  appliedTaskId = t.taskId
+  const d = t.result ? t : await store.fetchDetail(t.taskId)
+  const draft = (d.result as { draft?: string } | undefined)?.draft
+  if (draft) {
+    content.value = draft
+    status.value = 'AI草稿'
+    ElMessage.success(t.source === 'template' ? '已按模板生成草稿（未配置大模型 API）' : '大模型草稿已生成')
+  }
+})
 
 async function init() {
   classes.value = await api('/api/meta/my-classes')
@@ -51,6 +79,22 @@ async function init() {
     classId.value = classes.value[0].id
     await loadStudents()
   }
+  // 任务面板点进来的预选（带 studentId/termId 查询参数）
+  if (route.query.termId) {
+    const t = terms.value.find((x) => x.id === Number(route.query.termId))
+    if (t) termId.value = t.id
+  }
+  if (route.query.studentId && students.value.some((s) => s.id === Number(route.query.studentId))) {
+    studentId.value = Number(route.query.studentId)
+    await load()
+  }
+}
+
+/** 学生下拉标签：批量时直接在选项里看到每个学生的任务进度 */
+function optLabel(id: number, name: string) {
+  const t = termId.value ? store.byKey.get(`COMMENT-${id}-${termId.value}`) : undefined
+  if (t && (t.status === '排队' || t.status === '生成中')) return `${name} · ${t.status}`
+  return name
 }
 
 async function loadStudents() {
@@ -66,26 +110,30 @@ async function loadStudents() {
 
 async function load() {
   if (!studentId.value || !termId.value) return
-  const c = await api<{ content: string; status: string }>(
+  const c = await api<{ content: string; aiDraft: string; status: string }>(
     `/api/ai/comment?studentId=${studentId.value}&termId=${termId.value}`,
   )
-  content.value = c.content ?? ''
+  // 已生效内容优先；没有生效内容时回显后台任务生成的草稿（切页/重开浏览器后仍可见）
+  content.value = c.content || c.aiDraft || ''
   status.value = c.status ?? '无'
 }
 
 async function makeDraft() {
   if (!studentId.value || !termId.value) return
-  drafting.value = true
+  myTaskId = await store.submit('COMMENT', studentId.value, termId.value)
+}
+
+/** 本班全部生成：逐个提交入队（后端去重，重复点击安全），进度看右上角「AI 任务」 */
+async function batchAll() {
+  if (!termId.value || !students.value.length) return
+  batchLoading.value = true
   try {
-    const d = await api<{ draft: string; source?: string }>('/api/ai/comment-draft', {
-      method: 'POST',
-      json: { studentId: studentId.value, termId: termId.value },
-    })
-    content.value = d.draft
-    status.value = 'AI草稿'
-    ElMessage.success(d.source === 'template' ? '已按模板生成草稿（未配置大模型 API）' : '大模型草稿已生成')
+    for (const s of students.value) {
+      await store.submit('COMMENT', s.id, termId.value)
+    }
+    ElMessage.success(`已提交 ${students.value.length} 位学生的寄语任务，后台生成中，可切换页面；进度见右上角「AI 任务」`)
   } finally {
-    drafting.value = false
+    batchLoading.value = false
   }
 }
 

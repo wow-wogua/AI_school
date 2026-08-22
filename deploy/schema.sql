@@ -478,3 +478,21 @@ CREATE TABLE IF NOT EXISTS t_report (
   KEY idx_task (task_id),
   KEY idx_student (student_id, term_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='成品报告';
+
+CREATE TABLE IF NOT EXISTS t_ai_task (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  task_type    VARCHAR(16) NOT NULL COMMENT 'COMMENT=寄语草稿 / SUMMARY=成长总结',
+  student_id   BIGINT NOT NULL,
+  term_id      BIGINT NOT NULL,
+  status       VARCHAR(8) NOT NULL DEFAULT '排队' COMMENT '排队/生成中/成功/失败',
+  source       VARCHAR(16) DEFAULT NULL COMMENT 'llm/template（成功时）',
+  result_json  LONGTEXT DEFAULT NULL COMMENT '结果 JSON（同同步接口返回体 data）',
+  error        VARCHAR(500) DEFAULT NULL,
+  created_by   BIGINT NOT NULL,
+  create_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  started_time DATETIME DEFAULT NULL,
+  finished_time DATETIME DEFAULT NULL,
+  KEY idx_creator (created_by, id),
+  KEY idx_student (student_id, term_id, task_type),
+  KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 分析任务队列';

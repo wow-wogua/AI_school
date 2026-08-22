@@ -7,15 +7,17 @@
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
       <el-select v-model="studentId" filterable placeholder="选择学生" style="min-width: 160px">
-        <el-option v-for="s in students" :key="s.id" :label="s.name" :value="s.id" />
+        <el-option v-for="s in students" :key="s.id" :label="optLabel(s.id, s.name)" :value="s.id" />
       </el-select>
       <el-select v-model="termId" placeholder="学期" style="min-width: 160px">
         <el-option v-for="t in terms" :key="t.id" :label="t.name" :value="t.id" />
       </el-select>
-      <el-button type="primary" :disabled="!studentId" :loading="loading" @click="analyze">AI 分析该学生</el-button>
+      <el-button type="primary" :disabled="!studentId" :loading="!!isRunning" @click="analyze">AI 分析该学生</el-button>
+      <el-tag v-if="isRunning" size="small" type="primary">{{ cur?.status === '排队' ? '排队中' : '分析中' }}，可切页后台继续</el-tag>
     </div>
 
-    <el-empty v-if="!blocks.length && !raw" description="选择学生后点击「AI 分析该学生」" />
+    <el-empty v-if="!blocks.length && !raw"
+      :description="isRunning ? 'AI 分析中，可切换页面，完成后回来自动展示' : '选择学生后点击「AI 分析该学生」'" />
     <el-card v-if="raw && !blocks.length" style="margin-top: 12px">
       <template #header>成长总结</template>
       <div style="white-space: pre-wrap">{{ raw }}</div>
@@ -30,10 +32,15 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
 import { api } from '../api/http'
+import { useAiTasksStore } from '../stores/aiTasks'
+
+const store = useAiTasksStore()
+const route = useRoute()
 
 const classes = ref<{ id: number; name: string }[]>([])
 const terms = ref<any[]>([])
@@ -41,9 +48,45 @@ const students = ref<{ id: number; name: string }[]>([])
 const classId = ref<number>()
 const termId = ref<number>()
 const studentId = ref<number>()
-const loading = ref(false)
 const raw = ref('')
 const blocks = ref<{ title: string; content: string }[]>([])
+
+/** 当前学生+学期的总结任务（总结不落库，恢复/完成展示都走任务结果体） */
+const cur = computed(() => studentId.value && termId.value
+  ? store.byKey.get(`SUMMARY-${studentId.value}-${termId.value}`) : undefined)
+const isRunning = computed(() => cur.value && (cur.value.status === '排队' || cur.value.status === '生成中'))
+
+let renderedTaskId = 0 // 已渲染结果的任务：防轮询重复渲染/重复拉详情
+
+// 切换学生/学期先清展示（本 watch 先于下方 cur watch 声明，同 tick 先执行）
+watch([studentId, termId], () => {
+  raw.value = ''
+  blocks.value = []
+  renderedTaskId = 0
+})
+
+// 任务完成（含切页/重开浏览器回来后）→ 拉结果体渲染
+watch(cur, async (t) => {
+  if (!t || t.status !== '成功' || renderedTaskId === t.taskId) return
+  renderedTaskId = t.taskId
+  const d = t.result ? t : await store.fetchDetail(t.taskId)
+  const r = d.result as { raw?: string; blocks?: Record<string, string> } | undefined
+  if (!r) return
+  raw.value = r.raw ?? ''
+  blocks.value = Object.entries(r.blocks ?? {})
+    .filter(([, v]) => v)
+    .map(([k, v]) => ({ title: k, content: v }))
+  if (t.source === 'template') {
+    ElMessage.info('未配置大模型 API，已按模板生成')
+  }
+}, { immediate: true })
+
+/** 学生下拉标签：批量时直接看到每个学生的任务进度 */
+function optLabel(id: number, name: string) {
+  const t = termId.value ? store.byKey.get(`SUMMARY-${id}-${termId.value}`) : undefined
+  if (t && (t.status === '排队' || t.status === '生成中')) return `${name} · ${t.status}`
+  return name
+}
 
 async function init() {
   const [cs, ts] = await Promise.all([
@@ -57,6 +100,14 @@ async function init() {
     classId.value = cs[0].id
     await loadStudents()
   }
+  // 任务面板点进来的预选
+  if (route.query.termId) {
+    const t = ts.find((x: any) => x.id === Number(route.query.termId))
+    if (t) termId.value = t.id
+  }
+  if (route.query.studentId && students.value.some((s) => s.id === Number(route.query.studentId))) {
+    studentId.value = Number(route.query.studentId)
+  }
 }
 
 async function loadStudents() {
@@ -69,24 +120,7 @@ async function loadStudents() {
 
 async function analyze() {
   if (!studentId.value || !termId.value) return
-  loading.value = true
-  raw.value = ''
-  blocks.value = []
-  try {
-    const d = await api<{ raw: string; blocks: Record<string, string>; source: string }>('/api/ai/summary', {
-      method: 'POST',
-      json: { studentId: studentId.value, termId: termId.value },
-    })
-    raw.value = d.raw ?? ''
-    blocks.value = Object.entries(d.blocks ?? {})
-      .filter(([, v]) => v)
-      .map(([k, v]) => ({ title: k, content: v }))
-    if (d.source === 'template') {
-      ElMessage.info('未配置大模型 API，已按模板生成')
-    }
-  } finally {
-    loading.value = false
-  }
+  await store.submit('SUMMARY', studentId.value, termId.value)
 }
 
 onMounted(init)
