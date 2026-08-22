@@ -5,7 +5,11 @@
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
       <el-input v-model="keyword" placeholder="姓名/学号" style="width: 180px" clearable @change="load" />
+      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 110px" @change="load">
+        <el-option label="在读" value="在读" /><el-option label="转出" value="转出" /><el-option label="毕业" value="毕业" />
+      </el-select>
       <el-button type="primary" @click="openCreate">新建学生</el-button>
+      <el-button @click="openImport">导入新生</el-button>
     </div>
 
     <el-table :data="records" size="small">
@@ -16,6 +20,12 @@
       </el-table-column>
       <el-table-column label="班级" width="130">
         <template #default="{ row }">{{ className(row.classId) }}</template>
+      </el-table-column>
+      <el-table-column label="状态" width="70">
+        <template #default="{ row }">
+          <el-tag v-if="row.status !== '在读'" size="small" type="info">{{ row.status }}</el-tag>
+          <span v-else>在读</span>
+        </template>
       </el-table-column>
       <el-table-column label="照片" width="70">
         <template #default="{ row }">
@@ -56,7 +66,7 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" style="width: 120px">
-            <el-option label="在读" value="在读" /><el-option label="转出" value="转出" />
+            <el-option label="在读" value="在读" /><el-option label="转出" value="转出" /><el-option label="毕业" value="毕业" />
           </el-select>
         </el-form-item>
         <el-form-item label="家长姓名"><el-input v-model="form.guardianName" /></el-form-item>
@@ -76,11 +86,34 @@
         <el-button type="primary" @click="save">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="importDialog" title="导入新生（Excel）" width="560px">
+      <div style="margin-bottom: 10px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6">
+        先下载模板，从第 2 行开始填写。班级名称必须与系统完全一致（当前有：{{ classNames.join('、') || '（先去组织管理建班）' }}）。
+        逐行校验：合法行入库，问题行跳过并列出原因。
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px">
+        <el-button size="small" @click="downloadTemplate">下载模板</el-button>
+        <input type="file" accept=".xlsx"
+          @change="(e: Event) => (importFile = (e.target as HTMLInputElement).files?.[0] ?? null)" />
+      </div>
+      <el-alert v-if="importResult" :type="importResult.failed ? 'warning' : 'success'" :closable="false">
+        成功导入 {{ importResult.inserted }} 人<template v-if="importResult.failed">，失败 {{ importResult.failed }} 行：
+          <div v-for="e in importResult.errors" :key="e.row" style="font-size: 12px">
+            第 {{ e.row }} 行：{{ e.reason }}
+          </div>
+        </template>
+      </el-alert>
+      <template #footer>
+        <el-button @click="importDialog = false">关闭</el-button>
+        <el-button type="primary" :disabled="!importFile" :loading="importing" @click="doImport">开始导入</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../../api/http'
 
@@ -90,10 +123,15 @@ const total = ref(0)
 const page = ref(1)
 const classId = ref<number>()
 const keyword = ref('')
+const statusFilter = ref('')
 const dialog = ref(false)
 const form = ref<any>({})
 const photos = ref<Record<number, string>>({})
 const photoFile = ref<File | null>(null)
+const importDialog = ref(false)
+const importFile = ref<File | null>(null)
+const importing = ref(false)
+const importResult = ref<{ inserted: number; failed: number; errors: { row: number; reason: string }[] } | null>(null)
 
 function className(id: number) {
   return classes.value.find((c: any) => c.id === id)?.name ?? id
@@ -103,6 +141,7 @@ async function load() {
   const qs = new URLSearchParams({ page: String(page.value), size: '20' })
   if (classId.value) qs.set('classId', String(classId.value))
   if (keyword.value) qs.set('keyword', keyword.value)
+  if (statusFilter.value) qs.set('status', statusFilter.value)
   const d = await api<{ total: number; records: any[] }>(`/api/admin/student/list?${qs}`)
   total.value = d.total
   records.value = d.records
@@ -154,6 +193,38 @@ async function remove(row: any) {
   await api(`/api/admin/student/${row.id}`, { method: 'DELETE' })
   ElMessage.success('已删除')
   await load()
+}
+
+const classNames = computed(() => classes.value.map((c: any) => c.name))
+
+function openImport() {
+  importFile.value = null
+  importResult.value = null
+  importDialog.value = true
+}
+
+async function downloadTemplate() {
+  const blob = await fetchBlob('/api/admin/student/import-template')
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = '新生导入模板.xlsx'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function doImport() {
+  if (!importFile.value) return
+  importing.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', importFile.value)
+    importResult.value = await apiForm('/api/admin/student/import', fd)
+    ElMessage.success(`导入完成：成功 ${importResult.value.inserted} 人`)
+    await load()
+  } finally {
+    importing.value = false
+  }
 }
 
 onMounted(async () => {

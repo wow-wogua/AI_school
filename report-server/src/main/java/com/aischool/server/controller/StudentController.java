@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 学生选择（发起报告生成用）：按数据权限过滤 */
+/** 学生选择（发起报告生成用）：按数据权限过滤；仅返回在读（转出/毕业学生不参与日常业务） */
 @RestController
 @RequestMapping("/api/student")
 @RequiredArgsConstructor
@@ -33,6 +33,7 @@ public class StudentController {
         List<Long> visible = dataScopeService.visibleClassIds(user);
 
         LambdaQueryWrapper<Student> qw = new LambdaQueryWrapper<Student>()
+                .eq(Student::getStatus, "在读")
                 .eq(classId != null, Student::getClassId, classId)
                 .like(keyword != null && !keyword.isBlank(), Student::getName, keyword)
                 .in(visible != null, Student::getClassId, visible != null ? visible : List.of(-1L))

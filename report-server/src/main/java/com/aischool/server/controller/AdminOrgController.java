@@ -23,6 +23,7 @@ import com.aischool.server.mapper.ScoreMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.excel.ExcelStudentHelper;
 import com.aischool.server.service.report.PdfStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -41,10 +42,14 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -66,6 +71,7 @@ public class AdminOrgController {
     private final CommentMapper commentMapper;
     private final HonorMapper honorMapper;
     private final PdfStoreService pdfStore;
+    private final ExcelStudentHelper excelStudent;
 
     private void checkAdmin() {
         if (!"ADMIN".equals(AuthUtil.current().role())) {
@@ -205,17 +211,57 @@ public class AdminOrgController {
         return ApiResponse.ok();
     }
 
+    /** 整班调班（升年级/分班）：全班在读学生移入目标班；历史数据按学生+学期关联，不受影响 */
+    @PutMapping("/class/{id}/move-students")
+    public ApiResponse<Map<String, Object>> moveStudents(@PathVariable Long id,
+                                                         @RequestBody Map<String, Long> req) {
+        checkAdmin();
+        Long target = req.get("targetClassId");
+        if (target == null || target.equals(id) || clazzMapper.selectById(target) == null) {
+            throw new BizException(400, "目标班级无效");
+        }
+        if (clazzMapper.selectById(id) == null) {
+            throw new BizException(404, "班级不存在");
+        }
+        int moved = studentMapper.update(null, new LambdaUpdateWrapper<Student>()
+                .eq(Student::getClassId, id)
+                .eq(Student::getStatus, "在读")
+                .set(Student::getClassId, target));
+        return ApiResponse.ok(Map.of("moved", moved));
+    }
+
+    /** 全班标记状态（毕业/转出）：换届时整届学生一键退场，档案与报告保留可查 */
+    @PutMapping("/class/{id}/mark-status")
+    public ApiResponse<Map<String, Object>> markClassStatus(@PathVariable Long id,
+                                                            @RequestBody Map<String, String> req) {
+        checkAdmin();
+        String status = req.get("status");
+        if (!"毕业".equals(status) && !"转出".equals(status)) {
+            throw new BizException(400, "status 仅支持 毕业/转出");
+        }
+        if (clazzMapper.selectById(id) == null) {
+            throw new BizException(404, "班级不存在");
+        }
+        int updated = studentMapper.update(null, new LambdaUpdateWrapper<Student>()
+                .eq(Student::getClassId, id)
+                .eq(Student::getStatus, "在读")
+                .set(Student::getStatus, status));
+        return ApiResponse.ok(Map.of("updated", updated));
+    }
+
     // ───────────────── 学生 ─────────────────
 
-    /** 学生档案列表（分页，含家长信息） */
+    /** 学生档案列表（分页，含家长信息；status 可筛选在读/转出/毕业，不传=全部） */
     @GetMapping("/student/list")
     public ApiResponse<Map<String, Object>> studentList(@RequestParam(required = false) Long classId,
                                                         @RequestParam(required = false) String keyword,
+                                                        @RequestParam(required = false) String status,
                                                         @RequestParam(defaultValue = "1") long page,
                                                         @RequestParam(defaultValue = "20") long size) {
         checkAdmin();
         var p = studentMapper.selectPage(Page.of(page, Math.min(size, 100)), new LambdaQueryWrapper<Student>()
                 .eq(classId != null, Student::getClassId, classId)
+                .eq(status != null && !status.isBlank(), Student::getStatus, status)
                 .and(keyword != null && !keyword.isBlank(),
                         q -> q.like(Student::getName, keyword).or().like(Student::getStudentNo, keyword))
                 .orderByAsc(Student::getId));
@@ -292,6 +338,80 @@ public class AdminOrgController {
         }
         studentMapper.deleteById(id);
         return ApiResponse.ok();
+    }
+
+    /** 新生 Excel 批量导入（管理员，multipart）：逐行校验，合法行入库，问题行返回明细（部分成功） */
+    @PostMapping("/student/import")
+    public ApiResponse<Map<String, Object>> importStudents(@RequestParam("file") MultipartFile file) {
+        checkAdmin();
+        if (file == null || file.isEmpty()) {
+            throw new BizException(400, "请选择 Excel 文件");
+        }
+        List<ExcelStudentHelper.StudentRow> rows;
+        try (InputStream in = file.getInputStream()) {
+            rows = excelStudent.read(in);
+        } catch (IOException e) {
+            throw new BizException(400, "读取上传文件失败");
+        }
+        if (rows.isEmpty()) {
+            throw new BizException(400, "Excel 里没有数据行（首行为表头，请从第 2 行开始填写）");
+        }
+        Map<String, Long> classIds = clazzMapper.selectList(null).stream()
+                .collect(Collectors.toMap(Clazz::getName, Clazz::getId, (a, b) -> a));
+        Set<String> seen = new HashSet<>();
+        List<Map<String, Object>> errors = new java.util.ArrayList<>();
+        int inserted = 0;
+        for (ExcelStudentHelper.StudentRow r : rows) {
+            String reason = null;
+            if (r.studentNo().isBlank()) {
+                reason = "学号为空";
+            } else if (seen.contains(r.studentNo())) {
+                reason = "学号在文件内重复";
+            } else if (studentMapper.selectCount(new LambdaQueryWrapper<Student>()
+                    .eq(Student::getStudentNo, r.studentNo())) > 0) {
+                reason = "学号已存在";
+            } else if (r.name().isBlank()) {
+                reason = "姓名为空";
+            } else if (!classIds.containsKey(r.className())) {
+                reason = "班级不存在: " + (r.className().isBlank() ? "(空)" : r.className());
+            } else if (!r.gender().isBlank() && !"男".equals(r.gender()) && !"女".equals(r.gender())) {
+                reason = "性别只能填 男/女: " + r.gender();
+            }
+            if (reason != null) {
+                errors.add(Map.of("row", r.rowNum(), "reason", reason));
+                continue;
+            }
+            seen.add(r.studentNo());
+            Student s = new Student();
+            s.setStudentNo(r.studentNo());
+            s.setName(r.name());
+            s.setGender("男".equals(r.gender()) ? "M" : "女".equals(r.gender()) ? "F" : null);
+            s.setClassId(classIds.get(r.className()));
+            s.setStatus("在读");
+            s.setGuardianName(r.guardianName().isBlank() ? null : r.guardianName());
+            s.setGuardianPhone(r.guardianPhone().isBlank() ? null : r.guardianPhone());
+            studentMapper.insert(s);
+            inserted++;
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("inserted", inserted);
+        data.put("failed", errors.size());
+        data.put("errors", errors);
+        return ApiResponse.ok(data);
+    }
+
+    /** 新生导入模板下载（仅表头，.xlsx） */
+    @GetMapping("/student/import-template")
+    public ResponseEntity<byte[]> studentImportTemplate() {
+        checkAdmin();
+        byte[] bytes = excelStudent.template();
+        String filename = URLEncoder.encode("新生导入模板.xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .contentLength(bytes.length)
+                .body(bytes);
     }
 
     /** 上传学生照片（管理员，multipart，jpg/jpeg/png ≤5MB），重复上传覆盖旧对象（功能点 §2） */
