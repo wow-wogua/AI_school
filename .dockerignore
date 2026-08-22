@@ -1,0 +1,10 @@
+tools/apache-maven-3.9.16/
+tools/npm-cache/
+docs/
+deploy/
+学生成长报告册.pdf
+**/node_modules/
+**/target/
+**/dist/
+report-web/e2e/
+**/*.log

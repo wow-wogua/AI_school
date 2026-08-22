@@ -1,0 +1,16 @@
+# 大模型（AI）配置模板 —— 复制本文件为 docker-compose.override.yml 并填入你的 key
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+# 改完后重启后端生效：docker compose up -d report-server
+# 说明：
+#   - 协议为 OpenAI 兼容 Chat Completions，DeepSeek / 通义千问 / 智谱 / Kimi / OpenAI 均可
+#   - 三项都留空（或不建 override）= 未启用 AI，寄语草稿自动降级为规则模板、证书转手动录入
+#   - 单一 model 同时服务两个 AI 功能：
+#       班主任寄语/成长总结草稿 → 纯文本模型即可（如 deepseek-v4-flash）
+#       荣誉证书图片识别       → 必须多模态模型（如 deepseek-v4-flash-vision-exp / qwen-vl / glm-4v）
+#     要同时用两个功能，请配多模态模型
+services:
+  report-server:
+    environment:
+      AISCHOOL_AI_BASE_URL: https://api.deepseek.com
+      AISCHOOL_AI_API_KEY: sk-你的key
+      AISCHOOL_AI_MODEL: deepseek-v4-flash

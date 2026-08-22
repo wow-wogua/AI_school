@@ -1,0 +1,207 @@
+/* =====================================================================
+   数智成长 · 初中素质报告平台 —— 全局样式
+   main.ts 先加载 element-plus/dist/index.css，后加载本文件，覆盖生效。
+   ===================================================================== */
+
+/* ---------------- 1. 设计令牌 ---------------- */
+:root {
+  /* 品牌 */
+  --brand-ink: #1e1b4b;            /* 导航底色起点（深靛蓝） */
+  --brand-indigo-deep: #312e81;
+  --brand-indigo: #4f46e5;         /* 主色：专业靛蓝 */
+  --brand-indigo-soft: #6366f1;
+  --brand-teal: #10b981;           /* 成长绿：正向/成功强调 */
+  --brand-teal-deep: #0d9467;
+  --brand-gradient: linear-gradient(135deg, #4f46e5 0%, #7c6ff0 48%, #10b981 100%);
+  --brand-gradient-bar: linear-gradient(90deg, #4f46e5, #10b981);
+
+  /* 阴影 / 圆角 */
+  --shadow-card: 0 1px 2px rgba(30,27,75,.04), 0 6px 20px rgba(30,27,75,.05);
+  --shadow-card-hover: 0 6px 14px rgba(30,27,75,.08), 0 14px 32px rgba(79,70,229,.14);
+  --shadow-pop: 0 12px 32px rgba(30,27,75,.16);
+  --radius-lg: 16px; --radius-md: 12px; --radius-sm: 8px;
+
+  /* EP 主色（light-N = 主色×(1−N/10) + 白，dark-2 = 主色×0.8，实算值） */
+  --el-color-primary: #4f46e5;
+  --el-color-primary-light-3: #847eed;
+  --el-color-primary-light-5: #a7a3f2;
+  --el-color-primary-light-7: #cac8f7;
+  --el-color-primary-light-8: #dcdafa;
+  --el-color-primary-light-9: #ededfc;
+  --el-color-primary-dark-2: #3f38b7;
+
+  --el-color-success: #10b981;
+  --el-color-success-light-3: #58cea7;
+  --el-color-success-light-5: #88dcc0;
+  --el-color-success-light-7: #b7ead9;
+  --el-color-success-light-8: #cff1e6;
+  --el-color-success-light-9: #e7f8f2;
+  --el-color-success-dark-2: #0d9467;
+
+  --el-color-warning: #f59e0b;
+  --el-color-warning-light-3: #f8bb54;
+  --el-color-warning-light-5: #facf85;
+  --el-color-warning-light-7: #fce2b6;
+  --el-color-warning-light-8: #fdecce;
+  --el-color-warning-light-9: #fef5e7;
+  --el-color-warning-dark-2: #c47e09;
+
+  --el-color-danger: #ef4444;
+  --el-color-danger-light-3: #f47c7c;
+  --el-color-danger-light-5: #f7a2a2;
+  --el-color-danger-light-7: #fac7c7;
+  --el-color-danger-light-8: #fcdada;
+  --el-color-danger-light-9: #fdecec;
+  --el-color-danger-dark-2: #bf3636;
+  --el-color-error: #ef4444;              /* error = danger（el-message/表单校验） */
+  --el-color-error-light-3: #f47c7c;  --el-color-error-light-5: #f7a2a2;
+  --el-color-error-light-7: #fac7c7;  --el-color-error-light-8: #fcdada;
+  --el-color-error-light-9: #fdecec;  --el-color-error-dark-2: #bf3636;
+
+  --el-color-info: #64748b;
+  --el-color-info-light-3: #939eae;
+  --el-color-info-light-5: #b2bac5;
+  --el-color-info-light-7: #d1d5dc;
+  --el-color-info-light-8: #e0e3e8;
+  --el-color-info-light-9: #f0f1f3;
+  --el-color-info-dark-2: #505d6f;
+
+  /* 中性色 / 字体 / 圆角 / 阴影 */
+  --el-bg-color-page: #f4f6fb;
+  --el-text-color-primary: #1f2937;
+  --el-text-color-regular: #4b5563;
+  --el-text-color-secondary: #6b7280;
+  --el-text-color-placeholder: #9ca3af;
+  --el-border-color: #e5e7eb;
+  --el-border-color-light: #ebedf3;
+  --el-border-color-lighter: #f2f3f7;
+  --el-fill-color-light: #f4f5fb;
+  --el-font-family: system-ui, -apple-system, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-box-shadow: 0 12px 32px 4px rgba(30,27,75,.08), 0 2px 6px rgba(30,27,75,.06);
+  --el-box-shadow-light: 0 6px 20px rgba(30,27,75,.08);
+  --el-box-shadow-lighter: 0 2px 10px rgba(30,27,75,.05);
+}
+
+/* ---------------- 2. 基础 ---------------- */
+* { box-sizing: border-box; }
+html, body, #app { margin: 0; height: 100%; }
+body {
+  font-family: var(--el-font-family);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- 3. 页面骨架与通用部件 ---------------- */
+/* 三档响应式：手机 <768 / 平板 768~1023 / 电脑 ≥1024 */
+.page { padding: 20px 16px 32px; max-width: 1200px; margin: 0 auto; }
+
+.page-title {                       /* 用法：<h2 class="page-title"><el-icon><Timer/></el-icon>成长时间轴</h2> */
+  display: flex; align-items: center; gap: 10px;
+  margin: 2px 0 14px; font-size: 20px; font-weight: 700; color: var(--el-text-color-primary);
+}
+.page-title::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: var(--brand-gradient-bar); }
+.page-title .el-icon {
+  color: var(--brand-indigo); background: var(--el-color-primary-light-9);
+  padding: 6px; border-radius: var(--radius-sm); font-size: 18px;
+}
+
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  margin-bottom: 16px; padding: 10px 12px;
+  background: #fff; border: 1px solid var(--el-border-color-light);
+  border-radius: var(--radius-md); box-shadow: 0 1px 2px rgba(30,27,75,.03);
+}
+
+.stat-chip.el-tag { border: none; border-radius: 999px; padding-right: 12px; font-weight: 600; }
+
+/* ---------------- 4. EP 组件级覆写（组件自身声明的变量须在此层覆盖） ---------------- */
+.el-card {
+  --el-card-border-radius: var(--radius-md);
+  --el-card-border-color: var(--el-border-color-light);
+  border-radius: var(--el-card-border-radius);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow .25s ease, transform .25s ease;
+}
+.el-card__header { font-weight: 600; border-bottom: 1px solid var(--el-border-color-lighter); }
+
+.el-table {
+  --el-table-header-bg-color: #f4f5fb;
+  --el-table-header-text-color: var(--el-text-color-regular);
+  --el-table-row-hover-bg-color: var(--el-color-primary-light-9);   /* 悬停淡靛蓝 #ededfc */
+  --el-table-border-color: var(--el-border-color-light);
+}
+.el-table th.el-table__cell { font-weight: 600; }
+
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):not(.is-disabled) {
+  background: linear-gradient(135deg, #4f46e5 0%, #5b54ea 55%, #6366f1 100%);
+  border: none;
+}
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):not(.is-disabled):hover,
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):not(.is-disabled):focus {
+  background: linear-gradient(135deg, #5b54ea 0%, #7471ef 55%, #818cf8 100%);
+}
+.el-button:not(.is-link):active { transform: scale(0.98); }        /* 按压微缩，代替 ripple */
+
+.el-dialog { border-radius: var(--radius-lg); }
+.el-dialog__title { font-weight: 600; }
+
+.el-tabs__active-bar { height: 3px; border-radius: 3px; background: var(--brand-gradient-bar); }
+.el-tabs__item.is-active { font-weight: 700; }
+
+.el-empty__description p { color: var(--el-text-color-secondary); }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #c7cbe4; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #aab1e8; }
+::-webkit-scrollbar-track { background: transparent; }
+
+.el-button:focus-visible, .links a:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 2px; }
+
+/* ---------------- 5. 动效 ---------------- */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+/* 注意 fill 用 backwards 而非 both：forwards 会把 transform 锁死，hover 抬升失效 */
+.page .toolbar { animation: rise-in .35s ease-out .05s backwards; }
+.page > .el-card, .page .cards .el-card { animation: rise-in .4s ease-out backwards; }
+.page .cards .el-card:nth-child(2) { animation-delay: .07s; }
+.page .cards .el-card:nth-child(3) { animation-delay: .14s; }
+.page .cards .el-card:nth-child(n + 4) { animation-delay: .18s; }
+.page > .el-card:hover, .page .cards .el-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+
+.el-timeline-item { animation: rise-in .35s ease-out backwards; }
+.el-timeline-item:nth-child(2) { animation-delay: .06s; }
+.el-timeline-item:nth-child(3) { animation-delay: .12s; }
+.el-timeline-item:nth-child(n + 4) { animation-delay: .16s; }
+
+/* 路由切换（App.vue <transition name="page-fade">） */
+.page-fade-enter-active { transition: opacity .24s ease, transform .24s ease; }
+/* 离场必须零时长：旧路由立即卸载，避免过渡期内旧页面的 .el-select 等共享选择器
+   残留 DOM 被 E2E 立即点击命中（点击落在即将销毁的组件上，弹出层随之销毁） */
+.page-fade-leave-active { transition: none; }
+.page-fade-enter-from { opacity: 0; transform: translateY(8px); }
+
+/* ---------------- 6. 平板 768~1023（补齐注释承诺的三档规则） ---------------- */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .page { padding: 16px 12px 24px; }
+  .toolbar .el-select { flex: 1 1 160px; }   /* 允许换行铺满，min-width 内联样式仍生效 */
+  .el-table { font-size: 13px; }
+}
+
+/* ---------------- 7. 手机 <768 ---------------- */
+@media (max-width: 767px) {
+  .page { padding: 12px 8px 24px; }
+  .toolbar { padding: 8px; }
+  .toolbar .el-select { width: 100% !important; }   /* 原规则原样保留（E2E 依赖不横向滚动） */
+  .el-table { font-size: 13px; }
+  .page-title { font-size: 18px; }
+}
+
+/* ---------------- 8. 减少动效 ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

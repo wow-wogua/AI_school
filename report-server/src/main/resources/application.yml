@@ -1,0 +1,58 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: report-server
+  datasource:
+    url: jdbc:mysql://localhost:3306/ai_school?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: aischool123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 20s  # 须大于 BLPOP 阻塞时长(5s)，否则空队列时客户端超时先于服务端返回
+  servlet:
+    multipart:
+      max-file-size: 10MB   # 荣誉证书上传上限
+      max-request-size: 11MB
+  jackson:
+    # 渲染契约要求保留 null（incomeTop5 缺位 value:null 等），不能用 non_null
+    default-property-inclusion: always
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+
+aischool:
+  jwt:
+    # HS256 密钥（base64，32 字节以上）；生产环境必须改
+    secret: YWlfc2Nob29sX20zX200X2RlZmF1bHRfanZ0X3NlY3JldF9wbGVhc2VfY2hhbmdlX21lXzIwMjY=
+    expire-hours: 12
+  cors:
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+  minio:
+    endpoint: http://localhost:9000
+    access-key: aischool
+    secret-key: aischool123
+    bucket: ai-school-reports
+  render:
+    # 渲染核心（冻结模块）主目录：classpath = target/classes + target/lib/*.jar
+    renderer-home: D:/srp_project/AI_school/report-renderer
+    concurrency: 6          # Playwright 渲染进程池大小（4~8）
+    timeout-seconds: 180    # 单份渲染超时
+    work-dir: D:/srp_project/AI_school/report-server/target/render-work
+  ai:
+    # OpenAI 兼容接口；api-key 留空 → AI 草稿降级为规则模板生成（硬数字仍由规则引擎计算）
+    base-url: ""
+    api-key: ""
+    model: ""
+    timeout-seconds: 60
+
+logging:
+  level:
+    com.aischool.server: info

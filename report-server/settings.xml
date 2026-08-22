@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- report-server 专用：本地仓库放项目 tools/ 下（勿写 C 盘 ~/.m2）；阿里云镜像加速 -->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+  <localRepository>D:/srp_project/AI_school/tools/m2-repo</localRepository>
+  <mirrors>
+    <mirror>
+      <id>aliyun</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Aliyun Central</name>
+      <url>https://maven.aliyun.com/repository/public</url>
+    </mirror>
+  </mirrors>
+</settings>

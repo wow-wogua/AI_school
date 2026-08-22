@@ -1,0 +1,110 @@
+# 一键全栈（项目根执行：docker compose up -d --build）
+# 首次启动 mysql 自动导入 deploy/schema.sql + seed.sql（仅空数据卷时执行一次）
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: aischool-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: aischool123
+      MYSQL_DATABASE: ai_school
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 首次建库自动执行（仅空数据卷时）：先表结构后种子数据
+      - ./deploy/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./deploy/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-paischool123"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: aischool-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  minio:
+    image: minio/minio
+    container_name: aischool-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: aischool
+      MINIO_ROOT_PASSWORD: aischool123
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API（后端用）
+      - "9001:9001"   # 控制台
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  report-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: server
+    image: aischool/report-server:1.0
+    container_name: aischool-server
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ai_school?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATA_REDIS_HOST: redis
+      AISCHOOL_MINIO_ENDPOINT: http://minio:9000
+      AISCHOOL_RENDER_RENDERER_HOME: /app/renderer
+      AISCHOOL_RENDER_WORK_DIR: /app/render-work
+      AISCHOOL_RENDER_CONCURRENCY: "4"
+    ports:
+      - "8080:8080"   # 调试/验证脚本直连用；正常访问走 report-web
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && exec 3>&-"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 120s
+
+  report-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    image: aischool/report-web:1.0
+    container_name: aischool-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - report-server
+
+volumes:
+  mysql-data:
+  redis-data:
+  minio-data:

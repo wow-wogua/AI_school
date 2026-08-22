@@ -1,0 +1,28 @@
+# ── 敏感 / 本机配置（绝不提交）──────────────────────────
+# AI key 所在的本机覆盖文件：gitignore 保护 + .example 模板进仓库
+docker-compose.override.yml
+
+# ── 依赖与构建产物 ─────────────────────────────────────
+**/node_modules/
+**/dist/
+**/target/
+tools/npm-cache/
+tools/apache-maven-3.9.16/
+
+# 本机 maven 依赖仓库（111MB 构建加速缓存）：仓库只留目录占位，
+# 克隆后 docker build 自动从阿里云拉取（首次构建较慢，属预期）
+tools/m2-repo/*
+!tools/m2-repo/.gitkeep
+
+# ── 运行时产物 / 日志 / QA 过程文件 ────────────────────
+**/*.log
+report-web/e2e/shots/
+report-web/e2e/_*.mjs
+
+# ── 不入库的本机参考 / 过程文档 ────────────────────────
+功能点.md
+学生成长报告册.pdf
+
+# ── 系统杂物 ──────────────────────────────────────────
+.DS_Store
+Thumbs.db

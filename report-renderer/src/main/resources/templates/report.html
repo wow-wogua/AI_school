@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"/>
+<title>学生成长报告册</title>
+<style>
+  /* ===== 全局：A4 固定 52 页，每页 210×296.9mm，页眉页码由每页 CSS 绝对定位（JS 注入） ===== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "HarmonyOS Sans SC", Arial, sans-serif; color: #000; background: #fff; }
+  .page { width: 210mm; height: 296.9mm; position: relative; overflow: hidden;
+          page-break-after: always; background: #fff; }
+  .page:last-child { page-break-after: auto; }
+  /* 色区：--pnc 页码色 / --lc 页码细线色 / --chip 标题衬块 / --tbox 标题底块 */
+  .z-o { --pnc: #DC7717; --lc: #FFD8B3; --chip: #FDF2E6; }
+  .z-b { --pnc: #181C83; --lc: #E7E6ED; --chip: #181C83; --chipop: 0.149; --tbox: #24018F; }
+  .z-g { --pnc: #168C51; --lc: #E7F3ED; --chip: #168C51; --tbox: #168C51; }
+  .z-o .hdr { color: #313131; }
+  .z-b .hdr { color: #181C83; }
+  .z-g .hdr { color: #168C51; }
+  .hdr { position: absolute; top: 26.1pt; font-size: 9pt; white-space: nowrap; }
+  .hdr.r { right: 23pt; }
+  .hdr.l { left: 56pt; }
+  .pgnum { position: absolute; top: 810pt; left: 0; width: 100%; text-align: center;
+           font-size: 9pt; color: var(--pnc); }
+  .pline { position: absolute; top: 814.6pt; height: .7pt; background: var(--lc); }
+  .pl1 { left: 0; width: 278.8pt; }
+  .pl2 { left: 316.2pt; right: 0; }
+  .psq { position: absolute; top: 814.6pt; width: 3pt; height: 3pt; background: var(--pnc); }
+  .abs { position: absolute; }
+  .t16 { position: absolute; left: 0; width: 100%; text-align: center;
+         font-size: 16.5pt; font-weight: bold; color: #000; }
+  /* 标题 = 全彩字形叠在半透明圆角药丸上（样例矢量实测：z-b chip fop 0.149 / .t16v 0.102） */
+  .t16v { position: absolute; left: 0; width: 100%; text-align: center;
+          font-size: 16.5pt; font-weight: bold; color: var(--tbox); }
+  .t16v::before { content: ''; position: absolute; left: 50%; top: 8.9pt;
+                  transform: translateX(-50%); width: 105pt; height: 15pt;
+                  background: var(--pnc); border-radius: 7.5pt; opacity: 0.102; }
+  .t16v span { position: relative; }
+  .t18 { position: absolute; top: 67pt; left: 0; width: 100%; text-align: center;
+         font-size: 18pt; font-weight: bold; color: var(--pnc); }
+  .t18::before { content: ''; position: absolute; left: 50%; top: 12.4pt;
+                 transform: translateX(-50%); width: var(--chipw, 43.4pt); height: 18pt;
+                 background: var(--chip); border-radius: 9pt; opacity: var(--chipop, 1); }
+  .t18 span { position: relative; }
+  .pill { position: absolute; width: 13pt; background: #fff; border-radius: 2pt;
+          font-size: 6pt; line-height: 9pt; text-align: center; color: #000;
+          text-shadow: 1pt 1pt 0 #333; }
+  .sec-o { font-size: 12pt; color: #DC7717; font-weight: bold; }
+  .sec-b { font-size: 12pt; color: #181C83; font-weight: bold; }
+  .sec-k { font-size: 12pt; color: #000; font-weight: bold; }
+  .csub { font-size: 10.5pt; color: #1A1A1A; text-align: center; }
+  .csub-b { font-size: 10.5pt; color: #181C83; text-align: center; }
+  .chart { width: 100%; border: 1pt solid #FBF2E7; border-radius: 2pt; }
+  .cb-e { border-color: #E7E8F2; }
+  .nchip { display: inline-block; position: relative; top: 3.6pt; font-size: 18pt; font-weight: bold;
+           color: #000; line-height: 21.5pt; padding: 0 3.5pt; background: #168C51; border-radius: 2pt; }
+  .row2 { display: flex; }
+  .row2 > div { flex: 1; min-width: 0; }
+  .toc-row { display: flex; align-items: baseline; font-size: 9pt; color: #000; line-height: 28.5pt; }
+  .toc-row .dots { flex: 1; border-bottom: 1px dotted #fff; margin: 0 10pt; }
+  .divider-title { position: absolute; top: 383pt; left: 0; width: 100%; text-align: center;
+                   font-size: 28.5pt; font-weight: bold; }
+  .motif { position: absolute; top: 442pt; left: 0; width: 100%; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ p01 目录 ═══════════ -->
+<div class="page z-o nohdr nonum" style="background:linear-gradient(180deg,#35B6C9 0%,#1E7FA8 100%)">
+  <div class="abs" style="top:54.1pt;left:60.7pt;right:60.7pt;text-align:right;font-size:22.5pt;font-weight:bold;color:#F7C572;letter-spacing:10pt;margin-right:-10pt">目录</div>
+  <div class="abs" style="top:81.1pt;left:60.7pt;right:60.7pt;text-align:right;font-size:22.5pt;color:#000;letter-spacing:3pt;margin-right:-3pt">CONTENTS</div>
+  <div class="abs" style="top:157.5pt;left:83pt;right:60.7pt">
+    <div class="toc-row"><span>学校理念</span><span class="dots"></span><span>4</span></div>
+    <div class="toc-row"><span>学校风采</span><span class="dots"></span><span>5</span></div>
+    <div class="toc-row"><span>“九格”育人体系</span><span class="dots"></span><span>6</span></div>
+    <div class="toc-row"><span>校长寄语</span><span class="dots"></span><span>7</span></div>
+    <div class="toc-row"><span>国家课程学业评价</span><span class="dots"></span><span>8</span></div>
+    <div class="toc-row"><span>我的平时成绩</span><span class="dots"></span><span>21</span></div>
+    <div class="toc-row"><span>学生个人综合素质成长</span><span class="dots"></span><span>22</span></div>
+    <div class="toc-row"><span>我的活动</span><span class="dots"></span><span>43</span></div>
+    <div class="toc-row"><span>成长银行</span><span class="dots"></span><span>45</span></div>
+    <div class="toc-row"><span>我的成长象征物</span><span class="dots"></span><span>49</span></div>
+    <div class="toc-row"><span>综合素质评定</span><span class="dots"></span><span>51</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ p02 学校理念 ═══════════ -->
+<div class="page z-o nonum">
+  <img class="abs" th:src="${imgIdeaBg}" style="top:0;left:0;width:595pt;height:842pt" alt=""/>
+  <div class="abs" style="top:151pt;left:60.7pt;width:473.6pt">
+    <div th:each="p : ${r.school.philosophy}" style="margin-bottom:24.2pt">
+      <div style="float:left;width:137.3pt;text-align:right;font-size:12pt;font-weight:bold" th:text="${p[0]}">教育集团宗旨</div>
+      <div style="float:left;width:243pt;margin-left:41pt;position:relative;top:1.4pt;font-size:12pt;line-height:15.4pt" th:text="${p[1]}">办现代化优质学校，培育有创新精神、国际视野的高素质人才！</div>
+      <div style="clear:both"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ p03 学校风采 ═══════════ -->
+<div class="page z-o">
+  <div class="t16" style="top:97pt">学校风采</div>
+  <img class="abs" th:src="${imgIconL}" style="top:100pt;left:229pt;width:13pt;height:15pt" alt=""/>
+  <img class="abs" th:src="${imgIconR}" style="top:100pt;left:353pt;width:13pt;height:15pt" alt=""/>
+  <div class="abs" style="top:166.6pt;left:79pt;width:436pt;text-indent:0;font-size:12pt;color:#2C3E50;line-height:22.6pt"
+       th:text="${r.school.intro}">学校简介</div>
+  <img class="abs" th:src="${imgPhoto1}" style="top:271pt;left:136pt;width:323pt;height:215pt" alt=""/>
+  <img class="abs" th:src="${imgPhoto2}" style="top:516pt;left:136pt;width:323pt;height:216pt" alt=""/>
+</div>
+
+<!-- ═══════════ p04 “九格”育人体系 ═══════════ -->
+<div class="page z-o">
+  <div class="t16" style="top:97pt">“九格”育人体系</div>
+  <img class="abs" th:src="${imgIconL}" style="top:100pt;left:205pt;width:13pt;height:15pt" alt=""/>
+  <img class="abs" th:src="${imgIconR}" style="top:100pt;left:377pt;width:13pt;height:15pt" alt=""/>
+  <div class="abs" style="top:166.5pt;left:79pt;width:441pt;text-indent:15pt;font-size:12pt;color:#2C3E50;line-height:22.6pt"
+       th:text="${r.school.nineGridIntro}">九格介绍</div>
+  <img class="abs" th:src="${imgNineGrid}" style="top:293pt;left:136pt;width:323pt;height:379pt" alt=""/>
+</div>
+
+<!-- ═══════════ p05 校长寄语（原版整页图，文字为学校级静态内容） ═══════════ -->
+<div class="page z-o" style="background:#FDF8EE">
+  <img class="abs" th:src="${imgPrincipal}" style="top:0;left:0;width:595pt;height:842pt" alt=""/>
+</div>
+
+<!-- ═══════════ p06 隔页·国家课程学业评价（橙区奶油底） ═══════════ -->
+<div class="page z-o nohdr" style="background:linear-gradient(180deg,#FCF0DC 0%,#F8E1BC 100%)">
+  <img class="abs" th:src="${imgCornerTl}" style="top:0;left:0;width:417pt;height:336pt" alt=""/>
+  <img class="abs" th:src="${imgCornerBr}" style="top:426pt;left:178pt;width:417pt;height:416pt" alt=""/>
+  <div class="divider-title" style="color:#DC7717">国家课程学业评价</div>
+  <div class="motif">
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#DC7717"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;background:#E8A54B;transform:rotate(45deg);margin:0 16pt"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#DC7717"></span>
+  </div>
+</div>
+
+<!-- ═══════════ p07 学业综合（c7a 雷达 / c7b 三柱 / c7c 横向对比 / c7d 周折线） ═══════════ -->
+<div class="page z-o">
+  <img class="abs" th:src="${imgCornerTr}" style="top:0;left:0;width:79pt;height:64pt" alt=""/>
+  <img class="abs" th:src="${imgDeco}" style="top:600pt;left:499pt;width:54pt;height:38pt" alt=""/>
+  <div class="abs" style="top:79.4pt;left:59.9pt;width:475.2pt;height:18pt;background:#FDF2E6;border-radius:9pt"></div>
+  <div class="t18"><span>国家课程学业评价</span></div>
+  <div class="abs sec-o" style="top:113pt;left:60.7pt">学业综合得分发展</div>
+  <div id="c7a" class="chart abs" style="top:147.3pt;left:60.3pt;width:230.8pt;height:229px"></div>
+  <div id="c7b" class="chart abs" style="top:147.3pt;left:303.9pt;width:230.8pt;height:229px"></div>
+  <div class="abs sec-o" style="top:345pt;left:60.7pt">学业过程性评价</div>
+  <div id="c7c" class="chart abs" style="top:378.8pt;left:60.3pt;width:183.6pt;height:200px"></div>
+  <div id="c7d" class="chart abs" style="top:378.8pt;left:256.7pt;width:278pt;height:200px"></div>
+  <div class="abs pill" style="top:438.3pt;left:103.7pt">正向指标</div>
+  <div class="abs pill" style="top:465.3pt;left:103.7pt">负向指标</div>
+  <div class="abs csub" style="top:537pt;left:84pt;white-space:nowrap">学业过程性评价总分横向对比</div>
+  <div class="abs csub" style="top:537pt;left:312pt;white-space:nowrap">学业过程性评价总分周数据纵向对比</div>
+  <div class="abs sec-o" style="top:576pt;left:60.7pt">优势学科</div>
+  <div class="abs" style="top:609.2pt;left:60.7pt;width:474pt;height:36pt;background:#FBF2E7"></div>
+  <div class="abs" style="top:621pt;left:73pt;font-size:9pt;color:#1A1A1A" th:text="${r.academic.advantage}">生物</div>
+  <div class="abs sec-o" style="top:660pt;left:60.7pt">待努力学科</div>
+  <div class="abs" style="top:693.9pt;left:60.7pt;width:474pt;height:36pt;background:#DEDEDE"></div>
+  <div class="abs" style="top:706pt;left:73pt;font-size:9pt;color:#1A1A1A" th:text="${r.academic.toImprove}">道德与法治</div>
+</div>
+<!-- ═══════════ p08–18 学科页 ×11 ═══════════ -->
+<div class="page z-o" th:each="sp, sStat : ${r.subjectPages}">
+  <img class="abs" th:src="${imgCornerTr}" style="top:-2pt;left:531pt;width:64pt;height:80pt" alt=""/>
+  <img class="abs" th:src="${imgDeco}" style="top:692pt;left:499pt;width:54pt;height:37pt" alt=""/>
+  <div class="t18" th:style="'--chipw:' + (21.69 * ${#strings.length(sp.name)}) + 'pt'"><span th:text="${sp.name}">语文</span></div>
+  <div class="abs sec-o" style="top:113pt;left:60.7pt" th:text="${sp.name} + '学业评价'">语文学业评价</div>
+  <div class="abs" style="top:147.6pt;left:60.7pt;width:474pt;height:33.7pt;background:#FBF2E7"></div>
+  <div class="abs" style="top:156pt;left:73pt;font-size:13.5pt;font-weight:bold;color:#DC7717" th:text="${sp.score}">97.5</div>
+  <div class="abs sec-o" style="top:205pt;left:60.7pt">学科维度发展</div>
+  <div class="chart abs" th:id="'sa'+${sStat.index}" style="top:238.7pt;left:60.3pt;width:230.8pt;height:230px"></div>
+  <div class="chart abs" th:id="'sb'+${sStat.index}" style="top:238.7pt;left:303.9pt;width:230.8pt;height:230px"></div>
+  <div class="abs sec-o" style="top:436pt;left:60.7pt">学科过程性评价</div>
+  <div class="chart abs" th:id="'sc'+${sStat.index}" style="top:470.2pt;left:60.3pt;width:183.6pt;height:200px"></div>
+  <div class="chart abs" th:id="'sd'+${sStat.index}" style="top:470.2pt;left:256.7pt;width:278pt;height:200px"></div>
+  <div class="abs pill" style="top:529.4pt;left:102.9pt">正向指标</div>
+  <div class="abs pill" style="top:556.4pt;left:102.9pt">负向指标</div>
+  <div class="abs csub" style="top:629pt;left:100pt;white-space:nowrap">学科评价得分横向对比</div>
+  <div class="abs csub" style="top:629pt;left:327pt;white-space:nowrap">学科评价得分周数据纵向对比</div>
+  <div class="abs sec-o" style="top:667pt;left:60.7pt">成长箴言</div>
+  <div class="abs" style="top:700.7pt;left:60.7pt;width:474pt;background:#FBF2E7;padding:9.3pt 0 8.6pt">
+    <div style="margin-left:12.3pt;width:447pt;font-size:9pt;color:#1A1A1A;line-height:18pt"
+         th:text="${sp.motto}">博观而约取，厚积而薄发。 ——苏轼 箴言：学习之道，在于坚持和寻找正确的方法。</div>
+  </div>
+</div>
+
+<!-- ═══════════ p19 我的平时成绩（标题/表头样例为矢量轮廓 → 白名单） ═══════════ -->
+<div class="page z-o">
+  <div class="t16" style="top:97pt">我的平时成绩</div>
+  <div class="abs" style="top:152pt;left:60.7pt;width:473.6pt">
+    <div style="font-size:12pt;font-weight:bold;color:#DC7717">学科平时成绩</div>
+    <table style="table-layout:fixed;width:100%;background:#FFF8E7;border-collapse:collapse;margin-top:2pt">
+      <tr>
+        <th th:each="s : ${r.regularScores.subjects}" th:text="${s.name}"
+            style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">语文</th>
+      </tr>
+      <tr>
+        <td th:each="s : ${r.regularScores.subjects}" th:text="${s.score}"
+            style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:10pt 2pt;text-align:center">100</td>
+      </tr>
+    </table>
+  </div>
+  <div class="abs" style="top:234pt;left:60.7pt;width:473.6pt">
+    <div style="font-size:12pt;font-weight:bold;color:#DC7717">作业完成情况</div>
+    <table style="table-layout:fixed;width:100%;background:#FFF8E7;border-collapse:collapse;margin-top:2pt">
+      <colgroup><col style="width:31.5pt"><col th:each="c : ${r.regularScores.homework.cols}"></colgroup>
+      <tr>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt;text-align:center">学科</th>
+        <th th:each="c : ${r.regularScores.homework.cols}" th:text="${c}"
+            style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt;text-align:center">作业登记综合</th>
+      </tr>
+      <tr th:each="row : ${r.regularScores.homework.rows}">
+        <td th:text="${row['subject']}"
+            style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:11pt 2pt;text-align:center">语文</td>
+        <td th:each="v : ${row['values']}" th:text="${v}"
+            style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:16pt 2pt 6.5pt;text-align:center">77(42次)</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════ p20 隔页·学生个人综合素质成长（蓝区） ═══════════ -->
+<div class="page z-b nohdr" style="background:linear-gradient(180deg,#C9D4F0 0%,#A9B8E8 100%)">
+  <div class="divider-title" style="color:#181C83">学生个人综合素质成长</div>
+  <div class="motif">
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#181C83"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;background:#5B6BB8;transform:rotate(45deg);margin:0 16pt"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#181C83"></span>
+  </div>
+</div>
+
+<!-- ═══════════ p21 综合素质成长（双雷达） ═══════════ -->
+<div class="page z-b">
+  <div class="abs" style="top:67.7pt;left:0;width:100%;text-align:center;font-size:13.5pt;font-weight:bold;color:#000">个人综合素质成长</div>
+  <div id="radarCur" class="chart abs" style="top:112.8pt;left:60.3pt;width:232.3pt;height:227px"></div>
+  <div id="radarLast" class="chart abs" style="top:112.8pt;left:302.4pt;width:232.3pt;height:227px"></div>
+  <div class="abs csub" style="top:298pt;left:119pt;white-space:nowrap">本学期个人综合素质成长</div>
+  <div class="abs csub" style="top:298pt;left:361pt;white-space:nowrap">上学期个人综合素质成长</div>
+  <div class="abs sec-k" style="top:359pt;left:60.7pt">优势发展纬度</div>
+  <div class="abs" style="top:393pt;left:75pt;font-size:9pt;color:#1A1A1A" th:text="${#strings.listJoin(r.radar.advantages,',')}">智格,信格</div>
+  <div class="abs sec-k" style="top:440pt;left:60.7pt">待努力发展纬度</div>
+  <div class="abs" style="top:474pt;left:75pt;font-size:9pt;color:#1A1A1A" th:text="${#strings.listJoin(r.radar.toImprove,',')}">心格</div>
+  <div class="abs sec-k" style="top:521pt;left:60.7pt">成长箴言</div>
+  <div class="abs" style="top:551.9pt;left:75pt;width:459pt;font-size:10.5pt;color:#1A1A1A;line-height:18pt">
+    <div th:text="${r.radar.motto}">大志非才不就，大才非学不成。</div>
+    <div th:text="${r.radar.mottoNote}">译文：没有才，宏伟的志向就不能实现；不学习，就不能成大才。</div>
+    <div th:text="${r.radar.mottoSource}">——（明）郑心材《郑敬中摘语》</div>
+  </div>
+</div>
+<!-- ═══════════ p22–40 九格：每格 = 图表页(+记录页) ═══════════ -->
+<div th:each="g, gStat : ${r.grids}" th:remove="tag">
+<div class="page z-b">
+  <div class="t18"><span th:text="${g.name}">国格</span></div>
+  <div class="abs sec-b" style="top:104pt;left:60.7pt" th:text="${g.name} + '发展概述'">国格发展概述</div>
+  <div class="abs" style="top:138.3pt;left:60.3pt;width:475.9pt;height:100.4pt;border:1pt solid #FBF2E7;border-radius:2pt"></div>
+  <div class="abs" style="top:152pt;left:60.7pt;width:473.6pt;display:flex;text-align:center">
+    <div style="flex:1">
+      <div style="font-size:22.5pt;line-height:39pt;font-weight:bold;color:#181C83;position:relative;top:3.5pt" th:text="${g.points}">12</div>
+      <div style="font-size:10.5pt;color:#8C8C8C;margin-top:13pt">获得评价积分</div>
+    </div>
+    <div style="flex:1">
+      <div style="font-size:22.5pt;line-height:39pt;font-weight:bold;color:#181C83;position:relative;top:3.5pt" th:text="${g.count}">12</div>
+      <div style="font-size:10.5pt;color:#8C8C8C;margin-top:13pt">获得评价次数</div>
+    </div>
+    <div style="flex:1">
+      <div style="font-size:22.5pt;line-height:39pt;font-weight:bold;color:#181C83;position:relative;top:3.5pt" th:text="${g.kinds}">3</div>
+      <div style="font-size:10.5pt;color:#8C8C8C;margin-top:13pt">获得评价种类</div>
+    </div>
+  </div>
+  <div class="abs sec-b" style="top:268pt;left:60.7pt" th:text="${g.name} + '发展横向分析'">国格发展横向分析</div>
+  <div class="chart abs" th:id="'gc'+${gStat.index}" style="top:300.9pt;left:60.3pt;width:232.3pt;height:216px"></div>
+  <div class="chart abs" th:id="'gp'+${gStat.index}" style="top:300.9pt;left:302.4pt;width:232.3pt;height:216px"></div>
+  <div class="abs csub-b" style="top:486pt;left:60.7pt;width:230.9pt" th:text="'本学期' + ${g.name}">本学期国格</div>
+  <div class="abs csub-b" style="top:486pt;left:303.4pt;width:230.9pt" th:text="'上学期' + ${g.name}">上学期国格</div>
+  <div class="abs sec-b" style="top:522pt;left:60.7pt" th:text="${g.name} + '发展纵向分析'">国格发展纵向分析</div>
+  <div class="chart abs" th:id="'gw'+${gStat.index}" style="top:556.4pt;left:60.3pt;width:474.4pt;height:185px"></div>
+</div>
+<div class="page z-b" th:each="pg : ${#numbers.sequence(0,10)}" th:if="${pg < g.recordPageCount}">
+  <div class="abs" th:each="rec, recStat : ${g.records}"
+       th:if="${recStat.index >= pg*7 and recStat.index < pg*7+7}"
+       th:style="'top:' + (92.4 + (${recStat.index} - ${pg} * 7) * 91.8) + 'pt;left:60.7pt;width:473.6pt;height:88pt'">
+    <div style="position:absolute;left:17.6pt;top:14pt;width:60pt;height:60pt;border-radius:50%;background:#E7EAF6"></div>
+    <div style="position:absolute;left:95.3pt;top:4.5pt">
+      <span style="font-size:18pt;font-weight:bold;color:#000;position:relative;top:0.7pt" th:text="${rec.title}">尊师守纪</span>
+      <span style="font-size:12pt;color:#7D7D7D;margin-left:24pt" th:text="${rec.subtitle}">国格-爱国精神</span>
+    </div>
+    <div style="position:absolute;left:95.3pt;top:33pt">
+      <span style="font-size:15pt;font-weight:bold;color:#000" th:text="${rec.score}">+3</span><span style="font-size:12pt;color:#7D7D7D;margin-left:5.8pt">分</span>
+      <span style="font-size:12pt;color:#7D7D7D;margin-left:19.3pt" th:text="'登记人：' + ${rec.registrants}">登记人：高志强、崔万印</span>
+      <span th:if="${rec.more}" style="font-size:15pt;color:#000;margin-left:0">…</span>
+    </div>
+  </div>
+</div>
+</div>
+<!-- ═══════════ p41 隔页·我的活动（橙区） ═══════════ -->
+<div class="page z-o nohdr" style="background:linear-gradient(180deg,#FCF0DC 0%,#F8E1BC 100%)">
+  <div class="divider-title" style="color:#DC7717">我的活动</div>
+  <div class="motif">
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#DC7717"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;background:#E8A54B;transform:rotate(45deg);margin:0 16pt"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#DC7717"></span>
+  </div>
+</div>
+
+<!-- ═══════════ p42 我的活动（空态鼓励语；有参与记录时渲染活动表，恒 1 页） ═══════════ -->
+<div class="page z-o">
+  <div class="t16" style="top:86pt">我的活动</div>
+  <div th:if="${#lists.isEmpty(r.activities)}" class="abs" style="top:433pt;left:0;width:100%;text-align:center;font-size:22.5pt;color:#B5B5B5;line-height:44.7pt">
+    <div>这段时间</div>
+    <div>你还没有参加主题活动的记录</div>
+    <div>不要气馁</div>
+    <div>继续努力！Fighting！</div>
+  </div>
+  <div th:if="${!#lists.isEmpty(r.activities)}" class="abs" style="top:150pt;left:60.7pt;width:473.6pt">
+    <div class="sec-o">主题活动参与记录</div>
+    <table style="table-layout:fixed;width:100%;background:#FFF8E7;border-collapse:collapse;margin-top:8pt">
+      <colgroup><col style="width:116pt"><col style="width:62pt"><col style="width:86pt"><col style="width:76pt"><col></colgroup>
+      <tr>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:3pt 2pt;text-align:center">活动名称</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:3pt 2pt;text-align:center">时间</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:3pt 2pt;text-align:center">地点</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:3pt 2pt;text-align:center">奖项</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:3pt 2pt;text-align:center">表现</th>
+      </tr>
+      <tr th:each="a, aStat : ${r.activities}" th:if="${aStat.index < 8}">
+        <td style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:8pt 4pt;text-align:center" th:text="${a.title}">演讲比赛</td>
+        <td style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:8pt 2pt;text-align:center" th:text="${a.time} ?: '-'">2025-10-01</td>
+        <td style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:8pt 2pt;text-align:center" th:text="${a.place} ?: '-'">报告厅</td>
+        <td style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:8pt 2pt;text-align:center" th:text="${a.award} ?: '-'">一等奖</td>
+        <td style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:8pt 4pt;line-height:12pt;text-align:left" th:text="${a.performance} ?: '-'">表现优异</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════ p43 隔页·成长银行（蓝区） ═══════════ -->
+<div class="page z-b nohdr" style="background:linear-gradient(180deg,#C9D4F0 0%,#A9B8E8 100%)">
+  <div class="divider-title" style="color:#181C83">成长银行</div>
+  <div class="motif">
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#181C83"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;background:#5B6BB8;transform:rotate(45deg);margin:0 16pt"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#181C83"></span>
+  </div>
+</div>
+
+<!-- ═══════════ p44 成长银行·能量币（上半两栏） ═══════════ -->
+<div class="page z-b">
+  <div class="t16v" style="top:86pt"><span>成长银行</span></div>
+  <div class="abs sec-k" style="top:134pt;left:60.7pt">我的能量币</div>
+  <div class="abs sec-k" style="top:134pt;left:302pt">能量币数据横向分析</div>
+  <div id="coinring" class="chart abs cb-e" style="top:157.7pt;left:60.3pt;width:232.3pt;height:208px"></div>
+  <div id="coinh" class="chart abs cb-e" style="top:157.7pt;left:302.4pt;width:232.3pt;height:208px"></div>
+  <div class="abs" style="top:278pt;left:60.7pt;width:230.9pt;text-align:center;font-size:7.5pt">
+    <span style="color:#000">能量币总量</span><span style="color:#1A1A1A" th:text="${r.coin.total}">405.39</span>
+  </div>
+  <div class="abs" style="top:300pt;left:60.7pt;width:230.9pt;text-align:center;font-size:6pt;color:#000">
+    以上数据均按照<span style="color:#BEBEBE" th:text="${r.coin.rateMonth}">01</span>月
+    <span style="color:#BEBEBE" th:text="${r.coin.rateDay}">25</span>日汇率
+    <span style="color:#BEBEBE" th:text="${r.coin.rate}">0.5</span>计算
+  </div>
+  <div class="abs" style="top:300pt;left:302pt;width:232.3pt;text-align:center;font-size:6pt;color:#000">
+    以上数据均按照<span style="color:#BEBEBE" th:text="${r.coin.rateMonth}">01</span>月
+    <span style="color:#BEBEBE" th:text="${r.coin.rateDay}">25</span>日汇率
+    <span style="color:#BEBEBE" th:text="${r.coin.rate}">0.5</span>计算
+  </div>
+  <div class="abs sec-k" style="top:327pt;left:60.7pt">能量币周收入量横向分析</div>
+  <div id="coinwi" class="chart abs cb-e" style="top:351.1pt;left:60.3pt;width:474.4pt;height:208px"></div>
+  <div class="abs" style="top:495pt;left:0;width:100%;text-align:center;font-size:4.5pt;color:#000">
+    以上数据均按照<span style="color:#BEBEBE" th:text="${r.coin.rateMonth}">01</span>月
+    <span style="color:#BEBEBE" th:text="${r.coin.rateDay}">25</span>日汇率
+    <span style="color:#BEBEBE" th:text="${r.coin.rate}">0.5</span>计算
+  </div>
+  <div class="abs sec-k" style="top:520pt;left:60.7pt">能量币周支出量横向分析</div>
+  <div id="coinwe" class="chart abs cb-e" style="top:544.4pt;left:60.3pt;width:474.4pt;height:207px"></div>
+</div>
+
+<!-- ═══════════ p45 能量中心·收入 ═══════════ -->
+<div class="page z-b">
+  <div class="t16v" style="top:126pt"><span>能量中心</span></div>
+  <div class="abs sec-k" style="top:178pt;left:60.7pt">收入最多的5个模块</div>
+  <div id="inct5" class="chart abs cb-e" style="top:208.7pt;left:59.6pt;width:475.8pt;height:187px"></div>
+  <div class="abs sec-k" style="top:376pt;left:60.7pt">收入最多的5个板块所相关的正向指标</div>
+  <div class="abs cb-e" style="top:406.5pt;left:59.6pt;width:475.8pt;height:208px"></div>
+  <div class="abs sec-k" style="top:590pt;left:60.7pt">收入最少的3个模块</div>
+  <div id="incl3" class="chart abs cb-e" style="top:616.7pt;left:59.6pt;width:475.8pt;height:154px"></div>
+</div>
+
+<!-- ═══════════ p46 能量中心·支出 ═══════════ -->
+<div class="page z-b">
+  <div class="t16v" style="top:126pt"><span>能量中心</span></div>
+  <div class="abs sec-k" style="top:178pt;left:60.7pt">支出最多的5个模块</div>
+  <div id="expt5" class="chart abs cb-e" style="top:208.7pt;left:59.6pt;width:475.8pt;height:187px"></div>
+  <div class="abs sec-k" style="top:376pt;left:60.7pt">能量币日支出量TOP10</div>
+  <div class="abs" style="top:426pt;left:86pt;right:76.5pt">
+    <div th:each="t : ${r.coin.dailyTop10}" style="display:flex;justify-content:space-between;font-size:9pt;margin-top:2pt">
+      <span style="color:#24018F;width:66pt" th:text="${t.date}">2025-09-29</span>
+      <span style="color:#000;flex:1;margin-left:3pt" th:text="${t.item}">干脆面1份</span>
+      <span style="color:#000" th:text="${t.amount}">30能量币</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ p47 隔页·我的成长象征物（绿区） ═══════════ -->
+<div class="page z-g nohdr" style="background:linear-gradient(180deg,#D5EEE0 0%,#BCE3CF 100%)">
+  <div class="divider-title" style="color:#168C51">我的成长象征物</div>
+  <div class="motif">
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#168C51"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;background:#6FBF94;transform:rotate(45deg);margin:0 16pt"></span>
+    <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#168C51"></span>
+  </div>
+</div>
+
+<!-- ═══════════ p48 成长象征物 ═══════════ -->
+<div class="page z-g">
+  <div class="t16v" style="top:58pt"><span>成长象征物</span></div>
+  <div class="abs" style="top:150pt;left:150pt;width:300pt;height:440pt;border:1pt dashed #C8C8C8;background:#F7F7F7"></div>
+  <div class="abs" style="top:607pt;left:60.7pt;width:355.2pt;height:108pt;background:#FEFED3"></div>
+  <div class="abs" style="top:634.8pt;left:63.7pt;width:345.9pt;display:flex;text-align:center">
+    <div style="flex:1">
+      <div><span class="nchip" th:text="${r.growthSymbol.score}">1020.0</span></div>
+      <div style="font-size:10.5pt;color:#168C51;margin-top:16.6pt">当前积分</div>
+    </div>
+    <div style="flex:1">
+      <div><span class="nchip" th:text="'Lv.' + ${r.growthSymbol.level}">Lv.3</span></div>
+      <div style="font-size:10.5pt;color:#168C51;margin-top:16.6pt">当前等级</div>
+    </div>
+    <div style="flex:1">
+      <div><span class="nchip" th:text="${r.growthSymbol.toNext}">172.0</span><span style="font-size:12pt;color:#000;position:relative;top:5.1pt">分</span></div>
+      <div style="font-size:10.5pt;color:#168C51;margin-top:16.6pt">距离下一等级</div>
+    </div>
+  </div>
+  <div class="abs" style="top:701.1pt;left:450pt;font-size:10.5pt;color:#000">下一等级成长物</div>
+</div>
+
+<!-- ═══════════ p49 综合素质评定（标题/维度名样例为矢量轮廓 → 白名单） ═══════════ -->
+<div class="page z-o">
+  <div class="t16" style="top:97pt">综合素质评定</div>
+  <div class="abs" style="top:179.5pt;left:60.6pt;width:474.3pt;height:30.2pt;background:#FAF2E7"></div>
+  <div class="abs" style="top:188pt;left:0;width:100%;text-align:center">
+    <span style="font-size:10.5pt;font-weight:bold;color:#DC7717">综合等级</span>
+    <span style="font-size:15pt;font-weight:bold;color:#DC7717;margin-left:16pt" th:text="${r.comprehensive.finalLevel}">A</span>
+  </div>
+  <div class="abs" style="top:213.5pt;left:60.7pt;width:473.6pt;display:flex;text-align:center">
+    <div th:each="d : ${r.comprehensive.dims}" style="flex:1">
+      <div style="font-size:10.5pt;color:#1F1F1F" th:text="${d.name}">思想品德</div>
+      <div style="font-size:10.5pt;color:#6A747E;margin-top:5.7pt" th:text="${d.level}">A</div>
+    </div>
+  </div>
+  <div class="abs" style="top:230.2pt;left:60.6pt;width:474.3pt;height:1.5pt;background:#FFE6D0"></div>
+  <div class="abs" style="top:250.4pt;left:60.6pt;width:474.3pt;height:1.5pt;background:#FFE6D0"></div>
+  <div class="abs" style="top:395.4pt;left:67pt;width:460pt;font-size:12pt;color:#000;line-height:22.5pt"
+       th:text="${r.headTeacherComment}">班主任寄语</div>
+</div>
+
+<!-- ═══════════ p50 封底 ═══════════ -->
+<div class="page z-o nohdr nonum" style="background:linear-gradient(180deg,#1E7FA8 0%,#35B6C9 100%)"></div>
+<script th:utext="${echartsJs}"></script>
+<script th:inline="javascript">
+const DATA = JSON.parse(/*[[${dataJson}]]*/ '{}');
+const LOGO = /*[[${imgLogo}]]*/ '';
+const fmt = v => v.toLocaleString('en-US');
+function mk(id, opt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const c = echarts.init(el, null, { renderer: 'svg' });
+  opt.animation = false;
+  opt.textStyle = { fontFamily: 'Arial, HarmonyOS Sans SC' };
+  c.setOption(opt);
+}
+const WRAP = (fs, color, w) => ({ fontSize: fs, color, width: w, overflow: 'break', interval: 0, lineHeight: fs });
+const LEG3 = ['个人过程评价得分', '班级人均过程评价得分', '年级人均过程评价得分'];
+
+/* ── 页眉 / 页码注入（打印页码 = 物理页 + 2） ── */
+document.querySelectorAll('.page').forEach((pg, i) => {
+  const n = i + 1;
+  if (!pg.classList.contains('nohdr')) {
+    const side = (n % 2 || n === 42) ? 'r' : 'l';
+    const h = document.createElement('div');
+    h.className = 'hdr ' + side;
+    h.textContent = '东莞市东华初级中学学生成长报告册';
+    pg.appendChild(h);
+    /* 页眉 logo 与文字同侧（样例实测：奇数页右侧 395pt / 偶数页左侧 22pt，与 .hdr 的 r/l 一致） */
+    const lg = document.createElement('img');
+    lg.src = LOGO;
+    lg.alt = '';
+    lg.style.cssText = 'position:absolute;top:21pt;width:27pt;height:22pt;left:' + (side === 'r' ? '395pt' : '22pt');
+    pg.appendChild(lg);
+  }
+  if (!pg.classList.contains('nonum')) {
+    const p = document.createElement('div');
+    p.className = 'pgnum';
+    p.textContent = n + 2;
+    pg.appendChild(p);
+    ['pl1', 'pl2'].forEach(cl => { const l = document.createElement('div'); l.className = 'pline ' + cl; pg.appendChild(l); });
+    const one = String(n + 2).length === 1;
+    ['ps1', 'ps2'].forEach((cl, k) => {
+      const s = document.createElement('div');
+      s.className = 'psq ' + cl;
+      s.style.left = one ? (k ? '305pt' : '287.8pt') : (k ? '307.2pt' : '284.8pt');
+      pg.appendChild(s);
+    });
+  }
+});
+
+try {
+  /* ── p07 学业综合 ── */
+  const subs = DATA.academic.subjects;
+  const order = subs.slice().sort((a, b) => b.score - a.score);
+  const rmax = Math.ceil(Math.max(...subs.map(s => s.score)) / 10) * 10;
+  const radarBase = {
+    splitNumber: 2,
+    splitArea: { areaStyle: { color: ['#FAFAFA', '#D2DBEE'] } },
+    splitLine: { lineStyle: { color: '#BBBBBB' } },
+    axisLine: { lineStyle: { color: '#E0E6F1' } },
+    axisName: { fontSize: 8, color: '#1A1A1A' }
+  };
+  mk('c7a', {
+    radar: Object.assign({ indicator: order.map(s => ({ name: s.name, max: rmax })),
+                           center: ['50%', '49%'], radius: '63%' }, radarBase),
+    series: [{ type: 'radar', symbolSize: 8, itemStyle: { color: '#EF9037' },
+               lineStyle: { color: '#EF9037' }, areaStyle: { color: '#EF9037', opacity: 0.15 },
+               label: { show: true, fontSize: 8, color: '#1A1A1A' },
+               data: [{ value: order.map(s => s.score) }] }]
+  });
+  /* 三系列细柱簇：1 隐类目居中 + 底部横排图例 */
+  const cluster3 = (names, vals, y, o) => ({
+    legend: { data: names, bottom: o.leg, textStyle: { fontSize: 6, color: '#1A1A1A' },
+              itemWidth: 6, itemHeight: 6 },
+    grid: { left: o.left, right: o.right, top: o.top, bottom: o.bot, containLabel: !!o.cl },
+    xAxis: { type: 'category', data: [''], axisLabel: { show: false }, axisTick: { show: false } },
+    yAxis: { type: 'value', min: y.min, max: y.max, interval: y.step,
+             axisLabel: { fontSize: 8, color: '#1A1A1A', formatter: fmt },
+             axisLine: { show: false }, splitLine: { lineStyle: { color: '#E0E6F1' } } },
+    series: vals.map((v, i) => ({ name: names[i], type: 'bar', barWidth: 10, data: [v],
+      label: o.vl ? { show: true, position: 'top', distance: 10, fontSize: 6, color: '#000000' } : undefined }))
+  });
+  const T = DATA.academic.total;
+  mk('c7b', cluster3(['个人总分', '班级最高分', '年级最高分'], [T.score, T.classMax, T.gradeMax],
+    { min: 0, max: 1200, step: 200 }, { leg: 33, left: 58, right: 31, top: 22, bot: 54, vl: true }));
+  /* 4 隐类目：柱落在 2-4 带，类目白底药丸由 HTML 覆盖 */
+  const HID_COLORS = ['#38AB52', '#5A5AAA', '#ED8C2F'];
+  const hidden4 = (vals, y) => ({
+    legend: { data: LEG3, left: 89, bottom: 12.8, orient: 'vertical', itemGap: 0,
+              itemWidth: 6, itemHeight: 6, icon: 'circle',
+              textStyle: { fontSize: 5.6, color: '#2C3E50', lineHeight: 6.7 } },
+    grid: { left: 24.5, right: 4, top: 16, bottom: 68, containLabel: true },
+    xAxis: { type: 'category', data: ['', '', '', ''], axisLabel: { show: false }, axisTick: { show: false } },
+    yAxis: { type: 'value', min: y.min, max: y.max, interval: y.step,
+             axisLabel: { fontSize: 8, color: '#1A1A1A' },
+             axisLine: { show: false }, splitLine: { lineStyle: { color: '#E0E6F1' } } },
+    series: [
+      { type: 'bar', barWidth: 10,
+        data: [null, ...vals.map((v, i) => ({ value: v, itemStyle: { color: HID_COLORS[i] } }))] },
+      ...LEG3.map((nm, i) => ({ name: nm, type: 'bar', data: [], itemStyle: { color: HID_COLORS[i] } }))
+    ]
+  });
+  const P = DATA.academic.process;
+  mk('c7c', hidden4([P.positive.mine, P.positive.classAvg, P.positive.gradeAvg], { min: -50, max: 200, step: 50 }));
+  /* 周折线：x 轴线 #DDDDDD、无轴须、无线上标记 */
+  const LN = ['个人过程评价得分', '班级人均过程评价得分', '年级人均过程评价得分'];
+  const wkLine = (w, y, o) => ({
+    legend: o.leg ? { data: o.leg, bottom: o.legb || 11, left: o.legl, itemGap: 13, textStyle: { fontSize: 6, color: '#1A1A1A' },
+                      itemWidth: 4, itemHeight: 4, icon: 'circle' } : undefined,
+    grid: { left: o.left, right: o.right, top: o.top, bottom: o.bot, containLabel: !!o.cl },
+    xAxis: { type: 'category', data: w.weeks, boundaryGap: false, axisLabel: WRAP(6, '#1A1A1A', 5),
+             axisLine: { lineStyle: { color: '#DDDDDD' } }, axisTick: { show: false } },
+    yAxis: { type: 'value', min: y.min, max: y.max, interval: y.step,
+             axisLabel: { fontSize: 8, color: '#1A1A1A', formatter: fmt },
+             axisLine: { show: false }, splitLine: { lineStyle: { color: '#E0E6F1' } } },
+    series: y.series.map((d, i) => ({ name: y.names[i], type: 'line', showSymbol: false, data: d }))
+  });
+  mk('c7d', wkLine(P.weekly, { min: 0, max: 2500, step: 500, names: LN,
+    series: [P.weekly.mine, P.weekly.classAvg, P.weekly.gradeAvg] },
+    { left: 36, right: 37, top: 19, bot: 21, cl: true }));
+
+  /* ── p08–18 学科页 ── */
+  DATA.subjectPages.forEach((sp, i) => {
+    /* sa：双环饼（外环期末/内环学业评价，余量灰） */
+    mk('sa' + i, {
+      legend: { data: ['期末成绩', '学业评价'], bottom: 18, itemWidth: 6, itemHeight: 6,
+                textStyle: { fontSize: 6, color: '#1A1A1A', lineHeight: 6 },
+                formatter: nm => nm + '\n' + sp.score },
+      series: [
+        { type: 'pie', radius: ['44.4%', '54.3%'], center: ['50%', '49.6%'],
+          data: [{ value: sp.score, name: '期末成绩' },
+                 { value: 120 - sp.score, name: '_a', itemStyle: { color: '#EBEBEB' } }],
+          label: { show: false }, labelLine: { show: false } },
+        { type: 'pie', radius: ['33.3%', '44.4%'], center: ['50%', '49.6%'],
+          data: [{ value: sp.score, name: '学业评价' },
+                 { value: 120 - sp.score, name: '_b', itemStyle: { color: '#EBEBEB' } }],
+          label: { show: false }, labelLine: { show: false } }
+      ]
+    });
+    mk('sb' + i, {
+      legend: { data: ['个人总分', '班级最高分', '年级最高分'], bottom: 18,
+                textStyle: { fontSize: 6, color: '#1A1A1A' }, itemWidth: 6, itemHeight: 6 },
+      grid: { left: 51.6, right: 31, top: 23, bottom: 80 },
+      xAxis: { type: 'category', data: ['期末成绩', '学业评价'],
+               axisLabel: Object.assign(WRAP(8, '#1A1A1A', 30), { margin: 10.5 }), axisTick: { show: false },
+               axisLine: { lineStyle: { color: '#DDDDDD' } } },
+      yAxis: { type: 'value', min: 0, max: Math.ceil(Math.max(sp.score, sp.classMax, sp.gradeMax) / 20) * 20, interval: 20,
+               axisLabel: { fontSize: 8, color: '#1A1A1A' },
+               axisLine: { show: false }, splitLine: { lineStyle: { color: '#E0E6F1' } } },
+      series: [
+        { name: '个人总分', type: 'bar', barWidth: 10, data: [sp.score, sp.score],
+          label: { show: true, position: 'top', distance: 7, fontSize: 6, color: '#000000' } },
+        { name: '班级最高分', type: 'bar', barWidth: 10, data: [sp.classMax, sp.classMax],
+          label: { show: true, position: 'top', distance: 7, fontSize: 6, color: '#000000' } },
+        { name: '年级最高分', type: 'bar', barWidth: 10, data: [sp.gradeMax, sp.gradeMax],
+          label: { show: true, position: 'top', distance: 7, fontSize: 6, color: '#000000' } }
+      ]
+    });
+    mk('sc' + i, hidden4([sp.pos.mine, sp.pos.classAvg, sp.pos.gradeAvg],
+      { min: sp.procH.min, max: sp.procH.max, step: sp.procH.step }));
+    mk('sd' + i, wkLine(sp.weekly, { min: sp.procW.min, max: sp.procW.max, step: sp.procW.step, names: LN,
+      series: [sp.weekly.mine, sp.weekly.classAvg, sp.weekly.gradeAvg] },
+      { left: 36, right: 37, top: 19, bot: 21, cl: true }));
+  });
+
+  /* ── p21 双雷达（无数值标签；引擎逆时针 → golden 标签序即逆时针视觉序，直接用） ── */
+  const radarOpt = vals => ({
+    radar: Object.assign({ indicator: DATA.radar.labels.map(n => ({ name: n, max: DATA.radar.max })),
+                           center: ['50.3%', '50.9%'], radius: '64.4%' }, radarBase),
+    series: [{ type: 'radar', symbolSize: 8, data: [{ value: vals }],
+               label: { show: false }, areaStyle: { opacity: 0.2 } }]
+  });
+  mk('radarCur', radarOpt(DATA.radar.current));
+  mk('radarLast', radarOpt(DATA.radar.last));
+
+  /* ── p22–40 九格 ── */
+  DATA.grids.forEach((g, i) => {
+    const G3 = ['个人得分', '班级平均分', '年级平均分'];
+    const db3 = d => cluster3(G3, [d.mine, d.classAvg, d.gradeAvg],
+      { min: 0, max: d.axisMax, step: d.step }, { leg: 4, left: 30, right: 33, top: 23.6, bot: 40.8, vl: false, cl: true });
+    mk('gc' + i, db3(g.cur));
+    mk('gp' + i, db3(g.prev));
+    /* gw：样例 plot left = 70.9px + 最宽标签墨宽（逐格右对齐随标签宽度） */
+    const inkW = s => [...String(s)].reduce((a, c) => a + (c === '-' || c === ',' ? 2.7 : c === '.' ? 2.3 : 4.4), 0);
+    let gwW = 0;
+    const gwN = Math.round((g.weekly.max - g.weekly.min) / g.weekly.step);
+    for (let k = 0; k <= gwN; k++) gwW = Math.max(gwW, inkW(fmt(g.weekly.min + k * g.weekly.step)));
+    mk('gw' + i, wkLine(g.weekly, { min: g.weekly.min, max: g.weekly.max, step: g.weekly.step,
+      names: ['个人得分'], series: [g.weekly.mine] },
+      { left: 70.9 + gwW, right: 70, top: 19.1, bot: 38.4 }));
+  });
+
+  /* ── p44 成长银行 ── */
+  const C = DATA.coin;
+  mk('coinring', {
+    legend: { data: ['现有能量币', '已支出能量币', '可兑换能量币'], bottom: 16.8, left: 66.4,
+              textStyle: { fontSize: 6, color: '#1A1A1A' }, itemWidth: 6, itemHeight: 6, itemGap: 13 },
+    series: [{
+      type: 'pie', radius: '45%', center: ['48.7%', '37.6%'],
+      data: [{ value: C.current, name: '现有能量币' },
+             { value: C.spent, name: '已支出能量币' },
+             { value: C.exchangeable, name: '可兑换能量币' }],
+      label: { show: true, position: 'inside', formatter: '{c}', fontSize: 8, color: '#FFFFFF' }
+    }]
+  });
+  const COIN_LEG = ['个人能量币', '班级能量币平均值', '年级能量币平均值'];
+  mk('coinh', {
+    legend: { data: COIN_LEG, bottom: 23.1, left: 56.9, textStyle: { fontSize: 6, color: '#1A1A1A' }, itemWidth: 5, itemHeight: 5 },
+    grid: { left: 51, right: 39, top: 20.5, bottom: 85 },
+    xAxis: { type: 'category', data: ['总能量币', '现有能量币', '已支出能量币', '可兑换能量币'],
+             axisLabel: Object.assign(WRAP(8, '#1A1A1A', 24), { margin: 9.3 }), axisTick: { show: false },
+             axisLine: { lineStyle: { color: '#DDDDDD' } } },
+    yAxis: { type: 'value', min: 0, max: C.compare.max, interval: C.compare.step,
+             axisLabel: { fontSize: 8, color: '#1A1A1A' },
+             axisLine: { show: false }, splitLine: { lineStyle: { color: '#E0E6F1' } } },
+    series: [
+      { name: COIN_LEG[0], type: 'bar', barWidth: 7.5, data: C.compare.mine },
+      { name: COIN_LEG[1], type: 'bar', barWidth: 7.5, data: C.compare.classAvg },
+      { name: COIN_LEG[2], type: 'bar', barWidth: 7.5, data: C.compare.gradeAvg }
+    ]
+  });
+  mk('coinwi', wkLine(C.weeklyIncome, { min: 0, max: C.weeklyIncome.max, step: C.weeklyIncome.step,
+    names: COIN_LEG, series: [C.weeklyIncome.mine, C.weeklyIncome.classAvg, C.weeklyIncome.gradeAvg] },
+    { left: 59, right: 46, top: 20, bot: 71.8, leg: COIN_LEG, legb: 15.1, legl: 218.8 }));
+  mk('coinwe', wkLine(C.weeklyExpense, { min: 0, max: C.weeklyExpense.max, step: C.weeklyExpense.step,
+    names: COIN_LEG, series: [C.weeklyExpense.mine, C.weeklyExpense.classAvg, C.weeklyExpense.gradeAvg] },
+    { left: 54.2, right: 46, top: 20.5, bot: 71.1, leg: COIN_LEG, legb: 6, legl: 218.8 }));
+
+  /* ── p45/p46 能量中心（横向细条：类目 Y 轴左置、刻度 X 轴底部） ── */
+  const vbars = (list, ax, o) => ({
+    grid: { left: o.left, right: 77, top: o.top, bottom: o.bot },
+    xAxis: { type: 'value', min: 0, max: ax.max, interval: ax.step,
+             axisLabel: { fontSize: 10, color: '#1A1A1A' }, axisTick: { show: false },
+             axisLine: { show: false }, splitLine: { lineStyle: { color: '#E0E6F1' } } },
+    yAxis: { type: 'category', inverse: o.inv, data: list.map(e => e.name),
+             axisLabel: { fontSize: 10, color: '#000000', interval: 0, margin: 28 },
+             axisTick: { show: false }, axisLine: { lineStyle: { color: '#DDDDDD' } } },
+    series: [{ type: 'bar', barWidth: 4, itemStyle: { color: o.color },
+               data: list.map(e => e.value) }]
+  });
+  mk('inct5', vbars(C.incomeTop5, C.incomeTopAxis, { left: 122, top: 20, bot: 36, inv: false, color: '#595CA5' }));
+  mk('incl3', vbars(C.incomeLeast3, C.incomeLeastAxis, { left: 122, top: 20, bot: 34, inv: false, color: '#BABBDD' }));
+  mk('expt5', vbars(C.expenseTop5, C.expenseTopAxis, { left: 103, top: 21.5, bot: 35.9, inv: false, color: '#595CA5' }));
+} catch (e) {
+  window.__chartErr = String(e);
+} finally {
+  window.chartsReady = true;
+}
+</script>
+</body>
+</html>
