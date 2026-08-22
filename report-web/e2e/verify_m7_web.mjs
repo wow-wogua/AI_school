@@ -244,7 +244,7 @@ async function viewportPass(browser, vp) {
 console.log('[信封] 快照 …')
 dump()
 let rc = 1
-const browser = await chromium.launch({ channel: 'chrome' })
+const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome' })
 try {
   await viewportPass(browser, { name: 'desktop', width: 1440, height: 900, mobile: false })
   await viewportPass(browser, { name: 'mobile', width: 390, height: 844, mobile: true })

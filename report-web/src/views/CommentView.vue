@@ -14,6 +14,7 @@
       </el-select>
       <el-button :disabled="!studentId" :loading="!!isRunning" @click="makeDraft">AI 生成草稿</el-button>
       <el-button :disabled="!students.length || !termId" :loading="batchLoading" @click="batchAll">本班全部生成</el-button>
+      <el-button :disabled="!classId || !termId" @click="exportXlsx">导出本班寄语</el-button>
       <el-tag v-if="isRunning" size="small" type="primary">{{ cur?.status === '排队' ? '排队中' : '生成中' }}，可切页后台继续</el-tag>
       <el-tag v-else-if="status !== '无'" size="small">{{ status }}</el-tag>
     </div>
@@ -34,7 +35,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
-import { api } from '../api/http'
+import { api, fetchBlob } from '../api/http'
 import { useAiTasksStore } from '../stores/aiTasks'
 
 const store = useAiTasksStore()
@@ -135,6 +136,19 @@ async function batchAll() {
   } finally {
     batchLoading.value = false
   }
+}
+
+/** 导出本班寄语（班级×学期 → xlsx，含生效内容与 AI 草稿） */
+async function exportXlsx() {
+  const blob = await fetchBlob(`/api/ai/comment/export?classId=${classId.value}&termId=${termId.value}`)
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const cls = classes.value.find((c) => c.id === classId.value)?.name ?? ''
+  const tm = terms.value.find((t) => t.id === termId.value)?.name ?? ''
+  a.download = `寄语_${cls}_${tm}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 async function save(confirm: boolean) {

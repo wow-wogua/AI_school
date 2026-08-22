@@ -119,7 +119,7 @@ async function m6Flow(browser, { name, width, height, mobile }) {
 }
 
 // 用系统 Chrome（channel），免下载 playwright chromium
-const browser = await chromium.launch({ channel: 'chrome' })
+const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome' })
 try {
   await m6Flow(browser, { name: 'desktop', width: 1440, height: 900, mobile: false })
   await m6Flow(browser, { name: 'mobile', width: 390, height: 844, mobile: true })

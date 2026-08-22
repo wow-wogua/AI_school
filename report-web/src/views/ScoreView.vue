@@ -14,6 +14,7 @@
       </el-select>
       <el-button v-if="auth.role === 'ADMIN'" type="primary" @click="examDialog = true">新建考试</el-button>
       <el-button v-if="classId" @click="downloadTemplate">下载模板</el-button>
+      <el-button v-if="examId && subjectId && classId" @click="exportXlsx">导出 Excel</el-button>
       <el-button v-if="examId && subjectId && classId && editable" @click="importDialog = true">导入 Excel</el-button>
     </div>
 
@@ -209,6 +210,19 @@ async function downloadTemplate() {
   const a = document.createElement('a')
   a.href = url
   a.download = '成绩导入模板.xlsx'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function exportXlsx() {
+  const blob = await fetchBlob(`/api/score/export?examId=${examId.value}&subjectId=${subjectId.value}&classId=${classId.value}`)
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const ex = exams.value.find((e: any) => e.id === examId.value)?.name ?? ''
+  const sub = subjects.value.find((s: any) => s.id === subjectId.value)?.name ?? ''
+  const cls = classes.value.find((c: any) => c.id === classId.value)?.name ?? ''
+  a.download = `成绩_${ex}_${sub}_${cls}.xlsx`
   a.click()
   URL.revokeObjectURL(url)
 }

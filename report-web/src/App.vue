@@ -79,26 +79,26 @@ const progress = useSpring(scrollYProgress, { stiffness: 140, damping: 30, mass:
 <style scoped>
 .nav {
   position: sticky; top: 0; z-index: 100;
-  background: linear-gradient(100deg, #1e1b4b 0%, #312e81 45%, #4338ca 100%);
-  box-shadow: 0 2px 12px rgba(30,27,75,.25);
+  background: #1e1b4b;
+  box-shadow: 0 2px 8px rgba(30,27,75,.15);
 }
 .nav-inner { display: flex; align-items: center; gap: 20px; padding: 12px 16px; max-width: 1200px; margin: 0 auto; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 10px; color: #fff; }
 .brand-mark { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center;
-  border-radius: 9px; color: #fff; background: var(--brand-gradient); box-shadow: 0 4px 10px rgba(16,185,129,.35); }
+  border-radius: 9px; color: #fff; background: var(--brand-gradient); box-shadow: 0 2px 6px rgba(30,27,75,.3); }
 .brand-text { display: flex; flex-direction: column; line-height: 1.2; font-weight: 700; font-size: 16px; letter-spacing: .5px; }
 .brand-text i { font-style: normal; font-size: 11px; font-weight: 400; color: #a5b4fc; letter-spacing: 2px; }
 .links { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
 .links a { position: relative; color: #c7d2fe; text-decoration: none; font-size: 14px; padding: 6px 10px;
   border-radius: 8px; transition: color .2s ease, background-color .2s ease; }
 .links a::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 2px; border-radius: 2px;
-  background: var(--brand-gradient-bar); transform: scaleX(0); transform-origin: left center; transition: transform .22s ease; }
+  background: #818cf8; transform: scaleX(0); transform-origin: left center; transition: transform .22s ease; }
 .links a:hover { color: #fff; }
 .links a.router-link-exact-active { color: #fff; }
 .links a.router-link-exact-active::after { transform: scaleX(1); }
 .user { color: #c7d2fe; font-size: 14px; display: flex; align-items: center; gap: 4px; }
 .scroll-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
-  background: var(--brand-gradient-bar); transform-origin: 0 50%; }
+  background: var(--brand-teal); transform-origin: 0 50%; }
 .user :deep(.el-button) { color: #a5b4fc; }
 .user :deep(.el-button:hover) { color: #fff; }
 @media (max-width: 767px) {

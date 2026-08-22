@@ -89,12 +89,12 @@ async function doLogin() {
 .deco-a { width: 260px; height: 260px; right: -60px; top: 12%; background: rgba(16,185,129,.4); animation: floaty 7s ease-in-out infinite; }
 .deco-b { width: 220px; height: 220px; left: -50px; bottom: 8%; background: rgba(129,140,248,.45); animation: floaty 9s ease-in-out infinite reverse; }
 .login-card-motion { width: 100%; max-width: 380px; }
-.login-card { width: 100%; max-width: 380px; border: none; border-radius: 16px;
+.login-card { width: 100%; max-width: 380px; border: 1px solid rgba(255,255,255,.5); border-radius: 12px;
   background: rgba(255,255,255,.94); backdrop-filter: blur(14px);
-  box-shadow: 0 24px 64px rgba(17,14,60,.45); }
+  box-shadow: 0 12px 40px rgba(17,14,60,.28); }
 .login-head { text-align: center; margin-bottom: 18px; }
 .login-logo { display: inline-flex; width: 44px; height: 44px; align-items: center; justify-content: center;
-  border-radius: 12px; color: #fff; background: var(--brand-gradient); box-shadow: 0 8px 18px rgba(79,70,229,.35); }
+  border-radius: 12px; color: #fff; background: var(--brand-gradient); box-shadow: 0 4px 12px rgba(30,27,75,.25); }
 .login-head h2 { margin: 12px 0 4px; font-size: 19px; color: #1f2937; }
 .login-head p { margin: 0; font-size: 13px; color: #6b7280; letter-spacing: 1px; }
 .login-btn { width: 100%; height: 40px; font-size: 15px; letter-spacing: 6px; border-radius: 10px; }

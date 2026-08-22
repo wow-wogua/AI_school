@@ -9,6 +9,8 @@
       <el-tab-pane label="学期" name="term"><TermTab /></el-tab-pane>
       <el-tab-pane label="九格指标" name="indicator"><IndicatorTab /></el-tab-pane>
       <el-tab-pane label="报告模板" name="template"><TemplateTab /></el-tab-pane>
+      <el-tab-pane label="审计日志" name="audit"><AuditTab /></el-tab-pane>
+      <el-tab-pane label="AI 用量" name="aiUsage"><AiUsageTab /></el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -22,6 +24,8 @@ import StudentTab from '../components/admin/StudentTab.vue'
 import TermTab from '../components/admin/TermTab.vue'
 import IndicatorTab from '../components/admin/IndicatorTab.vue'
 import TemplateTab from '../components/admin/TemplateTab.vue'
+import AuditTab from '../components/admin/AuditTab.vue'
+import AiUsageTab from '../components/admin/AiUsageTab.vue'
 
 const tab = ref('teacher')
 </script>

@@ -1,6 +1,6 @@
 // 验收⑤ 三档全流程 E2E：手机(390x844) / 平板(768x1024) / 电脑(1440x900)
 // 每档完成：登录 → 发起批量 → 看实时进度 → 预览(PDF 200+字节校验) → 下载(文件落盘校验) → 无横向滚动
-// 运行：PLAYWRIGHT_BROWSERS_PATH=D:/srp_project/AI_school/tools/pw-browsers node e2e/verify_web.mjs
+// 运行：node e2e/verify_web.mjs（需后端 8080 + vite 5173；系统 Chrome，可用 BROWSER_CHANNEL 覆盖）
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
@@ -144,7 +144,7 @@ async function fullFlow(browser, { name, width, height, mobile }) {
 }
 
 // 用系统 Chrome（channel），免下载 190MB playwright chromium
-const browser = await chromium.launch({ channel: 'chrome' })
+const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome' })
 await fullFlow(browser, { name: 'desktop', width: 1440, height: 900, mobile: false })
 await fullFlow(browser, { name: 'tablet', width: 768, height: 1024, mobile: false })
 await fullFlow(browser, { name: 'mobile', width: 390, height: 844, mobile: true })
