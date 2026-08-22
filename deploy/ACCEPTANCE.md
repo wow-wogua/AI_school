@@ -116,3 +116,20 @@ bash scripts/run_regression.sh                          # 十脚本全链（从 
 | LLM 输出健壮性 | PASS | Markdown 前缀/标题独行兼容（四块全解析）；慢响应 61s 完成不降级 |
 
 复跑：AI 任务 API 验证思路——POST /api/ai/tasks 后轮询 /api/ai/tasks/{id}（状态/queuePosition/result）与 /api/ai/tasks/mine；E2E 基线须关闭 AI（override 移开重启 server），跑完恢复。
+
+## 2026-08-22 增补验收：运维与扩容批次（A/B/C/E）+ 容器化国内源
+
+范围：A 学生流转（新生导入/整班调班/毕业转出/历史届筛选/日常业务仅在读）、B 运维基线（Flyway/审计/防爆破/日志轮转/备份/定时清理）、C 观测与开放（AI 用量/提示词外置/Swagger/成绩与寄语导出/CI）、E 前端视觉简约化与 motion-v 动效；Dockerfile apt 切阿里云源修字体层超时。详见 架构设计.md §11.13。
+
+| 验证 | 结果 | 证据 |
+|---|------|---|
+| 全量回归复跑 | **PASS 10/10** | run_regression.sh（含 verify_m7 89/89、契约零漂移） |
+| 学生流转 | PASS | 新生导入合法行入库+问题行明细；整班调班 moved>0 且历史数据不动；mark-status 毕业转出；管理端 status 筛选；/api/student/list 仅在读 |
+| 运维基线 | PASS | Flyway V1/V2 应用与 baseline-on-migrate 存量接入；写操作审计留痕可查；登录连续失败 429 锁定；容器 json-file 50MB×3；backup.sh 产出 dumps |
+| AI 用量 | PASS | 真实 DeepSeek tokens 落库（prompt 1,498 / completion 466），byDay/byTeacher 聚合正确；前端「AI 用量」Tab 渲染真实数据 0 console 错 |
+| Excel 导出 | PASS | 成绩 xlsx 文件名`成绩_期末考试_语文_初一(2)班.xlsx`；寄语 xlsx `寄语_初一(2)班_2025年秋季学期.xlsx`；均为有效 %PK 格式 |
+| Swagger | PASS | /swagger-ui.html 与 /v3/api-docs 200，仅暴露 /api/** |
+| 容器（阿里云源构建） | **PASS** | 五容器 healthy；nginx:80 端到端（登录/聚合/静态页）；容器内单份渲染 4.86MB %PDF；首页栅格化目检中文无方块（report-web/e2e/shots/d3_container_pdf_p1.png，截图可再生） |
+| 前端视觉回归 | PASS | 桌面/平板/手机三视口无横向滚动；E2E 94 断言基线全绿 |
+
+复跑：栈起后 `python report-server/scripts/d3_check.py`（端到端）、`d3_render_check.py`（容器内渲染）、`usage_check.py`（AI 用量落库）；全量回归 `bash report-server/scripts/run_regression.sh`（需裸跑后端+前端 dev）。
