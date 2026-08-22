@@ -2,10 +2,10 @@
   <el-badge :value="store.runningCount" :hidden="!store.runningCount" :max="99" class="ai-panel-badge">
     <el-button link class="ai-panel-btn" @click="store.panelOpen = true">
       <el-icon :class="{ spinning: store.runningCount }"><Loading v-if="store.runningCount" /><MagicStick v-else /></el-icon>
-      AI 任务
+      生成中心
     </el-button>
   </el-badge>
-  <el-drawer v-model="store.panelOpen" title="AI 分析任务" size="360px">
+  <el-drawer v-model="store.panelOpen" title="生成中心" size="360px">
     <el-empty v-if="!store.tasks.length" description="还没有任务，去寄语/成长总结页发起" :image-size="72" />
     <div v-else class="task-list">
       <div v-for="t in store.tasks" :key="t.taskId" class="task-item" @click="go(t)">

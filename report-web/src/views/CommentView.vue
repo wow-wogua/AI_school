@@ -131,7 +131,7 @@ async function batchAll() {
     for (const s of students.value) {
       await store.submit('COMMENT', s.id, termId.value)
     }
-    ElMessage.success(`已提交 ${students.value.length} 位学生的寄语任务，后台生成中，可切换页面；进度见右上角「AI 任务」`)
+    ElMessage.success(`已提交 ${students.value.length} 位学生的寄语任务，后台生成中，可切换页面；进度见右上角「生成中心」`)
   } finally {
     batchLoading.value = false
   }
