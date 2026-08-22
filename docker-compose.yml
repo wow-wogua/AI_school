@@ -1,10 +1,18 @@
 # 一键全栈（项目根执行：docker compose up -d --build）
 # 首次启动 mysql 自动导入 deploy/schema.sql + seed.sql（仅空数据卷时执行一次）
+# 日志轮转：单容器最多 3 份 × 50MB，防止日志无限增长吃满磁盘
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   mysql:
     image: mysql:8.0
     container_name: aischool-mysql
     restart: unless-stopped
+    logging: *default-logging
     environment:
       MYSQL_ROOT_PASSWORD: aischool123
       MYSQL_DATABASE: ai_school
@@ -30,6 +38,7 @@ services:
     image: redis:7-alpine
     container_name: aischool-redis
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "6379:6379"
     volumes:
@@ -44,6 +53,7 @@ services:
     image: minio/minio
     container_name: aischool-minio
     restart: unless-stopped
+    logging: *default-logging
     environment:
       MINIO_ROOT_USER: aischool
       MINIO_ROOT_PASSWORD: aischool123
@@ -67,6 +77,7 @@ services:
     image: aischool/report-server:1.0
     container_name: aischool-server
     restart: unless-stopped
+    logging: *default-logging
     environment:
       TZ: Asia/Shanghai
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ai_school?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
@@ -99,6 +110,7 @@ services:
     image: aischool/report-web:1.0
     container_name: aischool-web
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "80:80"
     depends_on:

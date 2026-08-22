@@ -24,6 +24,8 @@ public class AiTask {
     private String source;
     private String resultJson;
     private String error;
+    private Integer promptTokens;      // LLM 输入 token（模板路径为 null）
+    private Integer completionTokens;  // LLM 输出 token
     private Long createdBy;
     private LocalDateTime createTime;
     private LocalDateTime startedTime;
