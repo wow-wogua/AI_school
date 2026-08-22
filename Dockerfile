@@ -1,13 +1,12 @@
 # syntax=docker/dockerfile:1
-# 一份 Dockerfile 双产物（构建上下文 = 项目根 D:\srp_project\AI_school）：
+# 一份 Dockerfile 双产物（构建上下文 = 项目根）：
 #   docker build --target server .   → 后端镜像（含渲染核心 + Chromium + 中文字体）
 #   docker build --target web .      → 前端镜像（nginx + /api 反代）
 # 日常无需手动 build：根目录 `docker compose up -d --build` 一键全栈
 
 ######## 后端 jar ########
 FROM maven:3.9-eclipse-temurin-21 AS server-build
-# 复用 renderer 的 settings.xml（仅阿里云镜像）——server 自带 settings 的 localRepository
-# 指向本机 D:/tools/m2-repo，Linux 容器内是无效路径，会导致依赖解析成空 classpath
+# 复用 renderer 的 settings.xml（仅阿里云镜像，加速容器内依赖解析）
 COPY report-renderer/settings.xml /root/.m2/settings.xml
 # 预置本地仓库（tools/m2-repo 已含全部后端依赖）：容器内逐个从 aliyun 拉几百个小构件太慢，
 # 少量缺失件由镜像里的 aliyun 兜底
@@ -31,8 +30,11 @@ FROM mcr.microsoft.com/playwright/java:v1.49.0-noble AS server
 # 镜像自带 JDK17，本项目字节码 21 → 叠加 temurin 21 JRE
 COPY --from=eclipse-temurin:21-jre-noble /opt/java/openjdk /opt/jdk21
 ENV JAVA_HOME=/opt/jdk21 PATH="/opt/jdk21/bin:${PATH}"
-# 中文字体：缺失则 PDF 全方块
-RUN apt-get update \
+# 中文字体：缺失则 PDF 全方块（apt 切阿里云源，国内构建快；兼容 noble 的
+# ubuntu.sources 新格式与旧 sources.list，其一不存在时 sed 报错由 || true 兜底）
+RUN sed -i 's|archive.ubuntu.com|mirrors.aliyun.com|g; s|security.ubuntu.com|mirrors.aliyun.com|g' \
+      /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list 2>/dev/null || true \
+ && apt-get update \
  && apt-get install -y --no-install-recommends fontconfig fonts-noto-cjk \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

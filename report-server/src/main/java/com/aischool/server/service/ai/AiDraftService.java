@@ -1,12 +1,23 @@
 package com.aischool.server.service.ai;
 
 import com.aischool.server.common.BizException;
+import com.aischool.server.common.Exported;
+import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.Comment;
+import com.aischool.server.entity.Student;
+import com.aischool.server.entity.Term;
+import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.CommentMapper;
+import com.aischool.server.mapper.StudentMapper;
+import com.aischool.server.mapper.TermMapper;
+import com.aischool.server.security.UserPrincipal;
+import com.aischool.server.service.auth.DataScopeService;
+import com.aischool.server.service.excel.ExcelScoreHelper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,12 +38,44 @@ public class AiDraftService {
     private final AiClient aiClient;
     private final RuleFactsService factsService;
     private final CommentMapper commentMapper;
+    private final StudentMapper studentMapper;
+    private final ClazzMapper clazzMapper;
+    private final TermMapper termMapper;
+    private final DataScopeService dataScope;
+    private final ExcelScoreHelper excel;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String SYSTEM_TEACHER = "你是一位经验丰富、温和严谨的中学班主任。"
             + "写作时只允许使用用户提供的数据，严禁编造或修改任何数字与事实；"
             + "语气真诚具体，避免空话套话；不出现「根据数据显示」这类机械表述；"
             + "输出纯文本，禁止使用任何 Markdown 标记（如**加粗、#标题、-列表）。";
+
+    // 提示词外置（留空 = 内置默认）：调话术只需改 application.yml / 环境变量，无需改代码重发版
+    @Value("${aischool.ai.prompts.system-teacher:}")
+    private String cfgSystemTeacher;
+    @Value("${aischool.ai.prompts.comment-instruction:}")
+    private String cfgCommentInstruction;
+    @Value("${aischool.ai.prompts.summary-instruction:}")
+    private String cfgSummaryInstruction;
+
+    private String systemTeacher() {
+        return cfgSystemTeacher == null || cfgSystemTeacher.isBlank() ? SYSTEM_TEACHER : cfgSystemTeacher;
+    }
+
+    private String commentInstruction() {
+        return cfgCommentInstruction == null || cfgCommentInstruction.isBlank()
+                ? "请根据以下数据为该学生写本学期班主任寄语（150~300字）："
+                + "先肯定具体亮点，再中肯指出 1 个待改进点并给出期望，结尾鼓励。不要罗列全部数字，挑选关键事实。"
+                : cfgCommentInstruction;
+    }
+
+    private String summaryInstruction() {
+        return cfgSummaryInstruction == null || cfgSummaryInstruction.isBlank()
+                ? "请根据以下数据为该学生生成本学期成长总结，分四块输出，每块 2~4 句："
+                + "\n本学期亮点：\n学习发展：\n综合素质发展：\n下一阶段建议：\n"
+                + "要求避免只看成绩，结合九格综合素质表现。"
+                : cfgSummaryInstruction;
+    }
 
     // ───────────────── 学业分析（结构化，规则为主） ─────────────────
 
@@ -75,13 +118,12 @@ public class AiDraftService {
         Map<String, Object> facts = factsService.facts(studentId, termId);
         String draft;
         String source;
+        AiClient.ChatResult llmResult = null;
         if (aiClient.enabled()) {
             try {
-                String user = "请根据以下数据为该学生写本学期班主任寄语（150~300字）："
-                        + "先肯定具体亮点，再中肯指出 1 个待改进点并给出期望，结尾鼓励。不要罗列全部数字，挑选关键事实。\n\n"
-                        + toJson(facts);
-                draft = aiClient.chat(SYSTEM_TEACHER, user);
-                draft = stripMd(draft); // 提示词已禁 Markdown，此处兜底清洗残留
+                String user = commentInstruction() + "\n\n" + toJson(facts);
+                llmResult = aiClient.chatWithUsage(systemTeacher(), user);
+                draft = stripMd(llmResult.content()); // 提示词已禁 Markdown，此处兜底清洗残留
                 source = "llm";
             } catch (Exception e) {
                 log.warn("LLM 寄语生成失败，降级模板: {}", e.getMessage());
@@ -104,6 +146,10 @@ public class AiDraftService {
         m.put("draft", draft);
         m.put("source", source);
         m.put("status", comment.getStatus());
+        if (llmResult != null) {
+            m.put("promptTokens", llmResult.promptTokens());
+            m.put("completionTokens", llmResult.completionTokens());
+        }
         return m;
     }
 
@@ -137,6 +183,34 @@ public class AiDraftService {
         return getComment(studentId, termId);
     }
 
+    /** 寄语导出（管理员或该班班主任）：班级×学期 → xlsx（学号/姓名/状态/寄语内容/AI 草稿） */
+    public Exported exportComments(UserPrincipal user, Long classId, Long termId) {
+        dataScope.checkClassOperable(user, classId);
+        List<Student> roster = studentMapper.selectList(new LambdaQueryWrapper<Student>()
+                .eq(Student::getClassId, classId).eq(Student::getStatus, "在读")
+                .orderByAsc(Student::getStudentNo));
+        Map<Long, Comment> comments = roster.isEmpty() ? Map.of()
+                : commentMapper.selectList(new LambdaQueryWrapper<Comment>()
+                        .eq(Comment::getTermId, termId).eq(Comment::getType, "班主任")
+                        .in(Comment::getStudentId, roster.stream().map(Student::getId).toList()))
+                .stream().collect(java.util.stream.Collectors.toMap(
+                        Comment::getStudentId, c -> c, (a, b) -> a));
+        List<Object[]> rows = new ArrayList<>();
+        for (Student st : roster) {
+            Comment c = comments.get(st.getId());
+            rows.add(new Object[]{st.getStudentNo(), st.getName(),
+                    c == null ? "无" : c.getStatus(),
+                    c == null || c.getContent() == null ? "" : c.getContent(),
+                    c == null || c.getAiDraft() == null ? "" : c.getAiDraft()});
+        }
+        Clazz clazz = clazzMapper.selectById(classId);
+        Term term = termMapper.selectById(termId);
+        String name = "寄语_" + (clazz != null ? clazz.getName() : classId) + "_"
+                + (term != null ? term.getName() : termId) + ".xlsx";
+        return new Exported(name, excel.export("寄语",
+                new String[]{"学号", "姓名", "状态", "寄语内容", "AI 草稿"}, rows));
+    }
+
     // ───────────────── 成长总结（四块） ─────────────────
 
     public Map<String, Object> summaryDraft(Long studentId, Long termId) {
@@ -144,13 +218,14 @@ public class AiDraftService {
         Map<String, Object> m = new LinkedHashMap<>();
         if (aiClient.enabled()) {
             try {
-                String user = "请根据以下数据为该学生生成本学期成长总结，分四块输出，"
-                        + "每块 2~4 句：\n本学期亮点：\n学习发展：\n综合素质发展：\n下一阶段建议：\n\n"
-                        + "要求避免只看成绩，结合九格综合素质表现。\n\n" + toJson(facts);
-                String text = stripMd(aiClient.chat(SYSTEM_TEACHER, user));
+                String user = summaryInstruction() + "\n\n" + toJson(facts);
+                AiClient.ChatResult cr = aiClient.chatWithUsage(systemTeacher(), user);
+                String text = stripMd(cr.content());
                 m.put("raw", text);
                 m.put("blocks", parseBlocks(text));
                 m.put("source", "llm");
+                m.put("promptTokens", cr.promptTokens());
+                m.put("completionTokens", cr.completionTokens());
                 return m;
             } catch (Exception e) {
                 log.warn("LLM 总结生成失败，降级模板: {}", e.getMessage());

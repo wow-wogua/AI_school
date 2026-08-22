@@ -44,8 +44,16 @@ public class AiClient {
         return !baseUrl.isEmpty() && !apiKey.isEmpty() && !model.isEmpty();
     }
 
+    /** 补全结果：内容 + 供应商返回的 token 用量（响应缺 usage 字段时为 0） */
+    public record ChatResult(String content, int promptTokens, int completionTokens) {}
+
     /** 单轮补全；messages = [system, user] */
     public String chat(String system, String user) {
+        return chatWithUsage(system, user).content();
+    }
+
+    /** 同 chat()，额外带回 token 用量（供任务落库做用量统计） */
+    public ChatResult chatWithUsage(String system, String user) {
         if (!enabled()) {
             throw new BizException(503, "AI 未配置（aischool.ai.base-url/api-key/model）");
         }
@@ -77,10 +85,10 @@ public class AiClient {
         img.putObject("image_url").put("url", dataUrl);
         content.add(img);
         messages.add(userMsg);
-        return postChat(body);
+        return postChat(body).content();
     }
 
-    private String postChat(ObjectNode body) {
+    private ChatResult postChat(ObjectNode body) {
         String url = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         if (!url.endsWith("/chat/completions")) {
             url = url + "/chat/completions";
@@ -96,7 +104,10 @@ public class AiClient {
             if (content == null || content.isBlank()) {
                 throw new BizException(502, "AI 返回为空");
             }
-            return content.trim();
+            JsonNode usage = resp.path("usage");
+            return new ChatResult(content.trim(),
+                    usage.path("prompt_tokens").asInt(0),
+                    usage.path("completion_tokens").asInt(0));
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {

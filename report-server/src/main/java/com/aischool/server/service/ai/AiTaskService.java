@@ -105,6 +105,10 @@ public class AiTaskService {
                     : draftService.summaryDraft(t.getStudentId(), t.getTermId());
             t.setSource(String.valueOf(result.get("source")));
             t.setResultJson(om.writeValueAsString(result));
+            if (result.get("promptTokens") instanceof Number pt) {
+                t.setPromptTokens(pt.intValue()); // LLM 用量落库（模板降级无 token，留空）
+                t.setCompletionTokens(result.get("completionTokens") instanceof Number ct ? ct.intValue() : 0);
+            }
             t.setStatus("成功");
         } catch (Exception e) {
             log.warn("AI 任务 #{} 失败: {}", id, e.getMessage());

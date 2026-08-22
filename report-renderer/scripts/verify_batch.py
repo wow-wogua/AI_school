@@ -1,6 +1,7 @@
 # Phase E 校验：10 份变体 PDF 全部 50 页，且每页中文标题序列与 golden 渲染一致（分页一致）
-import fitz, re
-BASE = 'D:/srp_project/AI_school/report-renderer/target/report.pdf'
+import fitz, re, pathlib
+ROOT = pathlib.Path(__file__).resolve().parents[1] / 'target'
+BASE = str(ROOT / 'report.pdf')
 def sig(doc):
     pages = []
     for pg in doc:
@@ -16,7 +17,7 @@ base = sig(fitz.open(BASE))
 print('golden 页数:', len(base))
 ok = True
 for i in range(1, 11):
-    p = f'D:/srp_project/AI_school/report-renderer/target/batch/student{i:02d}.pdf'
+    p = str(ROOT / 'batch' / f'student{i:02d}.pdf')
     d = fitz.open(p)
     s = sig(d)
     if len(d) != 50:

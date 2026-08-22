@@ -2,6 +2,7 @@ package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.BizException;
+import com.aischool.server.common.Exported;
 import com.aischool.server.entity.AiTask;
 import com.aischool.server.entity.Student;
 import com.aischool.server.security.AuthUtil;
@@ -79,6 +80,21 @@ public class AiController {
     public ApiResponse<Map<String, Object>> comment(@RequestParam Long studentId, @RequestParam Long termId) {
         checkReadable(studentId);
         return ApiResponse.ok(draftService.getComment(studentId, termId));
+    }
+
+    /** 寄语导出（管理员或该班班主任）：班级×学期 → xlsx */
+    @GetMapping("/comment/export")
+    public org.springframework.http.ResponseEntity<byte[]> exportComments(@RequestParam Long classId,
+                                                                          @RequestParam Long termId) {
+        Exported f = draftService.exportComments(AuthUtil.current(), classId, termId);
+        String filename = java.net.URLEncoder.encode(f.filename(), java.nio.charset.StandardCharsets.UTF_8);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename*=UTF-8''" + filename)
+                .contentType(org.springframework.http.MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .contentLength(f.content().length)
+                .body(f.content());
     }
 
     /** 寄语保存/确认 */

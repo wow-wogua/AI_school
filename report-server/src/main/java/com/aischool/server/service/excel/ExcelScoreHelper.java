@@ -57,6 +57,36 @@ public class ExcelScoreHelper {
         return c == null ? "" : fmt.formatCellValue(c).trim();
     }
 
+    /** 通用表格导出：表头 + 行数据（Number 按数值写，其余按文本写；null 留空） */
+    public byte[] export(String sheetName, String[] headers, List<Object[]> rows) {
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            var sheet = wb.createSheet(sheetName);
+            var head = sheet.createRow(0);
+            for (int c = 0; c < headers.length; c++) {
+                head.createCell(c).setCellValue(headers[c]);
+            }
+            int i = 1;
+            for (Object[] row : rows) {
+                var r = sheet.createRow(i++);
+                for (int c = 0; c < row.length; c++) {
+                    Object v = row[c];
+                    if (v instanceof Number n) {
+                        r.createCell(c).setCellValue(n.doubleValue());
+                    } else if (v != null) {
+                        r.createCell(c).setCellValue(String.valueOf(v));
+                    }
+                }
+            }
+            for (int c = 0; c < headers.length; c++) {
+                sheet.setColumnWidth(c, 16 * 256);
+            }
+            wb.write(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new BizException(500, "导出失败: " + e.getMessage());
+        }
+    }
+
     /** 生成导入模板：表头 + 班级名册（学号/姓名预填，成绩留空） */
     public byte[] template(List<Student> roster) {
         try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {

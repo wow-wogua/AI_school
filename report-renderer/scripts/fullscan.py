@@ -1,6 +1,8 @@
-import fitz, re
-S = fitz.open('D:/srp_project/AI_school/学生成长报告册.pdf')
-R = fitz.open('D:/srp_project/AI_school/report-renderer/target/report.pdf')
+import fitz, re, sys
+if len(sys.argv) != 3:
+    sys.exit('用法: python scripts/fullscan.py <原版报告册.pdf> <渲染输出.pdf>')
+S = fitz.open(sys.argv[1])
+R = fitz.open(sys.argv[2])
 
 def lines(doc, p):
     rows = {}

@@ -27,3 +27,10 @@ report-web/e2e/_*.sql
 # ── 系统杂物 ──────────────────────────────────────────
 .DS_Store
 Thumbs.db
+backups/
+__pycache__/
+
+# 本机 Maven 本地仓库指向 tools/m2-repo（勿写 C 盘 ~/.m2）——不入库，fork 者用默认即可
+report-server/settings.xml
+# 提示词评测输出（过程产物）
+report-server/scripts/prompt_eval_out/

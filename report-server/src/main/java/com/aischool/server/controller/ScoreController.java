@@ -2,6 +2,7 @@ package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.BizException;
+import com.aischool.server.common.Exported;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.score.ScoreService;
 import jakarta.validation.constraints.NotBlank;
@@ -83,6 +84,21 @@ public class ScoreController {
                                                  @RequestParam Long subjectId,
                                                  @RequestParam Long classId) {
         return ApiResponse.ok(scoreService.listScores(AuthUtil.current(), examId, subjectId, classId));
+    }
+
+    /** 成绩导出（权限同查看）：当前成绩单 → xlsx */
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> export(@RequestParam Long examId,
+                                         @RequestParam Long subjectId,
+                                         @RequestParam Long classId) {
+        Exported f = scoreService.exportScores(AuthUtil.current(), examId, subjectId, classId);
+        String filename = URLEncoder.encode(f.filename(), StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .contentLength(f.content().length)
+                .body(f.content());
     }
 
     /** 批量录入（score=null 清除） */

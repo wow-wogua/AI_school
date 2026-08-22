@@ -5,7 +5,7 @@
 import sys, json, time, subprocess, shutil, os, pathlib, urllib.request
 
 BASE = "http://localhost:8080"
-RENDERER = pathlib.Path("D:/srp_project/AI_school/report-renderer/target")
+RENDERER = pathlib.Path(__file__).resolve().parents[2] / "report-renderer" / "target"
 PASS, FAIL = 0, 0
 
 

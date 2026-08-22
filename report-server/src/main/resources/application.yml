@@ -14,6 +14,11 @@ spring:
       host: localhost
       port: 6379
       timeout: 20s  # 须大于 BLPOP 阻塞时长(5s)，否则空队列时客户端超时先于服务端返回
+  flyway:
+    enabled: true
+    baseline-on-migrate: true   # 存量库（无 flyway 历史表）自动打基线后应用后续版本
+    baseline-version: 1         # 基线=V1（V1 与 deploy/schema.sql 一致，仅用于全新空库从零建表）
+    locations: classpath:db/migration
   servlet:
     multipart:
       max-file-size: 10MB   # 荣誉证书上传上限
@@ -42,10 +47,11 @@ aischool:
     bucket: ai-school-reports
   render:
     # 渲染核心（冻结模块）主目录：classpath = target/classes + target/lib/*.jar
-    renderer-home: D:/srp_project/AI_school/report-renderer
+    # 相对路径=本机裸跑（工作目录 report-server）；容器内由 compose 的 AISCHOOL_RENDER_RENDERER_HOME 覆盖
+    renderer-home: ../report-renderer
     concurrency: 6          # Playwright 渲染进程池大小（4~8）
     timeout-seconds: 180    # 单份渲染超时
-    work-dir: D:/srp_project/AI_school/report-server/target/render-work
+    work-dir: ./target/render-work
   ai:
     # OpenAI 兼容接口；api-key 留空 → AI 草稿降级为规则模板生成（硬数字仍由规则引擎计算）
     base-url: ""
@@ -59,7 +65,21 @@ aischool:
     # LLM 单次调用读超时：deepseek 偶发慢响应实测可达 60s+，留 2 分钟余量，
     # 超时则该条降级为模板草稿（任务不失败）；批量慢任务由队列消化，不占前端
     timeout-seconds: 120
+    # 提示词外置（留空 = 用内置默认）：调话术改这里或对应环境变量即可，无需改代码
+    prompts:
+      system-teacher: ""       # 班主任角色系统提示词
+      comment-instruction: ""  # 寄语写作要求（数据 JSON 仍由代码拼接在后面）
+      summary-instruction: ""  # 成长总结写作要求（同上）
+  retention:
+    # 定时清理（每日 03:17）：AI 任务留 90 天、审计日志留 180 天，到量自动删（可按需调整）
+    task-days: 90
+    audit-days: 180
 
 logging:
   level:
     com.aischool.server: info
+
+springdoc:
+  paths-to-match: /api/**   # 只暴露业务接口；公网生产建议整体关闭（SPRINGDOC_API_DOCS_ENABLED=false）
+  swagger-ui:
+    path: /swagger-ui.html
