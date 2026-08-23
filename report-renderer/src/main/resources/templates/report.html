@@ -475,7 +475,7 @@ document.querySelectorAll('.page').forEach((pg, i) => {
     const side = (n % 2 || n === 42) ? 'r' : 'l';
     const h = document.createElement('div');
     h.className = 'hdr ' + side;
-    h.textContent = '东莞市东华初级中学学生成长报告册';
+    h.textContent = DATA.school.name + '学生成长报告册';
     pg.appendChild(h);
     /* 页眉 logo 与文字同侧（样例实测：奇数页右侧 395pt / 偶数页左侧 22pt，与 .hdr 的 r/l 一致） */
     const lg = document.createElement('img');

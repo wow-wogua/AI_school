@@ -38,30 +38,30 @@ TRUNCATE t_growth_level;
 TRUNCATE t_growth_symbol_stat;
 TRUNCATE t_comprehensive;
 TRUNCATE t_comment;
-TRUNCATE t_ai_task;
 TRUNCATE t_report_template;
 TRUNCATE t_report_task;
 TRUNCATE t_report;
+TRUNCATE t_ai_task;
 SET FOREIGN_KEY_CHECKS=1;
 
 INSERT INTO t_user (id, username, password_hash, real_name, role) VALUES
-(1, 'admin', '$2b$10$qR8P2rSW.3uu0Vo4gX655eReVIGTf4YxZF5uk8yS4osDCws//gmS2', '系统管理员', 'ADMIN'),
-(2, 'litao', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '李老师', 'HEAD_TEACHER'),
-(16, 'zhaolaoshi', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '赵老师', 'HEAD_TEACHER'),
-(17, 'wanglaoshi', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '王老师', 'TEACHER'),
-(3, 't00', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '高志强', 'TEACHER'),
-(4, 't01', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '崔万印', 'TEACHER'),
-(5, 't02', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '廖彧', 'TEACHER'),
-(6, 't03', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '肖金梅', 'TEACHER'),
-(7, 't04', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '陈楚君', 'TEACHER'),
-(8, 't05', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '毛远焕', 'TEACHER'),
-(9, 't06', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '方昌强', 'TEACHER'),
-(10, 't07', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '李振坚', 'TEACHER'),
-(11, 't08', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '黎雅', 'TEACHER'),
-(12, 't09', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '黎敏仪', 'TEACHER'),
-(13, 't10', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '邱思琦', 'TEACHER'),
-(14, 't11', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '夏青', 'TEACHER'),
-(15, 't12', '$2b$10$KkkrY5JeStoTJlw603R3jeeSrbvmk2km3WWW1p2Yo.qiG4F0PqSnC', '邢维高', 'TEACHER');
+(1, 'admin', '$2b$10$VUAFe1aJzJoUFfb4HgXXR.ytclWT3dAnCYQ3t7ic/gN8orhNbQU1C', '系统管理员', 'ADMIN'),
+(2, 'litao', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '李老师', 'HEAD_TEACHER'),
+(16, 'zhaolaoshi', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '赵老师', 'HEAD_TEACHER'),
+(17, 'wanglaoshi', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '王老师', 'TEACHER'),
+(3, 't00', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '高志强', 'TEACHER'),
+(4, 't01', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '崔万印', 'TEACHER'),
+(5, 't02', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '廖彧', 'TEACHER'),
+(6, 't03', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '肖金梅', 'TEACHER'),
+(7, 't04', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '陈楚君', 'TEACHER'),
+(8, 't05', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '毛远焕', 'TEACHER'),
+(9, 't06', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '方昌强', 'TEACHER'),
+(10, 't07', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '李振坚', 'TEACHER'),
+(11, 't08', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '黎雅', 'TEACHER'),
+(12, 't09', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '黎敏仪', 'TEACHER'),
+(13, 't10', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '邱思琦', 'TEACHER'),
+(14, 't11', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '夏青', 'TEACHER'),
+(15, 't12', '$2b$10$tl5SKy13TO20hFAzQSO5n.K/p.0QAkh604gwdos.ht2Cin5yC5IR6', '邢维高', 'TEACHER');
 INSERT INTO t_grade (id, name, school_year) VALUES
 (1, '初一', '2025-2026');
 INSERT INTO t_class (id, grade_id, name, head_teacher_id) VALUES
@@ -125,7 +125,7 @@ INSERT INTO t_grid (id, code, name, icon, sort, cur_axis_max, cur_axis_step, pre
 (8, 'G8', '特格', NULL, 8, 3, 0.5, 10, 2, 0, 1.2, 0.3),
 (9, 'G9', '体格', NULL, 9, 18, 3, 18, 3, 0, 3, 1);
 INSERT INTO t_report_template (id, school_name, sections, status) VALUES
-(1, '东莞市东华初级中学', '{"intro":"东华初级中学创办于2002年，隶属于东华教育集团，东莞市教育局直属学校。自建校以来，我校历年中考成绩，始终处于全市前列，多次位居榜首。学校全面实施素质教育，先后荣获“全国教育系统先进集体”、“广东省依法办学示范校”等几十项荣誉称号。","nineGridIntro":"“全人成长”的育人理念是完全人格、和谐人格的教育观，它的教育内容涉及人类文化的各个层面，“九格”是其内涵的关键要素。国格归于魂，信格归于念，心格归于志，品格归于德，智格归于思，慧格归于悟，美格归于内，特格归于长，体格归于健。“九格”如同秋天野外盛开的九瓣花，每个花瓣代表一种特质。九格和谐共生，缺一不可。","philosophy":[["教育集团宗旨","办现代化优质学校，培育有创新精神、国际视野的高素质人才！"],["教育理念","享受成长，体验成功"],["校训","崇善致美，笃行致远"],["学校精神","团结奉献，务实进取"],["教育使命","为未来而来，到心灵中去"],["“大”东华品牌内涵","大视野，大境界，大教育"]],"radar":{"max":180,"motto":"大志非才不就，大才非学不成。","mottoNote":"译文：没有才，宏伟的志向就不能实现；不学习，就不能成大才。","mottoSource":"——（明）郑心材《郑敬中摘语》"},"coin":{"compare":{"max":700,"step":100},"weeklyIncome":{"max":100,"step":20},"weeklyExpense":{"max":30,"step":10},"incomeTop":{"max":180,"step":30},"incomeLeast":{"max":3,"step":0.5},"expenseTop":{"max":30,"step":5}}}', '启用');
+(1, '佛山市南海区石实实验学校', '{"intro":"石实实验学校（原石门实验学校）创办于1999年，是佛山市第一所实验类全寄宿学校，2019年迁入南海区大沥镇太平新校区。学校秉持“扬长教育、出彩人生”的办学理念，以“人人出彩”为追求，办学成果丰硕，累计培育数十名清华、北大学子，被誉为佛山民办教育的标杆。","nineGridIntro":"“扬长教育”是我校的育人特色：发现每一位学生的长处，让长处更长、亮点更亮。国格铸魂，信格立念，心格砺志，品格养德，智格启思，慧格促悟，美格润内，特格扬长，体格强健。九格并举，如同九色光谱，照亮每个孩子独一无二的出彩人生。","philosophy":[["校训","任重道远，毋忘奋斗"],["办学理念","扬长教育，出彩人生"],["育人追求","人人出彩，各美其美"],["共同价值观","以爱治校，尊重你我"],["石门精神","科学，协作，拼搏"],["办学使命","为每一位学生的终身发展提供最适合的教育"]],"radar":{"max":180,"motto":"士不可以不弘毅，任重而道远。","mottoNote":"译文：读书人不可不志向远大、意志坚强，因为他肩负重任，路途遥远。","mottoSource":"——《论语·泰伯》，校训源出于此"},"coin":{"compare":{"max":700,"step":100},"weeklyIncome":{"max":100,"step":20},"weeklyExpense":{"max":30,"step":10},"incomeTop":{"max":180,"step":30},"incomeLeast":{"max":3,"step":0.5},"expenseTop":{"max":30,"step":5}}}', '启用');
 INSERT INTO t_coin_rate (id, rate, effective_date) VALUES
 (1, 0.5, '2026-01-25');
 INSERT INTO t_growth_level (id, level, min_score, symbol_name) VALUES

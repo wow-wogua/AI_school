@@ -34,3 +34,6 @@ __pycache__/
 report-server/settings.xml
 # 提示词评测输出（过程产物）
 report-server/scripts/prompt_eval_out/
+
+# 石实换校素材中转（原始素材不入库）
+shishi-assets/

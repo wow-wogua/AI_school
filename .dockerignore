@@ -8,3 +8,5 @@ deploy/
 **/dist/
 report-web/e2e/
 **/*.log
+shishi-assets/
+.git/
