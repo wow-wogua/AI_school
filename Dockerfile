@@ -18,6 +18,8 @@ RUN mvn -B package -DskipTests
 ######## 渲染核心（RenderService 运行时 fork 用：target/classes + target/lib/*.jar） ########
 FROM maven:3.9-eclipse-temurin-21 AS renderer-build
 COPY report-renderer/settings.xml /root/.m2/settings.xml
+# 预置本地仓库（含全部渲染依赖）：冷构建免从 aliyun 逐个拉几百个小构件（易被网络抖动挂死），缺失件由 aliyun 兜底
+COPY tools/m2-repo /root/.m2/repository
 WORKDIR /build
 COPY report-renderer/pom.xml ./
 COPY report-renderer/src ./src
@@ -27,12 +29,15 @@ RUN mvn -q package dependency:copy-dependencies -DoutputDirectory=target/lib -Ds
 ######## target: server 运行镜像 ########
 # 基底 = Playwright 官方 Java 镜像：浏览器版本(1.49.0)与 pom 一致 + 全部系统依赖
 FROM mcr.microsoft.com/playwright/java:v1.49.0-noble AS server
-# 镜像自带 JDK17，本项目字节码 21 → 叠加 temurin 21 JRE
-COPY --from=eclipse-temurin:21-jre-noble /opt/java/openjdk /opt/jdk21
+# 镜像自带 JDK17，本项目字节码 21 → 叠加 temurin 21（取自本地 maven 构建镜像内置的
+# /opt/java/openjdk，免拉 eclipse-temurin:21-jre-noble 基镜像——国内网络拉 docker.io
+# 基镜像易僵死；代价是 JDK 比 JRE 约大 200MB，换来冷构建零外网依赖）
+COPY --from=maven:3.9-eclipse-temurin-21 /opt/java/openjdk /opt/jdk21
 ENV JAVA_HOME=/opt/jdk21 PATH="/opt/jdk21/bin:${PATH}"
-# 中文字体：缺失则 PDF 全方块（apt 切阿里云源，国内构建快；兼容 noble 的
-# ubuntu.sources 新格式与旧 sources.list，其一不存在时 sed 报错由 || true 兜底）
-RUN sed -i 's|archive.ubuntu.com|mirrors.aliyun.com|g; s|security.ubuntu.com|mirrors.aliyun.com|g' \
+# 中文字体：缺失则 PDF 全方块（apt 切清华 TUNA 源，国内构建快且稳——阿里云 CDN
+# 大文件 deb 偶发连接失败；兼容 noble 的 ubuntu.sources 新格式与旧 sources.list，
+# 其一不存在时 sed 报错由 || true 兜底）
+RUN sed -i 's|http://archive.ubuntu.com/ubuntu|https://mirrors.tuna.tsinghua.edu.cn/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://mirrors.tuna.tsinghua.edu.cn/ubuntu|g; s|archive.ubuntu.com|mirrors.tuna.tsinghua.edu.cn|g; s|security.ubuntu.com|mirrors.tuna.tsinghua.edu.cn|g' \
       /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list 2>/dev/null || true \
  && apt-get update \
  && apt-get install -y --no-install-recommends fontconfig fonts-noto-cjk \
