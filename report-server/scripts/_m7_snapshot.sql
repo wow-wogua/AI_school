@@ -705,7 +705,7 @@ CREATE TABLE `t_report_task` (
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='报告生成任务';
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='报告生成任务';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -714,7 +714,7 @@ CREATE TABLE `t_report_task` (
 
 LOCK TABLES `t_report_task` WRITE;
 /*!40000 ALTER TABLE `t_report_task` DISABLE KEYS */;
-INSERT INTO `t_report_task` VALUES (1,2,'单生',51,'成功',1,1,0,1,'2026-08-24 10:12:58','2026-08-24 10:12:58'),(2,2,'班级',2,'成功',2,2,0,16,'2026-08-24 10:13:39','2026-08-24 10:13:39'),(3,2,'班级',2,'成功',2,2,0,16,'2026-08-24 10:13:48','2026-08-24 10:13:48'),(4,2,'班级',2,'成功',2,2,0,16,'2026-08-24 10:13:59','2026-08-24 10:13:59');
+INSERT INTO `t_report_task` VALUES (1,2,'单生',51,'成功',1,1,0,1,'2026-08-24 10:12:58','2026-08-24 10:12:58'),(2,2,'班级',2,'成功',2,2,0,16,'2026-08-24 10:13:39','2026-08-24 10:13:39'),(3,2,'班级',2,'成功',2,2,0,16,'2026-08-24 10:13:48','2026-08-24 10:13:48'),(4,2,'班级',2,'成功',2,2,0,16,'2026-08-24 10:13:59','2026-08-24 10:13:59'),(5,2,'单生',1,'成功',1,1,0,1,'2026-08-24 10:28:41','2026-08-24 10:28:41');
 /*!40000 ALTER TABLE `t_report_task` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -739,7 +739,7 @@ CREATE TABLE `t_report` (
   PRIMARY KEY (`id`),
   KEY `idx_task` (`task_id`),
   KEY `idx_student` (`student_id`,`term_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='成品报告';
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='成品报告';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -748,7 +748,7 @@ CREATE TABLE `t_report` (
 
 LOCK TABLES `t_report` WRITE;
 /*!40000 ALTER TABLE `t_report` DISABLE KEYS */;
-INSERT INTO `t_report` VALUES (1,1,51,2,'reports/2/51/1.pdf',NULL,'2026-08-24 10:13:02','成功',NULL,'2026-08-24 10:12:58'),(2,2,51,2,'reports/2/51/2.pdf',NULL,'2026-08-24 10:13:42','成功',NULL,'2026-08-24 10:13:39'),(3,2,52,2,'reports/2/52/3.pdf',NULL,'2026-08-24 10:13:42','成功',NULL,'2026-08-24 10:13:39'),(4,3,51,2,'reports/2/51/4.pdf',NULL,'2026-08-24 10:13:51','成功',NULL,'2026-08-24 10:13:48'),(5,3,52,2,'reports/2/52/5.pdf',NULL,'2026-08-24 10:13:52','成功',NULL,'2026-08-24 10:13:48'),(6,4,51,2,'reports/2/51/6.pdf',NULL,'2026-08-24 10:14:02','成功',NULL,'2026-08-24 10:13:59'),(7,4,52,2,'reports/2/52/7.pdf',NULL,'2026-08-24 10:14:02','成功',NULL,'2026-08-24 10:13:59');
+INSERT INTO `t_report` VALUES (1,1,51,2,'reports/2/51/1.pdf',NULL,'2026-08-24 10:13:02','成功',NULL,'2026-08-24 10:12:58'),(2,2,51,2,'reports/2/51/2.pdf',NULL,'2026-08-24 10:13:42','成功',NULL,'2026-08-24 10:13:39'),(3,2,52,2,'reports/2/52/3.pdf',NULL,'2026-08-24 10:13:42','成功',NULL,'2026-08-24 10:13:39'),(4,3,51,2,'reports/2/51/4.pdf',NULL,'2026-08-24 10:13:51','成功',NULL,'2026-08-24 10:13:48'),(5,3,52,2,'reports/2/52/5.pdf',NULL,'2026-08-24 10:13:52','成功',NULL,'2026-08-24 10:13:48'),(6,4,51,2,'reports/2/51/6.pdf',NULL,'2026-08-24 10:14:02','成功',NULL,'2026-08-24 10:13:59'),(7,4,52,2,'reports/2/52/7.pdf',NULL,'2026-08-24 10:14:02','成功',NULL,'2026-08-24 10:13:59'),(8,5,1,2,'reports/2/1/8.pdf',NULL,'2026-08-24 10:28:45','成功',NULL,'2026-08-24 10:28:41');
 /*!40000 ALTER TABLE `t_report` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -761,4 +761,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-24 10:16:17
+-- Dump completed on 2026-08-24 10:35:36

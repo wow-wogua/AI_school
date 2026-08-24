@@ -128,7 +128,9 @@ def main():
                 print('  p%02d: %s vs %s' % (j + 1, a, b))
     else:
         print('② 渲染 %d 页、标题序列与 target/report.pdf 逐页一致 OK' % n)
-    print('RESULT:', 'PASS' if not out and n == 50 and sig == tsig else 'FAIL')
+    ok = not out and n == 50 and sig == tsig
+    print('RESULT:', 'PASS' if ok else 'FAIL')
+    sys.exit(0 if ok else 1)  # 退出码与 RESULT 一致（verify_m7 内嵌契约门依赖）
 
 
 if __name__ == '__main__':
