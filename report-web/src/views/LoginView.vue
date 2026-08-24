@@ -83,16 +83,23 @@ async function doLogin() {
 .login-wrap {
   position: relative; overflow: hidden; height: 100%;
   display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: #3a0d10; /* 图片加载前兜底 */
+}
+/* 虚化校园庭院背景（与左侧面板 gate.jpg 不同景），叠石实红/蓝品牌色罩保证卡片对比度 */
+.login-wrap::before {
+  content: ''; position: absolute; inset: -48px; /* 外扩补偿 blur 边缘褪色 */
   background:
-    radial-gradient(720px 420px at 88% -8%, rgba(201,138,45,.38), transparent 62%),
-    radial-gradient(640px 480px at -6% 108%, rgba(0,120,212,.45), transparent 60%),
-    linear-gradient(135deg, #3a0d10 0%, #6e151c 42%, #a8232b 100%);
+    radial-gradient(720px 420px at 88% -8%, rgba(201,138,45,.30), transparent 62%),
+    radial-gradient(640px 480px at -6% 108%, rgba(0,120,212,.32), transparent 60%),
+    linear-gradient(135deg, rgba(58,13,16,.72) 0%, rgba(58,13,16,.42) 45%, rgba(9,42,74,.55) 100%),
+    url('/login-bg.jpg') center/cover no-repeat;
+  filter: blur(22px);
 }
 .deco-p { pointer-events: none; }
 .deco { position: absolute; border-radius: 50%; filter: blur(56px); opacity: .5; pointer-events: none; }
 .deco-a { width: 260px; height: 260px; right: -60px; top: 12%; background: rgba(217,142,35,.42); animation: floaty 7s ease-in-out infinite; }
 .deco-b { width: 220px; height: 220px; left: -50px; bottom: 8%; background: rgba(83,168,255,.45); animation: floaty 9s ease-in-out infinite reverse; }
-.login-split { display: flex; align-items: stretch; justify-content: center; width: 100%; }
+.login-split { position: relative; z-index: 1; display: flex; align-items: stretch; justify-content: center; width: 100%; }
 .login-card-motion { width: 100%; max-width: 380px; }
 .login-card { width: 100%; max-width: 380px; border: 1px solid rgba(255,255,255,.5); border-radius: 12px;
   background: rgba(255,255,255,.94); backdrop-filter: blur(14px);
