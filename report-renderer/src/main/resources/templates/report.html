@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <title>学生成长报告册</title>
 <style>
-  /* ===== 全局：A4 固定 52 页，每页 210×296.9mm，页眉页码由每页 CSS 绝对定位（JS 注入） ===== */
+  /* ===== 全局：A4 固定 51 页（封面+目录+49 内容页），每页 210×296.9mm，页眉页码由每页 CSS 绝对定位（JS 注入） ===== */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: "HarmonyOS Sans SC", Arial, sans-serif; color: #000; background: #fff; }
   .page { width: 210mm; height: 296.9mm; position: relative; overflow: hidden;
@@ -68,22 +68,57 @@
 </head>
 <body>
 
+<!-- ═══════════ p00 封面 ═══════════ -->
+<div class="page nohdr nonum" style="background:linear-gradient(180deg,#35B6C9 0%,#1E7FA8 100%)">
+  <!-- 金色双线内框 -->
+  <div class="abs" style="top:26pt;left:26pt;right:26pt;bottom:26pt;border:1.5pt solid rgba(247,197,114,.9);border-radius:2pt"></div>
+  <div class="abs" style="top:32pt;left:32pt;right:32pt;bottom:32pt;border:.5pt solid rgba(247,197,114,.55)"></div>
+  <!-- 校徽 + 校名 -->
+  <img class="abs" th:src="${imgLogo}" style="top:74pt;left:50%;transform:translateX(-50%);width:62pt;height:50pt" alt=""/>
+  <div class="abs" style="top:148pt;left:0;width:100%;text-align:center;font-size:20pt;font-weight:bold;color:#fff;letter-spacing:3pt;margin-right:-3pt" th:text="${r.school.name}">佛山市南海区石实实验学校</div>
+  <div class="abs" style="top:182pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#CFEAEF;letter-spacing:2.2pt;margin-right:-2.2pt">SHISHI EXPERIMENTAL SCHOOL · EST. 1999</div>
+  <!-- 主标题 -->
+  <div class="abs" style="top:287pt;left:222.5pt;width:150pt;height:1pt;background:rgba(247,197,114,.75)"></div>
+  <div class="abs" style="top:297pt;left:0;width:100%;text-align:center;font-size:33pt;font-weight:bold;color:#fff;letter-spacing:7pt;margin-right:-7pt">学生成长报告册</div>
+  <div class="abs" style="top:355pt;left:0;width:100%;text-align:center;font-size:9.5pt;color:#F7C572;letter-spacing:3.5pt;margin-right:-3.5pt">STUDENT GROWTH REPORT</div>
+  <div class="abs" style="top:366pt;left:222.5pt;width:150pt;height:1pt;background:rgba(247,197,114,.75)"></div>
+  <!-- 校训（数据驱动：理念首行） -->
+  <div class="abs" style="top:406pt;left:0;width:100%;text-align:center;font-size:8pt;color:rgba(255,255,255,.75);letter-spacing:4pt;margin-right:-4pt">校　训</div>
+  <div class="abs" style="top:420pt;left:0;width:100%;text-align:center;font-size:13.5pt;color:#F7C572;letter-spacing:2pt;margin-right:-2pt"
+       th:if="${!#lists.isEmpty(r.school.philosophy)}" th:text="${r.school.philosophy[0][1]}">任重道远，毋忘奋斗</div>
+  <!-- 学生信息卡 -->
+  <div class="abs" style="top:566pt;left:147.5pt;width:300pt;background:rgba(255,255,255,.12);border-radius:8pt;padding:24pt 0 20pt">
+    <div style="display:flex;align-items:baseline;justify-content:center;margin-bottom:14pt">
+      <span style="width:70pt;text-align:right;font-size:11pt;color:#F7C572;letter-spacing:2pt">姓　名</span>
+      <span style="width:150pt;margin-left:18pt;text-align:center;font-size:12pt;color:#fff;border-bottom:.8pt solid rgba(255,255,255,.65);padding-bottom:3pt" th:text="${r.student.name}">陈小华</span>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:center;margin-bottom:14pt">
+      <span style="width:70pt;text-align:right;font-size:11pt;color:#F7C572;letter-spacing:2pt">班　级</span>
+      <span style="width:150pt;margin-left:18pt;text-align:center;font-size:12pt;color:#fff;border-bottom:.8pt solid rgba(255,255,255,.65);padding-bottom:3pt" th:text="${r.student.clazz}">初一(1)班</span>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:center">
+      <span style="width:70pt;text-align:right;font-size:11pt;color:#F7C572;letter-spacing:2pt">学　号</span>
+      <span style="width:150pt;margin-left:18pt;text-align:center;font-size:12pt;color:#fff;border-bottom:.8pt solid rgba(255,255,255,.65);padding-bottom:3pt" th:text="${r.student.studentNo}">20230001</span>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════ p01 目录 ═══════════ -->
 <div class="page z-o nohdr nonum" style="background:linear-gradient(180deg,#35B6C9 0%,#1E7FA8 100%)">
   <div class="abs" style="top:54.1pt;left:60.7pt;right:60.7pt;text-align:right;font-size:22.5pt;font-weight:bold;color:#F7C572;letter-spacing:10pt;margin-right:-10pt">目录</div>
   <div class="abs" style="top:81.1pt;left:60.7pt;right:60.7pt;text-align:right;font-size:22.5pt;color:#000;letter-spacing:3pt;margin-right:-3pt">CONTENTS</div>
   <div class="abs" style="top:157.5pt;left:83pt;right:60.7pt">
-    <div class="toc-row"><span>学校理念</span><span class="dots"></span><span>4</span></div>
-    <div class="toc-row"><span>学校风采</span><span class="dots"></span><span>5</span></div>
-    <div class="toc-row"><span>“扬长”育人体系</span><span class="dots"></span><span>6</span></div>
-    <div class="toc-row"><span>校长寄语</span><span class="dots"></span><span>7</span></div>
-    <div class="toc-row"><span>国家课程学业评价</span><span class="dots"></span><span>8</span></div>
-    <div class="toc-row"><span>我的平时成绩</span><span class="dots"></span><span>21</span></div>
-    <div class="toc-row"><span>学生个人综合素质成长</span><span class="dots"></span><span>22</span></div>
-    <div class="toc-row"><span>我的活动</span><span class="dots"></span><span>43</span></div>
-    <div class="toc-row"><span>成长银行</span><span class="dots"></span><span>45</span></div>
-    <div class="toc-row"><span>我的成长象征物</span><span class="dots"></span><span>49</span></div>
-    <div class="toc-row"><span>综合素质评定</span><span class="dots"></span><span>51</span></div>
+    <div class="toc-row"><span>学校理念</span><span class="dots"></span><span>3</span></div>
+    <div class="toc-row"><span>学校风采</span><span class="dots"></span><span>4</span></div>
+    <div class="toc-row"><span>“扬长”育人体系</span><span class="dots"></span><span>5</span></div>
+    <div class="toc-row"><span>校长寄语</span><span class="dots"></span><span>6</span></div>
+    <div class="toc-row"><span>国家课程学业评价</span><span class="dots"></span><span>7</span></div>
+    <div class="toc-row"><span>我的平时成绩</span><span class="dots"></span><span>20</span></div>
+    <div class="toc-row"><span>学生个人综合素质成长</span><span class="dots"></span><span>21</span></div>
+    <div class="toc-row"><span>我的活动</span><span class="dots"></span><span>42</span></div>
+    <div class="toc-row"><span>成长银行</span><span class="dots"></span><span>44</span></div>
+    <div class="toc-row"><span>我的成长象征物</span><span class="dots"></span><span>48</span></div>
+    <div class="toc-row"><span>综合素质评定</span><span class="dots"></span><span>50</span></div>
   </div>
 </div>
 
@@ -92,8 +127,8 @@
   <img class="abs" th:src="${imgIdeaBg}" style="top:0;left:0;width:595pt;height:842pt" alt=""/>
   <div class="abs" style="top:151pt;left:60.7pt;width:473.6pt">
     <div th:each="p : ${r.school.philosophy}" style="margin-bottom:24.2pt">
-      <div style="float:left;width:137.3pt;text-align:right;font-size:12pt;font-weight:bold" th:text="${p[0]}">教育集团宗旨</div>
-      <div style="float:left;width:243pt;margin-left:41pt;position:relative;top:1.4pt;font-size:12pt;line-height:15.4pt" th:text="${p[1]}">办现代化优质学校，培育有创新精神、国际视野的高素质人才！</div>
+      <div style="float:left;width:137.3pt;text-align:right;font-size:12pt;font-weight:bold" th:text="${p[0]}">办学使命</div>
+      <div style="float:left;width:243pt;margin-left:41pt;position:relative;top:1.4pt;font-size:12pt;line-height:15.4pt" th:text="${p[1]}">为每一位学生的终身发展提供最适合的教育</div>
       <div style="clear:both"></div>
     </div>
   </div>
@@ -471,11 +506,11 @@ function mk(id, opt) {
 const WRAP = (fs, color, w) => ({ fontSize: fs, color, width: w, overflow: 'break', interval: 0, lineHeight: fs });
 const LEG3 = ['个人过程评价得分', '班级人均过程评价得分', '年级人均过程评价得分'];
 
-/* ── 页眉 / 页码注入（打印页码 = 物理页 + 2） ── */
+/* ── 页眉 / 页码注入（打印页码 = 物理页，目录一致） ── */
 document.querySelectorAll('.page').forEach((pg, i) => {
   const n = i + 1;
   if (!pg.classList.contains('nohdr')) {
-    const side = (n % 2 || n === 42) ? 'r' : 'l';
+    const side = (i % 2 || i === 42) ? 'r' : 'l'; /* i = 加封面前旧物理页号，页眉左右侧沿用原排版 */
     /* 页眉 = 校徽 + 校名整体锁排（同侧自适应，长校名不再与徽重叠） */
     const h = document.createElement('div');
     h.className = 'hdr ' + side;
@@ -489,10 +524,10 @@ document.querySelectorAll('.page').forEach((pg, i) => {
   if (!pg.classList.contains('nonum')) {
     const p = document.createElement('div');
     p.className = 'pgnum';
-    p.textContent = n + 2;
+    p.textContent = n;
     pg.appendChild(p);
     ['pl1', 'pl2'].forEach(cl => { const l = document.createElement('div'); l.className = 'pline ' + cl; pg.appendChild(l); });
-    const one = String(n + 2).length === 1;
+    const one = String(n).length === 1;
     ['ps1', 'ps2'].forEach((cl, k) => {
       const s = document.createElement('div');
       s.className = 'psq ' + cl;

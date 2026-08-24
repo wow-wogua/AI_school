@@ -98,7 +98,6 @@ bash scripts/run_regression.sh                          # 十脚本全链（从 
 | 重叠修复 | PASS | 生成 PDF 打印第 6 页（p04）790–840pt 页脚带非白仅 1.5%（仅页码线；插画底缘 672pt） |
 | 图片落位 | PASS | 逐区域像素检查（p02 底图/p03 照片×2/p04 插画/p05 整页/p06 角饰×2/p07/p08 角饰/logo 抽查 13 页）全部命中 |
 | E2E 回归 | **PASS 94/94** | verify_web 32/32（含服务端批量渲染下载 PDF 2.76MB）+ m6 20/20 + m7 42/42 |
-| 目检材料 | — | docs/img_embed_check/cmp_p01..08.png（原版 vs 生成并排） |
 
 复跑：`cd report-renderer && mvn -s settings.xml package -DskipTests`，然后 `cd ../report-server && PYTHONIOENCODING=utf-8 python scripts/verify_contract.py`（需后端 8080）
 

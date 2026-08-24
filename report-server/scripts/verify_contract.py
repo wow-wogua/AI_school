@@ -4,7 +4,7 @@
 1. 登录取 JWT → GET /api/report/data/1?termId=2（聚合层产出的契约 JSON）
 2. 与 golden_student.json 深比对：数值 int/float 视为相等（1020==1020.0，渲染层 JS 等价；
    growthSymbol 已在后端恒为 Double），其余字段须全等；差异逐条打印
-3. 聚合 JSON 走渲染核心 → PDF，页数 50 且每页中文大标题序列与 target/report.pdf 一致
+3. 聚合 JSON 走渲染核心 → PDF，页数 51（封面+目录+49 内容页）且每页中文大标题序列与 target/report.pdf 一致
 
 用法：PYTHONIOENCODING=utf-8 python scripts/verify_contract.py
 """
@@ -119,8 +119,8 @@ def main():
 
     n, sig = title_sig(out_pdf)
     tn, tsig = title_sig(TARGET_PDF)
-    if n != 50:
-        print('② 渲染页数 %d != 50 FAIL' % n)
+    if n != 51:
+        print('② 渲染页数 %d != 51 FAIL' % n)
     elif sig != tsig:
         print('② 标题序列与 target/report.pdf 不一致 FAIL')
         for j, (a, b) in enumerate(zip(sig, tsig)):
@@ -128,7 +128,7 @@ def main():
                 print('  p%02d: %s vs %s' % (j + 1, a, b))
     else:
         print('② 渲染 %d 页、标题序列与 target/report.pdf 逐页一致 OK' % n)
-    ok = not out and n == 50 and sig == tsig
+    ok = not out and n == 51 and sig == tsig
     print('RESULT:', 'PASS' if ok else 'FAIL')
     sys.exit(0 if ok else 1)  # 退出码与 RESULT 一致（verify_m7 内嵌契约门依赖）
 
