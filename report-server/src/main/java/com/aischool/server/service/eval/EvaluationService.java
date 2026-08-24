@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 
 /**
  * 过程性评价引擎（功能点 §5/§6）：一次评价同时写穿全部聚合表——
- * t_evaluation → t_grid_stat_term/week → t_coin_week(in_mine) → 能量币流水/账户 → 班/年级九格均值。
+ * t_evaluation → t_grid_stat_term/week → t_coin_week(in_mine) → 能量币流水/账户 → 班/年级九维均值。
  * 报告只读聚合表（Java 无聚合代码），故写入必须与 ReportDataBuilder 的读取口径逐条对齐：
  * - 学期窗口 [start 00:00, end 00:00]（与 buildGrids 的过滤完全一致，聚合与报告永不分叉）
  * - kindCount = (title + 指标名) 去重组数（与 buildRecords 分组同构）
@@ -80,7 +80,7 @@ public class EvaluationService {
         }
         Grid grid = gridMapper.selectById(ind.getGridId());
         if (grid == null) {
-            throw new BizException(404, "九格不存在");
+            throw new BizException(404, "九维不存在");
         }
         if (title == null || title.isBlank()) {
             throw new BizException(400, "title 不能为空");
@@ -107,7 +107,7 @@ public class EvaluationService {
         e.setEvalTime(evalTime);
         evaluationMapper.insert(e);
 
-        // ② 学期九格累计
+        // ② 学期九维累计
         GridStatTerm stat = gridStatTermMapper.selectOne(new LambdaQueryWrapper<GridStatTerm>()
                 .eq(GridStatTerm::getStudentId, studentId)
                 .eq(GridStatTerm::getTermId, term.getId())
@@ -130,7 +130,7 @@ public class EvaluationService {
             gridStatTermMapper.updateById(stat);
         }
 
-        // ③ 周九格
+        // ③ 周九维
         int weekNo = weekNo(term, evalTime);
         GridStatWeek week = gridStatWeekMapper.selectOne(new LambdaQueryWrapper<GridStatWeek>()
                 .eq(GridStatWeek::getStudentId, studentId)

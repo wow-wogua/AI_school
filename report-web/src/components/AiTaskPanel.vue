@@ -43,15 +43,15 @@ function shortTime(v?: string) {
   return m ? `${m[1]}:${m[2]}` : ''
 }
 
-/** 点任务直达对应页面并选中该学生（页面读 query 预选） */
-function go(t: { taskType: string; studentId: number; termId: number }) {
+/** 点任务直达对应页面并选中该学生（页面读 query 预选；taskId 供寄语页直接回填该任务草稿） */
+function go(t: { taskType: string; studentId: number; termId: number; taskId: number }) {
   store.panelOpen = false
-  router.push({ path: t.taskType === 'COMMENT' ? '/comments' : '/summary', query: { studentId: String(t.studentId), termId: String(t.termId) } })
+  router.push({ path: t.taskType === 'COMMENT' ? '/comments' : '/summary', query: { studentId: String(t.studentId), termId: String(t.termId), taskId: String(t.taskId) } })
 }
 </script>
 
 <style scoped>
-.ai-panel-btn { color: #a5b4fc; padding: 4px 8px; }
+.ai-panel-btn { color: #e5bdbf; padding: 4px 8px; }
 .ai-panel-btn:hover { color: #fff; }
 .ai-panel-btn .spinning { animation: ai-spin 1.2s linear infinite; }
 @keyframes ai-spin { to { transform: rotate(360deg); } }

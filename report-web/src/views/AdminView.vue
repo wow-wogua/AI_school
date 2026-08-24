@@ -7,7 +7,7 @@
       <el-tab-pane label="年级与班级" name="org"><OrgTab /></el-tab-pane>
       <el-tab-pane label="学生" name="student"><StudentTab /></el-tab-pane>
       <el-tab-pane label="学期" name="term"><TermTab /></el-tab-pane>
-      <el-tab-pane label="九格指标" name="indicator"><IndicatorTab /></el-tab-pane>
+      <el-tab-pane label="育人指标" name="indicator"><IndicatorTab /></el-tab-pane>
       <el-tab-pane label="报告模板" name="template"><TemplateTab /></el-tab-pane>
       <el-tab-pane label="审计日志" name="audit"><AuditTab /></el-tab-pane>
       <el-tab-pane label="AI 用量" name="aiUsage"><AiUsageTab /></el-tab-pane>

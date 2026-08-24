@@ -17,9 +17,12 @@
   .z-o .hdr { color: #313131; }
   .z-b .hdr { color: #181C83; }
   .z-g .hdr { color: #168C51; }
-  .hdr { position: absolute; top: 26.1pt; font-size: 9pt; white-space: nowrap; }
+  /* 页眉 = 校徽 + 校名整体锁排（同侧自适应，长校名不再与徽重叠） */
+  .hdr { position: absolute; top: 21pt; height: 22pt; font-size: 9pt; white-space: nowrap;
+         display: flex; align-items: center; gap: 7pt; }
+  .hdr img { width: 27pt; height: 22pt; flex: none; }
   .hdr.r { right: 23pt; }
-  .hdr.l { left: 56pt; }
+  .hdr.l { left: 22pt; }
   .pgnum { position: absolute; top: 810pt; left: 0; width: 100%; text-align: center;
            font-size: 9pt; color: var(--pnc); }
   .pline { position: absolute; top: 814.6pt; height: .7pt; background: var(--lc); }
@@ -72,7 +75,7 @@
   <div class="abs" style="top:157.5pt;left:83pt;right:60.7pt">
     <div class="toc-row"><span>学校理念</span><span class="dots"></span><span>4</span></div>
     <div class="toc-row"><span>学校风采</span><span class="dots"></span><span>5</span></div>
-    <div class="toc-row"><span>“九格”育人体系</span><span class="dots"></span><span>6</span></div>
+    <div class="toc-row"><span>“扬长”育人体系</span><span class="dots"></span><span>6</span></div>
     <div class="toc-row"><span>校长寄语</span><span class="dots"></span><span>7</span></div>
     <div class="toc-row"><span>国家课程学业评价</span><span class="dots"></span><span>8</span></div>
     <div class="toc-row"><span>我的平时成绩</span><span class="dots"></span><span>21</span></div>
@@ -107,9 +110,9 @@
   <img class="abs" th:src="${imgPhoto2}" style="top:516pt;left:136pt;width:323pt;height:216pt" alt=""/>
 </div>
 
-<!-- ═══════════ p04 “九格”育人体系 ═══════════ -->
+<!-- ═══════════ p04 “扬长”育人体系 ═══════════ -->
 <div class="page z-o">
-  <div class="t16" style="top:97pt">“九格”育人体系</div>
+  <div class="t16" style="top:97pt">“扬长”育人体系</div>
   <img class="abs" th:src="${imgIconL}" style="top:100pt;left:205pt;width:13pt;height:15pt" alt=""/>
   <img class="abs" th:src="${imgIconR}" style="top:100pt;left:377pt;width:13pt;height:15pt" alt=""/>
   <div class="abs" style="top:166.5pt;left:79pt;width:441pt;text-indent:15pt;font-size:12pt;color:#2C3E50;line-height:22.6pt"
@@ -473,16 +476,15 @@ document.querySelectorAll('.page').forEach((pg, i) => {
   const n = i + 1;
   if (!pg.classList.contains('nohdr')) {
     const side = (n % 2 || n === 42) ? 'r' : 'l';
+    /* 页眉 = 校徽 + 校名整体锁排（同侧自适应，长校名不再与徽重叠） */
     const h = document.createElement('div');
     h.className = 'hdr ' + side;
-    h.textContent = DATA.school.name + '学生成长报告册';
-    pg.appendChild(h);
-    /* 页眉 logo 与文字同侧（样例实测：奇数页右侧 395pt / 偶数页左侧 22pt，与 .hdr 的 r/l 一致） */
     const lg = document.createElement('img');
     lg.src = LOGO;
     lg.alt = '';
-    lg.style.cssText = 'position:absolute;top:21pt;width:27pt;height:22pt;left:' + (side === 'r' ? '395pt' : '22pt');
-    pg.appendChild(lg);
+    h.appendChild(lg);
+    h.appendChild(document.createTextNode(DATA.school.name + '学生成长报告册'));
+    pg.appendChild(h);
   }
   if (!pg.classList.contains('nonum')) {
     const p = document.createElement('div');

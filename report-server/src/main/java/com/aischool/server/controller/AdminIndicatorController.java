@@ -25,8 +25,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 管理端：九格指标体系（仅管理员）。
- * 九格本体（t_grid）只读——报告渲染与契约验证依赖格定义；
+ * 管理端：育人指标体系（仅管理员）。
+ * 九维本体（t_grid）只读——报告渲染与契约验证依赖格定义；
  * 二级指标可增改删，但被评价记录引用时禁止改名/删除（改名会改写既有报告的记录卡分组）。
  */
 @RestController
@@ -44,7 +44,7 @@ public class AdminIndicatorController {
         }
     }
 
-    /** 九格列表（只读，附各格指标数） */
+    /** 九维列表（只读，附各格指标数） */
     @GetMapping("/grid/list")
     public ApiResponse<List<Map<String, Object>>> gridList() {
         checkAdmin();
@@ -89,7 +89,7 @@ public class AdminIndicatorController {
     public ApiResponse<Map<String, Object>> createIndicator(@Validated @RequestBody IndicatorReq req) {
         checkAdmin();
         if (gridMapper.selectById(req.getGridId()) == null) {
-            throw new BizException(404, "九格不存在");
+            throw new BizException(404, "九维不存在");
         }
         Indicator i = new Indicator();
         copy(req, i);
@@ -105,7 +105,7 @@ public class AdminIndicatorController {
             throw new BizException(404, "指标不存在");
         }
         if (gridMapper.selectById(req.getGridId()) == null) {
-            throw new BizException(404, "九格不存在");
+            throw new BizException(404, "九维不存在");
         }
         // 改名守卫：被评价引用的指标改名会改写既有报告的记录卡分组
         boolean renamed = !req.getName().equals(i.getName());

@@ -73,7 +73,7 @@ public class AiDraftService {
         return cfgSummaryInstruction == null || cfgSummaryInstruction.isBlank()
                 ? "请根据以下数据为该学生生成本学期成长总结，分四块输出，每块 2~4 句："
                 + "\n本学期亮点：\n学习发展：\n综合素质发展：\n下一阶段建议：\n"
-                + "要求避免只看成绩，结合九格综合素质表现。"
+                + "要求避免只看成绩，结合九维综合素质表现。"
                 : cfgSummaryInstruction;
     }
 
@@ -265,7 +265,7 @@ public class AiDraftService {
         sb.append("，其中").append(facts.getOrDefault("优势学科", "")).append("表现突出，值得保持；")
                 .append(facts.getOrDefault("待提升学科", "")).append("仍有提升空间，建议针对性补强。");
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> grids = (List<Map<String, Object>>) facts.get("九格表现");
+        List<Map<String, Object>> grids = (List<Map<String, Object>>) facts.get("综合素质表现");
         if (grids != null && !grids.isEmpty()) {
             Map<String, Object> top = grids.stream()
                     .max((a, b) -> Double.compare(((Number) a.get("获得评价积分")).doubleValue(),
@@ -287,7 +287,7 @@ public class AiDraftService {
                 .append(facts.getOrDefault("优势学科", "")).append("表现稳定突出。\n");
         sb.append("学习发展：期末总分 ").append(facts.get("总分")).append(" 分，")
                 .append(facts.getOrDefault("待提升学科", "")).append("有提升空间，需加强基础巩固。\n");
-        sb.append("综合素质发展：九格评价显示 ")
+        sb.append("综合素质发展：九维评价显示 ")
                 .append(gridTopName(facts)).append("维度积分领先，德智体美劳全面发展态势良好。\n");
         sb.append("下一阶段建议：保持优势科目的学习节奏，针对薄弱科目制定周计划并主动请教老师；"
                 + "继续参与班级活动，在集体中锻炼组织与表达能力。");
@@ -296,7 +296,7 @@ public class AiDraftService {
 
     private String gridTopName(Map<String, Object> facts) {
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> grids = (List<Map<String, Object>>) facts.get("九格表现");
+        List<Map<String, Object>> grids = (List<Map<String, Object>>) facts.get("综合素质表现");
         if (grids == null || grids.isEmpty()) {
             return "";
         }

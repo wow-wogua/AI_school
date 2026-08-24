@@ -17,6 +17,7 @@
       >
         <el-button type="primary" :disabled="!studentId" :loading="uploading">上传证书</el-button>
       </el-upload>
+      <span class="hint">支持 jpg/jpeg/png/pdf，单个不超过 10MB；图片可 AI 识别，PDF 需手动填写</span>
     </div>
 
     <el-alert v-if="uploadInfo" :title="uploadInfo" type="info" :closable="true" style="margin-bottom: 12px" />
@@ -190,3 +191,7 @@ async function view(h: Honor) {
 
 onMounted(init)
 </script>
+
+<style scoped>
+.hint { color: #909399; font-size: 12px; }
+</style>

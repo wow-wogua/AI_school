@@ -105,7 +105,7 @@ async function adminFlow(ctx, name, examName) {
     await page.waitForURL(BASE + '/admin')
     await page.waitForSelector('.el-table__row', { timeout: 10000 })
     check(`${name} admin 教师页加载`, (await page.locator('.el-table__row').count()) > 0)
-    const tabs = ['年级与班级', '学生', '学期', '九格指标', '报告模板']
+    const tabs = ['年级与班级', '学生', '学期', '育人指标', '报告模板']
     for (const t of tabs) await page.getByRole('tab', { name: t }).click()
     await page.getByText('锁定').first().waitFor({ timeout: 10000 }) // 模板页启用行渲染完成
     check(`${name} 模板页含锁定标记`, (await page.getByText('锁定').count()) > 0)

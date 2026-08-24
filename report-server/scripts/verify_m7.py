@@ -220,7 +220,7 @@ def group_admin(admin, litao):
 def group_indicator(admin):
     print("[2] 指标 CRUD 与引用守卫")
     st, r, _, _ = call("GET", "/api/meta/grids", token=admin)
-    zhi = next(g for g in r["data"] if "智" in g["name"])
+    zhi = next(g for g in r["data"] if "学业" in g["name"])
     st, r, _, _ = call("POST", "/api/admin/indicator", token=admin, body={
         "gridId": zhi["id"], "name": "M7验收指标", "direction": "+", "defaultScore": 1})
     check("建指标 200", st == 200, f"{st} {r}")
@@ -239,7 +239,7 @@ def group_indicator(admin):
     st, r, _, _ = call("DELETE", f"/api/admin/indicator/{used['id']}", token=admin)
     check("被引用指标删除 400", st == 400, f"got {st}")
     st, r, _, _ = call("GET", "/api/admin/grid/list", token=admin)
-    check("九格只读列表（含指标数）", all("indicatorCount" in g for g in r["data"]), "")
+    check("九维只读列表（含指标数）", all("indicatorCount" in g for g in r["data"]), "")
 
 
 def group_template(admin):
@@ -344,9 +344,9 @@ def group_score(admin, wang, litao):
 # ══════════════════ ③ 评价引擎 ══════════════════
 
 def group_eval(admin, wang, litao):
-    print("[5] 评价引擎写穿链（学生52，智格 +2）")
+    print("[5] 评价引擎写穿链（学生52，学业水平 +2）")
     st, r, _, _ = call("GET", "/api/meta/grids", token=admin)
-    zhi = next(g for g in r["data"] if "智" in g["name"])
+    zhi = next(g for g in r["data"] if "学业" in g["name"])
     st, r, _, _ = call("GET", "/api/meta/indicators?gridId=%d" % zhi["id"], token=admin)
     ind = r["data"][0]
     week18 = (datetime.date(2026, 6, 13) - datetime.date(2026, 2, 9)).days // 7 + 1

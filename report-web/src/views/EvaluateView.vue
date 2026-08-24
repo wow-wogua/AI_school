@@ -15,9 +15,9 @@
     </div>
 
     <el-card v-if="studentId">
-      <template #header>日常评价（一次评价同时写入九格 / 能量币 / 班年级均值，报告即时可见）</template>
+      <template #header>日常评价（一次评价同时写入九维 / 能量币 / 班年级均值，报告即时可见）</template>
       <el-form label-width="90px">
-        <el-form-item label="九格">
+        <el-form-item label="九维">
           <el-select v-model="gridId" style="width: 180px" @change="loadIndicators">
             <el-option v-for="g in grids" :key="g.id" :label="g.name" :value="g.id" />
           </el-select>
@@ -52,7 +52,7 @@
       <template #header>本学期评价记录（新录入在前）</template>
       <el-table :data="history" size="small" max-height="420">
         <el-table-column prop="evalTime" label="时间" width="160" />
-        <el-table-column prop="gridName" label="九格" width="90" />
+        <el-table-column prop="gridName" label="九维" width="90" />
         <el-table-column prop="indicatorName" label="指标" width="120" />
         <el-table-column prop="title" label="标题" min-width="160" />
         <el-table-column prop="score" label="分值" width="70" />
@@ -171,7 +171,7 @@ onMounted(init)
 .hint { color: var(--el-text-color-secondary); font-size: 12px; margin-left: 8px; }
 /* 加分=成长绿、扣分=警示红（激活态覆写） */
 :deep(.el-radio-button.is-pos.is-active .el-radio-button__inner) {
-  background: var(--brand-teal-deep); border-color: var(--brand-teal-deep); box-shadow: -1px 0 0 0 var(--brand-teal-deep);
+  background: var(--brand-grow-deep); border-color: var(--brand-grow-deep); box-shadow: -1px 0 0 0 var(--brand-grow-deep);
 }
 :deep(.el-radio-button.is-neg.is-active .el-radio-button__inner) {
   background: var(--el-color-danger); border-color: var(--el-color-danger); box-shadow: -1px 0 0 0 var(--el-color-danger);

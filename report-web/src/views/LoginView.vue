@@ -84,19 +84,19 @@ async function doLogin() {
   position: relative; overflow: hidden; height: 100%;
   display: flex; align-items: center; justify-content: center; padding: 24px;
   background:
-    radial-gradient(720px 420px at 88% -8%, rgba(16,185,129,.35), transparent 62%),
-    radial-gradient(640px 480px at -6% 108%, rgba(99,102,241,.5), transparent 60%),
-    linear-gradient(135deg, #1e1b4b 0%, #312e81 42%, #4f46e5 100%);
+    radial-gradient(720px 420px at 88% -8%, rgba(201,138,45,.38), transparent 62%),
+    radial-gradient(640px 480px at -6% 108%, rgba(0,120,212,.45), transparent 60%),
+    linear-gradient(135deg, #3a0d10 0%, #6e151c 42%, #a8232b 100%);
 }
 .deco-p { pointer-events: none; }
 .deco { position: absolute; border-radius: 50%; filter: blur(56px); opacity: .5; pointer-events: none; }
-.deco-a { width: 260px; height: 260px; right: -60px; top: 12%; background: rgba(16,185,129,.4); animation: floaty 7s ease-in-out infinite; }
-.deco-b { width: 220px; height: 220px; left: -50px; bottom: 8%; background: rgba(129,140,248,.45); animation: floaty 9s ease-in-out infinite reverse; }
+.deco-a { width: 260px; height: 260px; right: -60px; top: 12%; background: rgba(217,142,35,.42); animation: floaty 7s ease-in-out infinite; }
+.deco-b { width: 220px; height: 220px; left: -50px; bottom: 8%; background: rgba(83,168,255,.45); animation: floaty 9s ease-in-out infinite reverse; }
 .login-split { display: flex; align-items: stretch; justify-content: center; width: 100%; }
 .login-card-motion { width: 100%; max-width: 380px; }
 .login-card { width: 100%; max-width: 380px; border: 1px solid rgba(255,255,255,.5); border-radius: 12px;
   background: rgba(255,255,255,.94); backdrop-filter: blur(14px);
-  box-shadow: 0 12px 40px rgba(17,14,60,.28); }
+  box-shadow: 0 12px 40px rgba(58,13,16,.3); }
 .login-head { text-align: center; margin-bottom: 18px; }
 .login-logo { display: inline-block; width: 46px; height: auto; margin-top: 4px; }
 .login-side { display: none; }
@@ -104,15 +104,15 @@ async function doLogin() {
   .login-side {
     display: flex; flex-direction: column; justify-content: space-between;
     width: 340px; flex: none; border-radius: 12px 0 0 12px; overflow: hidden;
-    background: linear-gradient(180deg, rgba(17,14,60,.08) 30%, rgba(17,14,60,.82) 100%),
+    background: linear-gradient(180deg, rgba(58,13,16,.08) 30%, rgba(58,13,16,.82) 100%),
                 url('/gate.jpg') center 38%/cover no-repeat;
-    box-shadow: 0 12px 40px rgba(17,14,60,.28);
+    box-shadow: 0 12px 40px rgba(58,13,16,.3);
   }
   .side-badge { width: 72px; margin: 24px; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.88); }
-  .side-text { padding: 24px 26px; color: #fff; text-shadow: 0 1px 6px rgba(17,14,60,.6); }
+  .side-text { padding: 24px 26px; color: #fff; text-shadow: 0 1px 6px rgba(58,13,16,.6); }
   .side-name { font-size: 19px; font-weight: 700; letter-spacing: 1px; }
-  .side-motto { margin-top: 8px; font-size: 14px; color: #c7d2fe; letter-spacing: 3px; }
-  .side-en { margin-top: 4px; font-size: 10px; color: #a5b4fc; letter-spacing: 1.5px; }
+  .side-motto { margin-top: 8px; font-size: 14px; color: #f3d9a5; letter-spacing: 3px; }
+  .side-en { margin-top: 4px; font-size: 10px; color: #e9c3c6; letter-spacing: 1.5px; }
   .login-card { border-radius: 0 12px 12px 0; border-left: none; }
 }
 .login-head h2 { margin: 12px 0 4px; font-size: 19px; color: #1f2937; }

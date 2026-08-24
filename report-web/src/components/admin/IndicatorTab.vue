@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h4>九格（系统契约基线，只读）</h4>
+    <h4>九维（系统契约基线，只读）</h4>
     <el-table :data="grids" size="small">
       <el-table-column prop="code" label="编码" width="100" />
       <el-table-column prop="name" label="名称" width="130" />
@@ -11,13 +11,13 @@
 
     <h4>二级指标（被评价记录引用的指标改名/删除会被拒绝）</h4>
     <div class="toolbar">
-      <el-select v-model="gridId" placeholder="按九格筛选" clearable style="width: 180px" @change="loadIndicators">
+      <el-select v-model="gridId" placeholder="按九维筛选" clearable style="width: 180px" @change="loadIndicators">
         <el-option v-for="g in grids" :key="g.id" :label="g.name" :value="g.id" />
       </el-select>
       <el-button type="primary" @click="openCreate">新建指标</el-button>
     </div>
     <el-table :data="indicators" size="small">
-      <el-table-column label="九格" width="110">
+      <el-table-column label="九维" width="110">
         <template #default="{ row }">{{ gridName(row.gridId) }}</template>
       </el-table-column>
       <el-table-column label="名称" width="170">
@@ -36,7 +36,7 @@
 
     <el-dialog v-model="dialog" :title="form.id ? '编辑指标' : '新建指标'" width="440px">
       <el-form label-width="90px">
-        <el-form-item label="所属九格">
+        <el-form-item label="所属九维">
           <el-select v-model="form.gridId" style="width: 100%">
             <el-option v-for="g in grids" :key="g.id" :label="g.name" :value="g.id" />
           </el-select>

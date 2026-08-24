@@ -5,29 +5,32 @@
 
 /* ---------------- 1. 设计令牌 ---------------- */
 :root {
-  /* 品牌 */
-  --brand-ink: #1e1b4b;            /* 导航底色起点（深靛蓝） */
-  --brand-indigo-deep: #312e81;
-  --brand-indigo: #4f46e5;         /* 主色：专业靛蓝 */
-  --brand-indigo-soft: #6366f1;
-  --brand-teal: #10b981;           /* 成长绿：正向/成功强调 */
-  --brand-teal-deep: #0d9467;
-  --brand-gradient: linear-gradient(135deg, #4f46e5 0%, #7c6ff0 48%, #10b981 100%);   /* 仅品牌小标识用 */
+  /* 品牌（源自学校现行 VI：红幅/校徽之红 + 「AI在石实」背景板之蓝 + 校门金字之金） */
+  --brand-ink: #4a1216;            /* 导航底色（深枣红） */
+  --brand-red-deep: #861c22;
+  --brand-red: #a8232b;            /* 主色：石实红 */
+  --brand-red-soft: #c0394a;
+  --brand-blue: #0078d4;           /* AI 蓝：科技/链接强调 */
+  --brand-blue-deep: #005a9e;
+  --brand-gold: #c98a2d;           /* 点缀金：校门金字 */
+  --brand-grow: #10b981;           /* 成长绿：正向/成功强调 */
+  --brand-grow-deep: #0d9467;
+  --brand-gradient: linear-gradient(135deg, #861c22 0%, #a8232b 52%, #c98a2d 100%);   /* 仅品牌小标识用 */
 
   /* 阴影 / 圆角（简约版：轻中性影 + 收敛圆角，结构靠 1px 细边框表达） */
-  --shadow-card: 0 1px 2px rgba(30,27,75,.04), 0 4px 12px rgba(30,27,75,.04);
-  --shadow-card-hover: 0 2px 6px rgba(30,27,75,.06), 0 8px 20px rgba(30,27,75,.08);
-  --shadow-pop: 0 12px 32px rgba(30,27,75,.16);
+  --shadow-card: 0 1px 2px rgba(74,18,22,.04), 0 4px 12px rgba(74,18,22,.04);
+  --shadow-card-hover: 0 2px 6px rgba(74,18,22,.06), 0 8px 20px rgba(74,18,22,.08);
+  --shadow-pop: 0 12px 32px rgba(74,18,22,.16);
   --radius-lg: 12px; --radius-md: 10px; --radius-sm: 8px;
 
-  /* EP 主色（light-N = 主色×(1−N/10) + 白，dark-2 = 主色×0.8，实算值） */
-  --el-color-primary: #4f46e5;
-  --el-color-primary-light-3: #847eed;
-  --el-color-primary-light-5: #a7a3f2;
-  --el-color-primary-light-7: #cac8f7;
-  --el-color-primary-light-8: #dcdafa;
-  --el-color-primary-light-9: #ededfc;
-  --el-color-primary-dark-2: #3f38b7;
+  /* EP 主色（石实红 #a8232b：light-N = 主色×(1−N/10) + 白，dark-2 = 主色×0.8，实算值） */
+  --el-color-primary: #a8232b;
+  --el-color-primary-light-3: #c2656b;
+  --el-color-primary-light-5: #d49195;
+  --el-color-primary-light-7: #e5bdbf;
+  --el-color-primary-light-8: #eed3d5;
+  --el-color-primary-light-9: #f6e9ea;
+  --el-color-primary-dark-2: #861c22;
 
   --el-color-success: #10b981;
   --el-color-success-light-3: #58cea7;
@@ -78,9 +81,9 @@
   --el-font-family: system-ui, -apple-system, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --el-border-radius-base: 8px;
   --el-border-radius-small: 6px;
-  --el-box-shadow: 0 12px 32px 4px rgba(30,27,75,.08), 0 2px 6px rgba(30,27,75,.06);
-  --el-box-shadow-light: 0 6px 20px rgba(30,27,75,.08);
-  --el-box-shadow-lighter: 0 2px 10px rgba(30,27,75,.05);
+  --el-box-shadow: 0 12px 32px 4px rgba(74,18,22,.08), 0 2px 6px rgba(74,18,22,.06);
+  --el-box-shadow-light: 0 6px 20px rgba(74,18,22,.08);
+  --el-box-shadow-lighter: 0 2px 10px rgba(74,18,22,.05);
 }
 
 /* ---------------- 2. 基础 ---------------- */
@@ -101,14 +104,14 @@ body {
   display: flex; align-items: center; gap: 10px;
   margin: 2px 0 14px; font-size: 20px; font-weight: 700; color: var(--el-text-color-primary);
 }
-.page-title::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: var(--brand-indigo); }
-.page-title .el-icon { color: var(--brand-indigo); font-size: 19px; }
+.page-title::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: var(--brand-red); }
+.page-title .el-icon { color: var(--brand-red); font-size: 19px; }
 
 .toolbar {
   display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
   margin-bottom: 16px; padding: 10px 12px;
   background: #fff; border: 1px solid var(--el-border-color-light);
-  border-radius: var(--radius-md); box-shadow: 0 1px 2px rgba(30,27,75,.03);
+  border-radius: var(--radius-md); box-shadow: 0 1px 2px rgba(74,18,22,.03);
 }
 
 .stat-chip.el-tag { border: none; border-radius: 999px; padding-right: 12px; font-weight: 600; }
@@ -126,7 +129,7 @@ body {
 .el-table {
   --el-table-header-bg-color: #f4f5fb;
   --el-table-header-text-color: var(--el-text-color-regular);
-  --el-table-row-hover-bg-color: var(--el-color-primary-light-9);   /* 悬停淡靛蓝 #ededfc */
+  --el-table-row-hover-bg-color: var(--el-color-primary-light-9);   /* 悬停淡红 #f6e9ea */
   --el-table-border-color: var(--el-border-color-light);
 }
 .el-table th.el-table__cell { font-weight: 600; }
@@ -137,7 +140,7 @@ body {
 }
 .el-button--primary:not(.is-link):not(.is-text):not(.is-plain):not(.is-disabled):hover,
 .el-button--primary:not(.is-link):not(.is-text):not(.is-plain):not(.is-disabled):focus {
-  background: #5a52e8;
+  background: var(--brand-red-soft);
 }
 .el-button:not(.is-link):active { transform: scale(0.98); }        /* 按压微缩，代替 ripple */
 
@@ -150,11 +153,11 @@ body {
 .el-empty__description p { color: var(--el-text-color-secondary); }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: #c7cbe4; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #aab1e8; }
+::-webkit-scrollbar-thumb { background: #dcc0c2; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #c99ba0; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-.el-button:focus-visible, .links a:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 2px; }
+.el-button:focus-visible, .links a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 
 /* ---------------- 5. 动效 ---------------- */
 @keyframes rise-in {

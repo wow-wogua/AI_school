@@ -26,7 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 下拉数据：学期 / 我的班级（按数据权限过滤）/ 年级 / 九格 / 二级指标 */
+/** 下拉数据：学期 / 我的班级（按数据权限过滤）/ 年级 / 九维 / 二级指标 */
 @RestController
 @RequestMapping("/api/meta")
 @RequiredArgsConstructor

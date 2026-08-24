@@ -1,6 +1,8 @@
 <template>
   <MotionConfig reducedMotion="user">
   <el-container style="height: 100%">
+    <!-- 全站共用校园虚化背景（校门照，fixed 层，卡片浮于其上；登录页自带整页底图不透出） -->
+    <div class="app-bg" aria-hidden="true"></div>
     <el-header class="nav" style="height: auto">
       <div class="nav-inner">
         <span class="brand">
@@ -82,32 +84,37 @@ const progress = useSpring(scrollYProgress, { stiffness: 140, damping: 30, mass:
 </script>
 
 <style scoped>
+.app-bg { position: fixed; inset: 0; z-index: -1;
+  background: linear-gradient(rgba(250,249,246,.45), rgba(250,249,246,.45)),
+              url('/campus-bg.jpg') center 42%/cover no-repeat; }
 .nav {
   position: sticky; top: 0; z-index: 100;
-  background: #1e1b4b;
-  box-shadow: 0 2px 8px rgba(30,27,75,.15);
+  background: var(--brand-ink);
+  box-shadow: 0 2px 8px rgba(74,18,22,.2);
 }
 .nav-inner { display: flex; align-items: center; gap: 20px; padding: 12px 16px; max-width: 1200px; margin: 0 auto; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 10px; color: #fff; }
 .brand-mark { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center;
-  border-radius: 9px; color: #fff; background: #fff; box-shadow: 0 2px 6px rgba(30,27,75,.3); }
+  border-radius: 9px; color: #fff; background: #fff; box-shadow: 0 2px 6px rgba(74,18,22,.3); }
 .brand-text { display: flex; flex-direction: column; line-height: 1.2; font-weight: 700; font-size: 16px; letter-spacing: .5px; }
-.brand-text i { font-style: normal; font-size: 11px; font-weight: 400; color: #a5b4fc; letter-spacing: 2px; }
+.brand-text i { font-style: normal; font-size: 11px; font-weight: 400; color: #e5bdbf; letter-spacing: 2px; }
 .links { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
-.links a { position: relative; color: #c7d2fe; text-decoration: none; font-size: 14px; padding: 6px 10px;
+.links a { position: relative; color: #efd2d5; text-decoration: none; font-size: 14px; padding: 6px 10px;
   border-radius: 8px; transition: color .2s ease, background-color .2s ease; }
 .links a::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 2px; border-radius: 2px;
-  background: #818cf8; transform: scaleX(0); transform-origin: left center; transition: transform .22s ease; }
+  background: var(--brand-gold); transform: scaleX(0); transform-origin: left center; transition: transform .22s ease; }
 .links a:hover { color: #fff; }
 .links a.router-link-exact-active { color: #fff; }
 .links a.router-link-exact-active::after { transform: scaleX(1); }
-.user { color: #c7d2fe; font-size: 14px; display: flex; align-items: center; gap: 4px; }
+.user { color: #efd2d5; font-size: 14px; display: flex; align-items: center; gap: 4px; }
 .scroll-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
-  background: var(--brand-teal); transform-origin: 0 50%; }
-.user :deep(.el-button) { color: #a5b4fc; }
+  background: var(--brand-gold); transform-origin: 0 50%; }
+.user :deep(.el-button) { color: #e5bdbf; }
 .user :deep(.el-button:hover) { color: #fff; }
 .app-footer { display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 20px 16px 26px; margin-top: 28px; color: #94a3b8; font-size: 12px; letter-spacing: .5px; }
+  width: fit-content; margin: 28px auto 0; padding: 10px 22px;
+  background: rgba(255,255,255,.82); border-radius: 999px; box-shadow: 0 1px 2px rgba(74,18,22,.06);
+  color: #64748b; font-size: 12px; letter-spacing: .5px; }
 .app-footer b { color: #475569; font-weight: 600; white-space: nowrap; }
 .app-footer i { font-style: normal; white-space: nowrap; }
 .footer-badge { width: 18px; height: auto; opacity: .85; flex: none; }

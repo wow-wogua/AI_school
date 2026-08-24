@@ -192,7 +192,7 @@ def main():
     grid_id = {g['name']: i for i, g in enumerate(golden['grids'], 1)}
     registrant_id = {nm: USER_T0 + i for i, nm in enumerate(REGISTRANTS)}
 
-    # 指标：记录卡 subtitle「国格-爱国精神 / 信格-」反推；记录卡挂 _ind 供 evaluation 引用
+    # 指标：记录卡 subtitle「品德修养-爱国精神 / 行为习惯-」反推；记录卡挂 _ind 供 evaluation 引用
     ind_rows, ind_id, ind_map = [], 1, {}
     for grid in golden['grids']:
         for rec in grid['records']:
@@ -279,7 +279,7 @@ def main():
                    [(1, 1, 0, '种子'), (2, 2, 500, '嫩芽'), (3, 3, 1000, '小树'),
                     (4, 4, next_min, '大树'), (5, 5, round(next_min + 400), '栋梁')]))
 
-    # 班级/年级九格均值（两班同值；变体个人数据不回写均值表，不参与契约校验）
+    # 班级/年级九维均值（两班同值；变体个人数据不回写均值表，不参与契约校验）
     class_avg, grade_avg = [], []
     for cls in (CLASS1, CLASS2):
         for term, key in ((TERM_CUR, 'cur'), (TERM_PREV, 'prev')):

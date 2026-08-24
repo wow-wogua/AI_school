@@ -92,7 +92,7 @@ public class RuleFactsService {
             }
         }
 
-        // 九格学期表现
+        // 九维学期表现
         List<Grid> grids = gridMapper.selectList(new LambdaQueryWrapper<Grid>().orderByAsc(Grid::getSort));
         Map<Long, GridStatTerm> stats = gridStatTermMapper.selectList(new LambdaQueryWrapper<GridStatTerm>()
                         .eq(GridStatTerm::getStudentId, studentId).eq(GridStatTerm::getTermId, termId)).stream()
@@ -110,7 +110,7 @@ public class RuleFactsService {
             row.put("获得评价种类", st.getKindCount());
             gridRows.add(row);
         }
-        facts.put("九格表现", gridRows);
+        facts.put("综合素质表现", gridRows);
 
         // 分析结论（优势/待提升；规则引擎产出）
         StudentAnalysis analysis = analysisMapper.selectOne(new LambdaQueryWrapper<StudentAnalysis>()
