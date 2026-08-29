@@ -69,6 +69,9 @@ public class ReportDataBuilder {
     private final ComprehensiveMapper comprehensiveMapper;
     private final CommentMapper commentMapper;
     private final ReportTemplateMapper reportTemplateMapper;
+    private final MomentMapper momentMapper;
+    private final MomentStudentMapper momentStudentMapper;
+    private final PdfStoreService pdfStore;
 
     public Map<String, Object> build(Long studentId, Long termId) {
         Student student = studentMapper.selectById(studentId);
@@ -105,6 +108,7 @@ public class ReportDataBuilder {
         data.put("growthSymbol", buildGrowthSymbol(student, term));
         data.put("comprehensive", buildComprehensive(student, term));
         data.put("headTeacherComment", buildHeadTeacherComment(student, term));
+        data.put("moments", buildMoments(student, term));
         return data;
     }
 
@@ -618,6 +622,71 @@ public class ReportDataBuilder {
         m.put("expenseTopAxis", expenseTopAxis);
         m.put("dailyTop10", dailyTop10);
         return m;
+    }
+
+    // ───────────────── moments（成长掠影 p51，可选页：无微光整页跳过） ─────────────────
+
+    /** 该生本学期微光（学期区间与 AiDraftService.injectMomentFacts 同口径），倒序最多 6 张 */
+    private List<Map<String, Object>> buildMoments(Student student, Term term) {
+        List<Long> momentIds = momentStudentMapper.selectList(new LambdaQueryWrapper<MomentStudent>()
+                        .eq(MomentStudent::getStudentId, student.getId()))
+                .stream().map(MomentStudent::getMomentId).toList();
+        if (momentIds.isEmpty()) {
+            return List.of();
+        }
+        LambdaQueryWrapper<Moment> qw = new LambdaQueryWrapper<Moment>()
+                .in(Moment::getId, momentIds)
+                .orderByDesc(Moment::getCreateTime).orderByDesc(Moment::getId)
+                .last("LIMIT 6");
+        // 当前学期截到今天；历史学期按学期区间（两端齐备才过滤，防御未配置区间）
+        if (term.getStartDate() != null && term.getEndDate() != null) {
+            LocalDate end = term.getIsCurrent() != null && term.getIsCurrent() == 1
+                    ? LocalDate.now() : term.getEndDate();
+            qw.between(Moment::getCreateTime, term.getStartDate().atStartOfDay(),
+                    end.plusDays(1).atStartOfDay());
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Moment m : momentMapper.selectList(qw)) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("date", m.getCreateTime().toLocalDate().format(DATE_FMT));
+            row.put("sceneTag", m.getSceneTag());
+            row.put("note", m.getNote() == null ? "" : m.getNote());
+            row.put("photo", photoDataUri(m.getPhotoUrl()));
+            out.add(row);
+        }
+        return out;
+    }
+
+    /** MinIO 原图 → 最长边 720px JPEG → data URI（6 张约 1MB，renderer 走 file:// 访问不了 API 必须内嵌；
+     *  读失败返回空串，模板渲染占位框，不阻断整份报告） */
+    private String photoDataUri(String objectName) {
+        if (objectName == null || objectName.isBlank()) {
+            return "";
+        }
+        try (java.io.InputStream in = pdfStore.download(objectName)) {
+            java.awt.image.BufferedImage src = javax.imageio.ImageIO.read(in);
+            if (src == null) {
+                return "";
+            }
+            // 垫白底（png 透明直接写 jpg 会偏色）+ 双线性缩放一步到位
+            double scale = Math.min(1, 720.0 / Math.max(src.getWidth(), src.getHeight()));
+            int w = Math.max(1, (int) Math.round(src.getWidth() * scale));
+            int h = Math.max(1, (int) Math.round(src.getHeight() * scale));
+            java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(
+                    w, h, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g = out.createGraphics();
+            g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setColor(java.awt.Color.WHITE);
+            g.fillRect(0, 0, w, h);
+            g.drawImage(src, 0, 0, w, h, null);
+            g.dispose();
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(out, "jpg", bos);
+            return "data:image/jpeg;base64," + java.util.Base64.getEncoder().encodeToString(bos.toByteArray());
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     // ───────────────── growthSymbol / comprehensive / 寄语 ─────────────────

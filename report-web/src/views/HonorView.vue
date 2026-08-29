@@ -212,5 +212,5 @@ onMounted(init)
 </script>
 
 <style scoped>
-.hint { color: #909399; font-size: 12px; }
+.hint { color: var(--el-text-color-secondary); font-size: 12px; }
 </style>

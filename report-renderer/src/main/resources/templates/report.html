@@ -488,6 +488,26 @@
        th:text="${r.headTeacherComment}">班主任寄语</div>
 </div>
 
+<!-- ═══════════ p51 成长掠影（微光信箱随手拍，可选页：无记录整页跳过、不占页码契约） ═══════════ -->
+<div class="page z-o" th:if="${!#lists.isEmpty(r.moments)}">
+  <div class="t16" style="top:97pt">成长掠影</div>
+  <div class="abs" style="top:141pt;left:0;width:100%;text-align:center;font-size:10.5pt;color:#DC7717"
+       th:text="'微光信箱 · 老师们随手拍下的 ' + ${#lists.size(r.moments)} + ' 个闪光时刻'"></div>
+  <div class="abs" style="top:176pt;left:60.7pt;width:474pt;display:flex;flex-wrap:wrap;gap:15pt 27pt">
+    <div th:each="m : ${r.moments}" style="width:140pt">
+      <div style="width:140pt;height:180pt;border:1pt solid #F3C9A8;border-radius:6pt;overflow:hidden;
+                  background:#FFF9F3;display:flex;align-items:center;justify-content:center">
+        <img th:if="${!#strings.isEmpty(m.photo)}" th:src="${m.photo}"
+             style="width:100%;height:100%;object-fit:cover" alt=""/>
+        <span th:if="${#strings.isEmpty(m.photo)}" style="font-size:9pt;color:#D8B08C">（照片缺失）</span>
+      </div>
+      <div style="margin-top:6pt;font-size:9pt;color:#DC7717" th:text="${m.date} + ' · ' + ${m.sceneTag}"></div>
+      <div style="font-size:9pt;color:#333;line-height:12pt;height:24pt;overflow:hidden;margin-top:2pt"
+           th:text="${m.note}">备注</div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════ p50 封底 ═══════════ -->
 <div class="page z-o nohdr nonum" style="background:linear-gradient(180deg,#1E7FA8 0%,#35B6C9 100%)"></div>
 <script th:utext="${echartsJs}"></script>

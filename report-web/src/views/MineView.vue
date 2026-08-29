@@ -12,6 +12,8 @@
     </div>
 
     <div class="app-card overlap tl tex-f cells">
+      <van-cell title="教师档案" icon="contact" is-link :value="profileHint || '待完善'"
+        @click="$router.push('/profile')" />
       <van-cell title="成长报告" icon="orders-o" is-link @click="$router.push('/reports')" />
       <van-cell title="生成中心" icon="bell" is-link :value="running ? `${running} 进行中` : ''" @click="$router.push('/notice')" />
       <van-cell v-if="auth.role === 'ADMIN'" title="系统管理" icon="setting-o" is-link @click="$router.push('/admin')" />
@@ -47,12 +49,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showSuccessToast } from 'vant'
 import { useAuthStore } from '../stores/auth'
 import { useAiTasksStore } from '../stores/aiTasks'
-import { apiBase } from '../api/http'
+import { api, apiBase } from '../api/http'
 
 const auth = useAuthStore()
 const aiTasks = useAiTasksStore()
@@ -77,6 +79,16 @@ const aboutOpen = ref(false)
 const version = __APP_VERSION__
 
 const logoutOpen = ref(false)
+
+/** 档案完善度提示（接口失败不阻塞页面） */
+const profileHint = ref('')
+onMounted(async () => {
+  try {
+    const d = await api<any>('/api/profile/me')
+    profileHint.value = d.hasProfile ? (d.employeeNo || d.subjectName || d.title || '已完善') : ''
+  } catch { /* 忽略 */ }
+})
+
 function logout() {
   auth.logout()
   router.push('/login')

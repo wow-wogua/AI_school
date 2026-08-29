@@ -20,22 +20,22 @@
 
     <el-card v-if="rows.length">
       <template #header>
-        成绩单（满分 {{ fullScore }}，保存后自动计算班级/年级排名；空白 = 未录入，清空分数后保存即删除）
+        成绩单（满分 {{ fullScore ?? '未设置' }}，保存后自动计算班级/年级排名；空白 = 未录入，清空分数后保存即删除）
       </template>
       <el-table :data="rows" size="small" max-height="560" :row-class-name="rowClass">
-        <el-table-column prop="studentNo" label="学号" width="110" />
-        <el-table-column prop="name" label="姓名" width="110" />
-        <el-table-column label="分数" width="150">
+        <el-table-column prop="studentNo" label="学号" min-width="110" align="center" />
+        <el-table-column prop="name" label="姓名" min-width="110" />
+        <el-table-column label="分数" min-width="150" align="center">
           <template #default="{ row }">
             <el-input-number v-if="editable" v-model="row.score" :min="0" :max="fullScore" :step="1"
               controls-position="right" style="width: 130px" />
             <span v-else>{{ row.score ?? '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="班级名次" width="100">
+        <el-table-column label="班级名次" min-width="100" align="center">
           <template #default="{ row }">{{ row.classRank ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="年级名次" width="100">
+        <el-table-column label="年级名次" min-width="100" align="center">
           <template #default="{ row }">{{ row.gradeRank ?? '—' }}</template>
         </el-table-column>
       </el-table>
