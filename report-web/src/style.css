@@ -153,8 +153,8 @@ body {
 .el-empty__description p { color: var(--el-text-color-secondary); }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: #dcc0c2; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #c99ba0; }
+::-webkit-scrollbar-thumb { background: #C6CFDD; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #A8B4C8; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 .el-button:focus-visible, .links a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -204,3 +204,93 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* =====================================================================
+   9. App 移动端设计语言（源自 new/ 四张设计图：深蓝渐变头区 + 白色圆角大卡）
+   仅作用于 App 形态页面（.app-page 系），管理端沿用上文石实红体系不变。
+   ===================================================================== */
+:root {
+  /* 深蓝主体系（图1/3/4 头区渐变） */
+  --app-blue-deep: #1B2E6B;        /* 渐变起点（深藏蓝） */
+  --app-blue: #2F5FC0;             /* 主蓝：激活态/主按钮 */
+  --app-blue-soft: #5B85E8;        /* 渐变尾端/次级强调 */
+  --app-gradient: linear-gradient(160deg, #16265A 0%, #1E3A8A 46%, #2F5FC0 100%);
+  --app-gold: #C98A2D;             /* 校园金点缀（校训/徽标场景沿用品牌金） */
+
+  /* 面与文字 */
+  --app-bg: #F2F4F8;               /* 页面浅灰蓝底 */
+  --app-card: #fff;
+  --app-card-border: #EEF1F7;
+  --app-text-1: #1F2937;
+  --app-text-2: #64748B;
+  --app-text-3: #9CA3AF;
+
+  /* 圆角 / 阴影（图面卡片为大圆角轻投影） */
+  --app-radius: 16px;
+  --app-radius-sm: 12px;
+  --app-shadow: 0 2px 10px rgba(22, 38, 90, .06);
+  --app-shadow-float: 0 8px 24px rgba(22, 38, 90, .14);
+
+  /* 标签 chips（图2/3 的圆角小标签） */
+  --app-chip-bg: #EAF0FE;
+  --app-chip-text: #2F5FC0;
+
+  /* Vant 主题对齐（Vant 组件读这几个变量） */
+  --van-primary-color: #2F5FC0;
+  --van-border-radius-lg: 16px;
+  --van-cell-background: transparent;
+}
+
+/* App 页面骨架：手机全宽；平板/横屏 ≥600px 限宽居中（适配平板等安卓设备） */
+.app-page { min-height: 100%; padding: 0 14px calc(16px + env(safe-area-inset-bottom)); }
+@media (min-width: 600px) { .app-page { max-width: 720px; margin: 0 auto; } }
+
+/* 渐变头区（图1/3/4 顶部）：垫虚化校园大图（不破坏效果的前提下丰富校园元素） */
+.app-hero {
+  position: relative; margin: 0 -14px; padding: calc(14px + env(safe-area-inset-top)) 20px 52px;
+  background: var(--app-gradient); color: #fff; overflow: hidden;
+}
+.app-hero::before {                 /* 虚化校园底图：低透明度融进渐变，保住文字对比度 */
+  content: ''; position: absolute; inset: -40px;
+  background: url('/campus-bg.jpg') center 42%/cover no-repeat;
+  opacity: .16; filter: blur(10px) saturate(1.1); pointer-events: none;
+}
+.app-hero > * { position: relative; }
+
+/* 顶部校园照片带（图1/图4）：hero 内可见的学校元素；要换更高清的原图同名直替 /campus-bg.jpg 即可 */
+.app-hero .hero-photo { display: block; width: 100%; height: 108px; object-fit: cover;
+  border-radius: 12px; margin: 2px 0 12px; box-shadow: 0 4px 14px rgba(10,22,60,.28); }
+
+/* hero 校徽水印（通知/我的等功能型 hero，无照片带时的校园元素）：右上角钢印式 */
+.app-hero.mark::after {
+  content: ''; position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 16px;
+  width: 52px; height: 52px; background: url('/badge.png') center/contain no-repeat;
+  opacity: .22; pointer-events: none;
+}
+
+/* 功能页过渡期：旧页面的 .page-title（石实红）在 App 壳内对齐深蓝（管理页除外，App.vue 已分流） */
+.app-sub:not(.admin) .page-title::before { background: var(--app-blue); }
+.app-sub:not(.admin) .page-title .el-icon { color: var(--app-blue); }
+
+/* 白色圆角大卡（图面主体卡片；上移叠在头区渐变上的用 .overlap） */
+.app-card {
+  background: var(--app-card); border-radius: var(--app-radius);
+  box-shadow: var(--app-shadow); padding: 16px;
+}
+/* hero 是 relative，叠卡必须显式提层，否则上浮进 hero 的部分被渐变盖住（统计数字/首行被压） */
+.app-card.overlap { margin-top: -40px; position: relative; z-index: 1; }
+
+/* 区块标题（图1「快捷功能」「最近动态」式小标题） */
+.app-sec { display: flex; align-items: center; gap: 8px; margin: 18px 2px 10px;
+  font-size: 15px; font-weight: 700; color: var(--app-text-1); }
+.app-sec::before { content: ''; width: 4px; height: 15px; border-radius: 2px; background: var(--app-blue); }
+.app-sec .more { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--app-text-2); }
+
+/* 圆角小标签 chips */
+.app-chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+  background: var(--app-chip-bg); color: var(--app-chip-text); font-size: 11px; font-weight: 500; }
+
+/* App 页面进入动效（沿用 rise-in；离场零时长的教训见 .page-fade 注释） */
+.app-page .app-card, .app-page .app-sec { animation: rise-in .35s ease-out backwards; }
+.app-page .app-card:nth-child(2) { animation-delay: .05s; }
+.app-page .app-card:nth-child(n + 3) { animation-delay: .1s; }

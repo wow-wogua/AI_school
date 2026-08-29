@@ -39,7 +39,8 @@ aischool:
     secret: YWlfc2Nob29sX20zX200X2RlZmF1bHRfanZ0X3NlY3JldF9wbGVhc2VfY2hhbmdlX21lXzIwMjY=
     expire-hours: 12
   cors:
-    allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+    # 前两项=本机 vite 开发；后三项=App WebView 源（Capacitor 安卓默认 https://localhost，iOS 为 capacitor://localhost）
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173,http://localhost,https://localhost,capacitor://localhost
   minio:
     endpoint: http://localhost:9000
     access-key: aischool

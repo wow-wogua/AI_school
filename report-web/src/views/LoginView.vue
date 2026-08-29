@@ -1,48 +1,48 @@
 <template>
-  <div class="login-wrap" @mousemove="onMove">
-    <!-- 光斑视差：外层 motion 管鼠标跟随（spring），内层 .deco 保留 floaty 浮动，两层 transform 互不覆盖 -->
-    <motion.div class="deco-p" aria-hidden="true" :style="{ x: pxA, y: pyA }"><div class="deco deco-a"></div></motion.div>
-    <motion.div class="deco-p" aria-hidden="true" :style="{ x: pxB, y: pyB }"><div class="deco deco-b"></div></motion.div>
-    <!-- spring 物理入场（替代原 CSS card-in，MotionConfig 感知系统减弱动效） -->
-    <div class="login-split">
-    <!-- 宽屏（≥900px）左侧校园照片面板：校门 + 校名 + 校训；窄屏隐藏（手机/平板兼容） -->
-    <aside class="login-side" aria-hidden="true">
-      <img class="side-badge" src="/badge.png" alt="">
-      <div class="side-text">
-        <div class="side-name">佛山市南海区石实实验学校</div>
-        <div class="side-motto">任重道远 · 毋忘奋斗</div>
-        <div class="side-en">SHISHI EXPERIMENTAL SCHOOL · EST. 1999</div>
-      </div>
-    </aside>
-    <motion.div class="login-card-motion"
+  <div class="login-wrap">
+    <!-- 虚化校园大图 + 深蓝渐变罩（设计语言：深蓝体系 + 保留校园元素） -->
+    <div class="login-bg" aria-hidden="true"></div>
+    <motion.div class="login-card"
       :initial="{ opacity: 0, y: 30, scale: 0.96 }" :animate="{ opacity: 1, y: 0, scale: 1 }"
       :transition="{ type: 'spring', stiffness: 240, damping: 22 }">
-    <el-card class="login-card" shadow="never">
       <div class="login-head">
         <img class="login-logo" src="/badge.png" alt="">
-        <h2>石实实验学校 · 中学素质报告平台</h2>
-        <p>任重道远，毋忘奋斗</p>
+        <h1>数智成长</h1>
+        <p>石实实验学校 · 中学素质报告平台</p>
+        <p class="motto">任重道远，毋忘奋斗</p>
       </div>
-      <el-form :model="form" @submit.enter.prevent="doLogin">
-        <el-form-item>
-          <el-input v-model="form.username" placeholder="用户名" />
-        </el-form-item>
-        <el-form-item>
-          <el-input v-model="form.password" type="password" show-password placeholder="密码" @keyup.enter="doLogin" />
-        </el-form-item>
-        <el-button class="login-btn" type="primary" :loading="loading" @click="doLogin">登录</el-button>
-      </el-form>
-    </el-card>
+
+      <van-form @submit="doLogin">
+        <van-cell-group inset :border="false" class="fields">
+          <van-field v-model="form.username" label-width="44px" left-icon="manager-o" placeholder="用户名"
+            :rules="[{ required: true, message: '请输入用户名' }]" />
+          <van-field v-model="form.password" type="password" label-width="44px" left-icon="lock" placeholder="密码"
+            :rules="[{ required: true, message: '请输入密码' }]" />
+        </van-cell-group>
+        <van-button round block type="primary" native-type="submit" class="login-btn" :loading="loading">
+          登录
+        </van-button>
+      </van-form>
+
+      <!-- App 直连服务器地址（打包形态必配；浏览器形态留空走同源） -->
+      <button class="srv-toggle" type="button" @click="srvOpen = !srvOpen">
+        <van-icon name="setting-o" /> 服务器地址{{ srvBase ? '' : '（未设置）' }}
+        <van-icon :name="srvOpen ? 'arrow-up' : 'arrow-down'" />
+      </button>
+      <div v-if="srvOpen" class="srv-row">
+        <van-field v-model="srvInput" placeholder="如 http://192.168.1.10:8080" clearable />
+        <van-button size="small" round type="primary" plain @click="saveSrv">保存</van-button>
+      </div>
     </motion.div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { motion, useMotionValue, useSpring, useTransform } from 'motion-v'
-import { api } from '../api/http'
+import { motion } from 'motion-v'
+import { showSuccessToast } from 'vant'
+import { api, apiBase } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 
 const form = reactive({ username: '', password: '' })
@@ -50,17 +50,16 @@ const loading = ref(false)
 const router = useRouter()
 const auth = useAuthStore()
 
-/* 光斑视差：鼠标归一化偏移 ±14px → spring 平滑；B 斑反向 0.7 倍漂出层次 */
-const mx = useMotionValue(0)
-const my = useMotionValue(0)
-const pxA = useSpring(mx, { stiffness: 50, damping: 20 })
-const pyA = useSpring(my, { stiffness: 50, damping: 20 })
-const pxB = useTransform(pxA, v => -v * 0.7)
-const pyB = useTransform(pyA, v => -v * 0.7)
-function onMove(e: MouseEvent) {
-  const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  mx.set(((e.clientX - r.left) / r.width - 0.5) * 28)
-  my.set(((e.clientY - r.top) / r.height - 0.5) * 28)
+/* 服务器地址：App 安装后首次使用在此配置（默认值来自打包注入 VITE_API_BASE） */
+const srvOpen = ref(false)
+const srvBase = ref(apiBase())
+const srvInput = ref(apiBase())
+function saveSrv() {
+  const v = srvInput.value.trim().replace(/\/+$/, '')
+  if (v) localStorage.setItem('serverBase', v)
+  else localStorage.removeItem('serverBase')
+  srvBase.value = v
+  showSuccessToast(v ? '服务器地址已保存' : '已恢复默认地址')
 }
 
 async function doLogin() {
@@ -81,49 +80,47 @@ async function doLogin() {
 
 <style scoped>
 .login-wrap {
-  position: relative; overflow: hidden; height: 100%;
+  position: relative; height: 100%; height: 100dvh; overflow: hidden;
   display: flex; align-items: center; justify-content: center; padding: 24px;
-  background: #3a0d10; /* 图片加载前兜底 */
+  background: #101B3D; /* 图片加载前兜底 */
 }
-/* 虚化校园庭院背景（与左侧面板 gate.jpg 不同景），叠石实红/蓝品牌色罩保证卡片对比度 */
-.login-wrap::before {
-  content: ''; position: absolute; inset: -48px; /* 外扩补偿 blur 边缘褪色 */
+.login-bg {
+  position: absolute; inset: -14px;
   background:
-    radial-gradient(720px 420px at 88% -8%, rgba(201,138,45,.30), transparent 62%),
-    radial-gradient(640px 480px at -6% 108%, rgba(0,120,212,.32), transparent 60%),
-    linear-gradient(135deg, rgba(58,13,16,.72) 0%, rgba(58,13,16,.42) 45%, rgba(9,42,74,.55) 100%),
-    url('/login-bg.jpg') center/cover no-repeat;
-  filter: blur(22px);
+    radial-gradient(720px 420px at 85% -10%, rgba(91,133,232,.3), transparent 62%),
+    radial-gradient(640px 480px at -6% 108%, rgba(201,138,45,.18), transparent 60%),
+    linear-gradient(160deg, rgba(13,22,50,.72) 0%, rgba(22,38,90,.52) 45%, rgba(30,58,138,.64) 100%),
+    url('/campus-bg.jpg') center 42%/cover no-repeat;
+  filter: blur(2px);
 }
-.deco-p { pointer-events: none; }
-.deco { position: absolute; border-radius: 50%; filter: blur(56px); opacity: .5; pointer-events: none; }
-.deco-a { width: 260px; height: 260px; right: -60px; top: 12%; background: rgba(217,142,35,.42); animation: floaty 7s ease-in-out infinite; }
-.deco-b { width: 220px; height: 220px; left: -50px; bottom: 8%; background: rgba(83,168,255,.45); animation: floaty 9s ease-in-out infinite reverse; }
-.login-split { position: relative; z-index: 1; display: flex; align-items: stretch; justify-content: center; width: 100%; }
-.login-card-motion { width: 100%; max-width: 380px; }
-.login-card { width: 100%; max-width: 380px; border: 1px solid rgba(255,255,255,.5); border-radius: 12px;
+.login-card {
+  position: relative; width: 100%; max-width: 380px;
   background: rgba(255,255,255,.94); backdrop-filter: blur(14px);
-  box-shadow: 0 12px 40px rgba(58,13,16,.3); }
-.login-head { text-align: center; margin-bottom: 18px; }
-.login-logo { display: inline-block; width: 46px; height: auto; margin-top: 4px; }
-.login-side { display: none; }
-@media (min-width: 900px) {
-  .login-side {
-    display: flex; flex-direction: column; justify-content: space-between;
-    width: 340px; flex: none; border-radius: 12px 0 0 12px; overflow: hidden;
-    background: linear-gradient(180deg, rgba(58,13,16,.08) 30%, rgba(58,13,16,.82) 100%),
-                url('/gate.jpg') center 38%/cover no-repeat;
-    box-shadow: 0 12px 40px rgba(58,13,16,.3);
-  }
-  .side-badge { width: 72px; margin: 24px; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.88); }
-  .side-text { padding: 24px 26px; color: #fff; text-shadow: 0 1px 6px rgba(58,13,16,.6); }
-  .side-name { font-size: 19px; font-weight: 700; letter-spacing: 1px; }
-  .side-motto { margin-top: 8px; font-size: 14px; color: #f3d9a5; letter-spacing: 3px; }
-  .side-en { margin-top: 4px; font-size: 10px; color: #e9c3c6; letter-spacing: 1.5px; }
-  .login-card { border-radius: 0 12px 12px 0; border-left: none; }
+  border: 1px solid rgba(255,255,255,.5); border-radius: 20px;
+  box-shadow: 0 16px 48px rgba(9,18,46,.45);
+  padding: 28px 18px 18px;
 }
-.login-head h2 { margin: 12px 0 4px; font-size: 19px; color: #1f2937; }
-.login-head p { margin: 0; font-size: 13px; color: #6b7280; letter-spacing: 1px; }
-.login-btn { width: 100%; height: 40px; font-size: 15px; letter-spacing: 6px; border-radius: 10px; }
-@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+.login-head { text-align: center; margin-bottom: 18px; }
+.login-logo { width: 52px; height: auto; }
+.login-head h1 {
+  margin: 10px 0 4px; font-size: 24px; font-weight: 800; letter-spacing: 4px;
+  background: linear-gradient(150deg, #1E3A8A, #2F5FC0);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.login-head p { margin: 0; font-size: 12px; color: var(--app-text-2); letter-spacing: 1px; }
+.login-head .motto { margin-top: 6px; color: var(--app-gold); letter-spacing: 3px; }
+
+.fields { margin: 0 0 14px; border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--app-card-border); }
+:deep(.fields .van-field) { padding: 12px 14px; font-size: 15px; }
+:deep(.fields .van-field .van-icon) { color: var(--app-blue); font-size: 18px; }
+.login-btn { height: 44px; font-size: 16px; font-weight: 600;
+  background: linear-gradient(150deg, #1E3A8A, #2F5FC0); border: none; }
+.login-btn .van-button__text { letter-spacing: 6px; text-indent: 6px; }  /* 字距用 CSS，可访问名保持「登录」 */
+
+.srv-toggle { display: flex; align-items: center; gap: 6px; justify-content: center;
+  width: 100%; margin-top: 16px; padding: 6px; background: none; border: none;
+  color: var(--app-text-3); font-size: 12px; cursor: pointer; }
+.srv-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.srv-row .van-field { flex: 1; border: 1px solid var(--app-card-border); border-radius: 10px; }
 </style>

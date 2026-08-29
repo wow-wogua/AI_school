@@ -8,6 +8,17 @@ export interface ApiResp<T> {
   data: T
 }
 
+/**
+ * API 基址：App 形态直连服务器（登录页可设置，存 localStorage），
+ * 打包时可注入 VITE_API_BASE 作默认值；浏览器形态留空 = 相对路径
+ * （dev 走 vite 代理 / 线上 nginx 同源）。
+ */
+export function apiBase(): string {
+  const saved = localStorage.getItem('serverBase')
+  if (saved) return saved.replace(/\/+$/, '')
+  return ((import.meta.env.VITE_API_BASE as string) || '').replace(/\/+$/, '')
+}
+
 export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const auth = useAuthStore()
   const headers: Record<string, string> = {}
@@ -17,7 +28,7 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
     headers['Content-Type'] = 'application/json'
     body = JSON.stringify(init.json)
   }
-  const resp = await fetch(path, { ...init, headers, body })
+  const resp = await fetch(apiBase() + path, { ...init, headers, body })
   if (resp.status === 401) {
     auth.logout()
     router.push('/login')
@@ -34,7 +45,7 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
 /** multipart 上传（浏览器自动带 boundary，勿手动设 Content-Type） */
 export async function apiForm<T>(path: string, form: FormData): Promise<T> {
   const auth = useAuthStore()
-  const resp = await fetch(path, {
+  const resp = await fetch(apiBase() + path, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + auth.token },
     body: form,
@@ -55,7 +66,7 @@ export async function apiForm<T>(path: string, form: FormData): Promise<T> {
 /** 带 JWT 拉二进制（PDF 预览/下载用，iframe 带不了 Authorization 头） */
 export async function fetchBlob(path: string): Promise<Blob> {
   const auth = useAuthStore()
-  const resp = await fetch(path, { headers: { Authorization: 'Bearer ' + auth.token } })
+  const resp = await fetch(apiBase() + path, { headers: { Authorization: 'Bearer ' + auth.token } })
   if (resp.status === 401) {
     auth.logout()
     router.push('/login')

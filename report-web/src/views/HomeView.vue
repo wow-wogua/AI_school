@@ -1,0 +1,168 @@
+<template>
+  <div class="app-page home">
+    <!-- 头区（图1）：顶部校园照片带 + 问候 + 铃铛/头像，渐变下垫虚化校园底图 -->
+    <div class="app-hero hero">
+      <img class="hero-photo" src="/campus-bg.jpg" alt="石实实验学校">
+      <div class="hero-top">
+        <div class="hello">
+          <p class="hi">{{ greeting }}，{{ auth.realName }}</p>
+          <h1>数智成长</h1>
+          <p class="sub">记录成长的每一步</p>
+        </div>
+        <div class="hero-actions">
+          <RouterLink to="/notice" class="hero-btn" aria-label="通知">
+            <van-icon name="bell" />
+            <i v-if="running" class="dot"></i>
+          </RouterLink>
+          <RouterLink to="/mine" class="avatar" aria-label="我的">{{ avatarChar }}</RouterLink>
+        </div>
+      </div>
+    </div>
+
+    <!-- 统计卡（图1：上浮叠在头区渐变上） -->
+    <div class="app-card overlap stats">
+      <div class="stat"><b>{{ summary.studentCount ?? '—' }}</b><span>在册学生</span></div>
+      <div class="stat"><b>{{ summary.reportCount ?? '—' }}</b><span>学期报告</span></div>
+      <div class="stat"><b :class="{ hot: running > 0 }">{{ running }}</b><span>进行中任务</span></div>
+    </div>
+
+    <!-- 快捷功能宫格（微光信箱阶段2接入首位） -->
+    <div class="app-sec">快捷功能</div>
+    <div class="app-card grid">
+      <button v-for="g in grids" :key="g.to" class="g-item" type="button" @click="$router.push(g.to)">
+        <span class="g-icon" :style="{ background: g.bg }"><van-icon :name="g.icon" /></span>
+        <span>{{ g.name }}</span>
+      </button>
+    </div>
+
+    <!-- 最近动态（图2 卡片样式缩略，查看全部 → 成长记录流） -->
+    <div class="app-sec">最近动态<RouterLink class="more" to="/feed">查看全部 ›</RouterLink></div>
+    <div class="app-card feed">
+      <div v-if="!feed.length" class="feed-empty">还没有动态，去记一条学生表现吧</div>
+      <div v-for="(f, i) in feed" :key="i" class="feed-item"
+        @click="f.studentId && $router.push(`/student/${f.studentId}`)">
+        <div class="f-line1">
+          <span class="f-title">{{ f.studentName || '校园活动' }}<template v-if="f.type === '评价'"> · {{ f.title }}</template></span>
+          <span class="f-time">{{ relTime(f.time) }}</span>
+        </div>
+        <p class="f-content">{{ f.content || f.title }}</p>
+        <div class="f-line3">
+          <span class="app-chip" :class="chipClass(f.type)">{{ chipLabel(f) }}</span>
+          <span v-if="f.teacherName" class="f-from">来自：{{ f.teacherName }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+import { useAiTasksStore } from '../stores/aiTasks'
+import { api } from '../api/http'
+import { relTime } from '../utils/fmt'
+
+const auth = useAuthStore()
+const aiTasks = useAiTasksStore()
+const running = computed(() => aiTasks.runningCount)
+
+interface FeedItem {
+  type: string; title?: string; content?: string; teacherName?: string; time?: string
+  studentId?: number; studentName?: string; className?: string; typeLabel?: string
+}
+
+const summary = ref<{ studentCount: number; reportCount: number; termName: string }>({} as never)
+const feed = ref<FeedItem[]>([])
+
+const greeting = computed(() => {
+  const h = new Date().getHours()
+  if (h < 6) return '夜深了'
+  if (h < 12) return '上午好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+})
+const avatarChar = computed(() => auth.realName?.charAt(0) || '师')
+
+/* 宫格配色（图1/图4）：每格一色的实心圆角方底 + 白图标 */
+const grids = [
+  { name: '成绩管理', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' },
+  { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
+  { name: '班主任寄语', icon: 'chat-o', to: '/comments', bg: '#F59E0B' },
+  { name: '成长总结', icon: 'notes-o', to: '/summary', bg: '#8B5CF6' },
+  { name: '综合素质', icon: 'gem-o', to: '/comprehensive', bg: '#0EA5E9' },
+  { name: '活动管理', icon: 'flag-o', to: '/activity', bg: '#F43F5E' },
+  { name: '荣誉证书', icon: 'medal-o', to: '/honor', bg: '#EAB308' },
+  { name: '成长时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1' },
+  { name: '成长报告', icon: 'orders-o', to: '/reports', bg: '#14B8A6' },
+]
+
+function chipClass(type: string) {
+  return { 评价: 'c-eval', 荣誉: 'c-honor', 寄语: 'c-comment', 活动: 'c-act' }[type] ?? ''
+}
+function chipLabel(f: FeedItem) {
+  if (f.type === '荣誉') return '荣誉时刻'
+  if (f.type === '活动') return f.typeLabel || '校园活动'
+  if (f.type === '寄语') return '班主任寄语'
+  return '日常表现'
+}
+
+onMounted(async () => {
+  api<{ studentCount: number; reportCount: number; termName: string }>('/api/feed/home-summary')
+    .then((d) => (summary.value = d)).catch(() => {})
+  api<FeedItem[]>('/api/feed?limit=5').then((d) => (feed.value = d)).catch(() => {})
+})
+</script>
+
+<style scoped>
+.hero-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.hello .hi { margin: 6px 0 2px; font-size: 13px; color: rgba(255,255,255,.75); }
+.hello h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 2px; }
+.hello .sub { margin: 4px 0 0; font-size: 12px; color: rgba(255,255,255,.65); letter-spacing: 1px; }
+.hero-actions { display: flex; align-items: center; gap: 12px; }
+.hero-btn { position: relative; display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.16); color: #fff; }
+.hero-btn .van-icon { font-size: 19px; }
+.hero-btn .dot { position: absolute; top: 6px; right: 7px; width: 8px; height: 8px; border-radius: 50%;
+  background: #F87171; border: 2px solid #1E3A8A; }
+.avatar { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px;
+  border-radius: 50%; background: rgba(255,255,255,.92); color: var(--app-blue-deep);
+  font-weight: 700; text-decoration: none; }
+
+/* 统计卡 */
+.stats { display: flex; padding: 14px 0; }
+.stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.stat + .stat { border-left: 1px solid var(--app-card-border); }
+.stat b { font-size: 22px; color: var(--app-text-1); }
+.stat b.hot { color: var(--app-blue); }
+.stat span { font-size: 11px; color: var(--app-text-3); }
+
+/* 宫格：手机4列、平板5列（≥600px 限宽卡内自动换行） */
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 0; padding: 12px 6px; }
+@media (min-width: 600px) { .grid { grid-template-columns: repeat(5, 1fr); } }
+.g-item { display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 8px 2px; background: none; border: none; color: var(--app-text-1);
+  font-size: 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.g-item:active { opacity: .7; }
+.g-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  border-radius: 14px; box-shadow: 0 3px 8px rgba(23,43,99,.14); }
+.g-icon .van-icon { font-size: 22px; color: #fff; }
+
+/* 最近动态 */
+.feed { padding: 4px 14px; }
+.feed-empty { padding: 26px 0; text-align: center; color: var(--app-text-3); font-size: 13px; }
+.feed-item { padding: 12px 0; }
+.feed-item + .feed-item { border-top: 1px solid var(--app-card-border); }
+.f-line1 { display: flex; align-items: baseline; gap: 8px; }
+.f-title { flex: 1; font-size: 14px; font-weight: 600; color: var(--app-text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f-time { font-size: 11px; color: var(--app-text-3); }
+.f-content { margin: 5px 0 6px; font-size: 13px; line-height: 1.5; color: var(--app-text-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.f-line3 { display: flex; align-items: center; gap: 10px; }
+.f-from { font-size: 11px; color: var(--app-text-3); }
+.c-eval { background: #EAF0FE; color: #2F5FC0; }
+.c-honor { background: #FBF3DF; color: #B07A1C; }
+.c-comment { background: #E8F6EF; color: #0D9467; }
+.c-act { background: #F3EAFE; color: #7C4DD8; }
+</style>

@@ -37,3 +37,9 @@ report-server/scripts/prompt_eval_out/
 
 # 石实换校素材中转（原始素材不入库）
 shishi-assets/
+
+# App 化 QA 截图（过程产物）
+report-web/shots/
+
+# App 改版设计参考图（本机参考，不入库）
+new/

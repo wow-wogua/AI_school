@@ -54,4 +54,20 @@ public class StudentController {
         }).toList());
         return ApiResponse.ok(m);
     }
+
+    /** 单个学生基本信息（App 学生详情页用；数据权限校验同上） */
+    @GetMapping("/{id}")
+    public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
+        Student s = dataScopeService.checkStudentAccess(AuthUtil.current(), id);
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("id", s.getId());
+        r.put("studentNo", s.getStudentNo());
+        r.put("name", s.getName());
+        r.put("gender", s.getGender());
+        r.put("classId", s.getClassId());
+        r.put("status", s.getStatus());
+        r.put("guardianName", s.getGuardianName());
+        r.put("guardianPhone", s.getGuardianPhone());
+        return ApiResponse.ok(r);
+    }
 }

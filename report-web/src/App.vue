@@ -1,129 +1,98 @@
 <template>
   <MotionConfig reducedMotion="user">
-  <el-container style="height: 100%">
-    <!-- 全站共用校园虚化背景（校门照，fixed 层，卡片浮于其上；登录页自带整页底图不透出） -->
-    <div class="app-bg" aria-hidden="true"></div>
-    <el-header class="nav" style="height: auto">
-      <div class="nav-inner">
-        <span class="brand">
-          <motion.span class="brand-mark" aria-hidden="true"
-            :initial="{ scale: 0, rotate: -60 }" :animate="{ scale: 1, rotate: 0 }"
-            :whileHover="{ rotate: -14, scale: 1.12 }"
-            :transition="{ type: 'spring', stiffness: 300, damping: 15 }">
-            <!-- 石实校徽（白底圆角衬深色导航） -->
-            <img src="/badge.png" alt="" style="width: 22px">
-          </motion.span>
-          <span class="brand-text">石实实验学校<i>中学素质报告平台</i></span>
-        </span>
-        <nav v-if="auth.token" class="links">
-          <router-link to="/">批量任务</router-link>
-          <router-link to="/reports">报告列表</router-link>
-          <router-link to="/scores">成绩管理</router-link>
-          <router-link to="/evaluate">日常评价</router-link>
-          <router-link to="/summary">成长总结</router-link>
-          <router-link to="/comprehensive">综合素质</router-link>
-          <router-link to="/comments">班主任寄语</router-link>
-          <router-link to="/activity">活动管理</router-link>
-          <router-link to="/honor">荣誉证书</router-link>
-          <router-link to="/timeline">成长时间轴</router-link>
-          <router-link v-if="auth.role === 'ADMIN'" to="/admin">系统管理</router-link>
-        </nav>
-        <span v-if="auth.token" class="user">
-          <AiTaskPanel />
-          {{ auth.realName }}
-          <el-button link size="small" @click="logout">退出</el-button>
-        </span>
-      </div>
-      <!-- 滚动进度条：阅读位置反馈（useScroll 联动主滚动区，spring 平滑） -->
-      <motion.div class="scroll-progress" aria-hidden="true" :style="{ scaleX: progress }" />
-    </el-header>
-    <el-main ref="mainRef" style="padding: 0; min-height: 0">
-      <router-view v-slot="{ Component }">
-        <transition name="page-fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
-      <!-- 石实页脚：全站主界面统一校名/校训/理念 -->
-      <footer v-if="auth.token" class="app-footer">
-        <img src="/badge.png" alt="" class="footer-badge">
-        <span class="footer-line">
-          <b>佛山市南海区石实实验学校</b>
-          <i>校训 任重道远，毋忘奋斗</i>
-          <i>扬长教育，出彩人生</i>
-          <i>EST. 1999</i>
-        </span>
-      </footer>
-    </el-main>
-  </el-container>
+    <!-- App 形态（tab/keepTab）：主内容区 + 底部导航 -->
+    <div v-if="layout === 'tab' || layout === 'keepTab'" class="app-shell">
+      <main class="app-main">
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </main>
+      <AppTabbar :tab="(route.meta.tab as any)" />
+    </div>
+
+    <!-- sub 二级/功能页：meta.title 有值挂「返回+标题」导航条；无值（学生详情）仅滚动容器 -->
+    <div v-else-if="layout === 'sub'" class="app-sub" :class="{ admin: route.meta.admin }">
+      <header v-if="route.meta.title" class="sub-nav">
+        <button class="back" type="button" aria-label="返回" @click="goBack">
+          <van-icon name="arrow-left" />
+        </button>
+        <h1>{{ route.meta.title }}</h1>
+      </header>
+      <main class="sub-main">
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </main>
+    </div>
+
+    <!-- bare：登录页直接渲染 -->
+    <router-view v-else />
   </MotionConfig>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { MotionConfig, motion, useScroll, useSpring } from 'motion-v'
+import { computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { MotionConfig } from 'motion-v'
 import { useAuthStore } from './stores/auth'
 import { useAiTasksStore } from './stores/aiTasks'
-import AiTaskPanel from './components/AiTaskPanel.vue'
+import AppTabbar from './components/AppTabbar.vue'
 
 const auth = useAuthStore()
 const aiTasks = useAiTasksStore()
 const router = useRouter()
-function logout() {
-  auth.logout()
-  router.push('/login')
+const route = useRoute()
+
+/** 布局形态由路由 meta 决定：tab/keepTab → Tab 壳；sub → 返回导航壳；bare → 登录页 */
+const layout = computed(() => (route.meta.layout as string | undefined) ?? 'bare')
+
+/** 导航条返回：有上一页则回退，否则（深链直入）回首页 */
+function goBack() {
+  if (window.history.length > 1) router.back()
+  else router.push('/')
 }
 
 /* AI 任务轮询随登录态启停（登录即恢复展示后台跑的任务，退出即停并清空） */
 watch(() => auth.token, (t) => (t ? aiTasks.start() : aiTasks.stop()), { immediate: true })
-
-/* 滚动进度条：el-main 是页面真正的滚动容器（overflow:auto），取其实例根元素 */
-const mainRef = ref<{ $el?: HTMLElement }>()
-const { scrollYProgress } = useScroll({ container: computed(() => mainRef.value?.$el) })
-const progress = useSpring(scrollYProgress, { stiffness: 140, damping: 30, mass: 0.4 })
 </script>
 
 <style scoped>
-.app-bg { position: fixed; inset: 0; z-index: -1;
-  background: linear-gradient(rgba(250,249,246,.45), rgba(250,249,246,.45)),
-              url('/campus-bg.jpg') center 42%/cover no-repeat; }
-.nav {
-  position: sticky; top: 0; z-index: 100;
-  background: var(--brand-ink);
-  box-shadow: 0 2px 8px rgba(74,18,22,.2);
+/* App 壳：主滚动区 + 底部导航（固定悬浮，主区留出通行高度） */
+.app-shell { height: 100%; height: 100dvh; display: flex; flex-direction: column; background: var(--app-bg); }
+.app-main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+
+/* sub 壳：深蓝渐变导航条（垫虚化校园底图，与 hero 同语言）+ 滚动主区 */
+.app-sub { height: 100%; height: 100dvh; display: flex; flex-direction: column; background: var(--app-bg); }
+.sub-nav {
+  position: relative; display: flex; align-items: center; gap: 10px; flex: none;
+  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+  background: var(--app-gradient); color: #fff; overflow: hidden;
 }
-.nav-inner { display: flex; align-items: center; gap: 20px; padding: 12px 16px; max-width: 1200px; margin: 0 auto; flex-wrap: wrap; }
-.brand { display: flex; align-items: center; gap: 10px; color: #fff; }
-.brand-mark { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center;
-  border-radius: 9px; color: #fff; background: #fff; box-shadow: 0 2px 6px rgba(74,18,22,.3); }
-.brand-text { display: flex; flex-direction: column; line-height: 1.2; font-weight: 700; font-size: 16px; letter-spacing: .5px; }
-.brand-text i { font-style: normal; font-size: 11px; font-weight: 400; color: #e5bdbf; letter-spacing: 2px; }
-.links { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
-.links a { position: relative; color: #efd2d5; text-decoration: none; font-size: 14px; padding: 6px 10px;
-  border-radius: 8px; transition: color .2s ease, background-color .2s ease; }
-.links a::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 2px; border-radius: 2px;
-  background: var(--brand-gold); transform: scaleX(0); transform-origin: left center; transition: transform .22s ease; }
-.links a:hover { color: #fff; }
-.links a.router-link-exact-active { color: #fff; }
-.links a.router-link-exact-active::after { transform: scaleX(1); }
-.user { color: #efd2d5; font-size: 14px; display: flex; align-items: center; gap: 4px; }
-.scroll-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
-  background: var(--brand-gold); transform-origin: 0 50%; }
-.user :deep(.el-button) { color: #e5bdbf; }
-.user :deep(.el-button:hover) { color: #fff; }
-.app-footer { display: flex; align-items: center; justify-content: center; gap: 10px;
-  width: fit-content; margin: 28px auto 0; padding: 10px 22px;
-  background: rgba(255,255,255,.82); border-radius: 999px; box-shadow: 0 1px 2px rgba(74,18,22,.06);
-  color: #64748b; font-size: 12px; letter-spacing: .5px; }
-.app-footer b { color: #475569; font-weight: 600; white-space: nowrap; }
-.app-footer i { font-style: normal; white-space: nowrap; }
-.footer-badge { width: 18px; height: auto; opacity: .85; flex: none; }
-.app-footer .footer-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
-@media (max-width: 767px) {
-  .brand-text { font-size: 14px; }
-  .links { order: 3; width: 100%; }
-  .links a { padding: 4px 9px; background: rgba(255,255,255,.08); border-radius: 999px; font-size: 13px; }
-  .links a.router-link-exact-active { background: rgba(255,255,255,.2); }
-  .links a::after { display: none; }   /* 手机上用胶囊态代替下划线 */
+.sub-nav::before {                 /* 虚化校园底图（同 .app-hero） */
+  content: ''; position: absolute; inset: -30px;
+  background: url('/campus-bg.jpg') center 42%/cover no-repeat;
+  opacity: .14; filter: blur(8px) saturate(1.1); pointer-events: none;
+}
+.sub-nav > * { position: relative; }
+.sub-nav .back { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  border: none; border-radius: 50%; background: rgba(255,255,255,.16); color: #fff;
+  font-size: 16px; cursor: pointer; }
+.sub-nav h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: 1px; }
+.sub-main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* 功能页过渡期仍用 Element Plus 组件：除管理页外，EP 主色临时对齐 App 深蓝
+   （管理端保留石实红体系，见 style.css §1） */
+.app-sub:not(.admin) {
+  --el-color-primary: #2F5FC0;
+  --el-color-primary-light-3: #6D8FD3;
+  --el-color-primary-light-5: #97AFE0;
+  --el-color-primary-light-7: #C2CFEC;
+  --el-color-primary-light-8: #D5DFF2;
+  --el-color-primary-light-9: #EAEFF9;
+  --el-color-primary-dark-2: #264C9A;
 }
 </style>
