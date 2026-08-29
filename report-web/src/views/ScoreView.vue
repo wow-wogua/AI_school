@@ -22,7 +22,7 @@
       <template #header>
         成绩单（满分 {{ fullScore }}，保存后自动计算班级/年级排名；空白 = 未录入，清空分数后保存即删除）
       </template>
-      <el-table :data="rows" size="small" max-height="560">
+      <el-table :data="rows" size="small" max-height="560" :row-class-name="rowClass">
         <el-table-column prop="studentNo" label="学号" width="110" />
         <el-table-column prop="name" label="姓名" width="110" />
         <el-table-column label="分数" width="150">
@@ -92,12 +92,19 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
+const route = useRoute()
+const hlStudentId = ref<number>(Number(route.query.studentId) || 0)   // 从学生详情进来：高亮该生行
+
+function rowClass({ row }: { row: any }) {
+  return row.studentId === hlStudentId.value ? 'hl-row' : ''
+}
 const exams = ref<any[]>([])
 const classes = ref<{ id: number; name: string }[]>([])
 const terms = ref<any[]>([])
@@ -134,6 +141,16 @@ async function init() {
   if (cs.length) {
     classId.value = cs[0].id
     if (examId.value) await loadSubjects()
+  }
+  // 学生详情宫格带学生进来：自动选到该生所在班，成绩单里该生行高亮
+  if (hlStudentId.value) {
+    try {
+      const s = await api<{ classId?: number }>(`/api/student/${hlStudentId.value}`)
+      if (s.classId && cs.some((c) => c.id === s.classId)) {
+        classId.value = s.classId
+        await loadSubjects()
+      }
+    } catch { /* 深链失效则保持默认视图 */ }
   }
 }
 

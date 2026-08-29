@@ -11,13 +11,13 @@
       </div>
     </div>
 
-    <div class="app-card overlap cells">
+    <div class="app-card overlap tl tex-f cells">
       <van-cell title="成长报告" icon="orders-o" is-link @click="$router.push('/reports')" />
       <van-cell title="生成中心" icon="bell" is-link :value="running ? `${running} 进行中` : ''" @click="$router.push('/notice')" />
       <van-cell v-if="auth.role === 'ADMIN'" title="系统管理" icon="setting-o" is-link @click="$router.push('/admin')" />
     </div>
 
-    <div class="app-card cells">
+    <div class="app-card tex-e cells">
       <van-cell title="服务器地址" icon="desktop-o" is-link :value="srvBase || '默认'" @click="srvOpen = true" />
       <van-cell title="关于" icon="info-o" is-link @click="aboutOpen = true" />
       <van-cell title="退出登录" icon="revoke" is-link class="logout" @click="logoutOpen = true" />

@@ -63,7 +63,8 @@ watch(() => auth.token, (t) => (t ? aiTasks.start() : aiTasks.stop()), { immedia
 <style scoped>
 /* App 壳：主滚动区 + 底部导航（固定悬浮，主区留出通行高度） */
 .app-shell { height: 100%; height: 100dvh; display: flex; flex-direction: column; background: var(--app-bg); }
-.app-main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+.app-main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom)); }  /* 64 tabbar + 32 中央+键凸出高度，免遮列表尾行 */
 
 /* sub 壳：深蓝渐变导航条（垫虚化校园底图，与 hero 同语言）+ 滚动主区 */
 .app-sub { height: 100%; height: 100dvh; display: flex; flex-direction: column; background: var(--app-bg); }
@@ -71,11 +72,17 @@ watch(() => auth.token, (t) => (t ? aiTasks.start() : aiTasks.stop()), { immedia
   position: relative; display: flex; align-items: center; gap: 10px; flex: none;
   padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
   background: var(--app-gradient); color: #fff; overflow: hidden;
+  border-bottom: 1px solid rgba(201,138,45,.4);   /* 校门金一线 */
 }
 .sub-nav::before {                 /* 虚化校园底图（同 .app-hero） */
   content: ''; position: absolute; inset: -30px;
   background: url('/campus-bg.jpg') center 42%/cover no-repeat;
-  opacity: .14; filter: blur(8px) saturate(1.1); pointer-events: none;
+  opacity: .24; filter: blur(8px) saturate(1.15); pointer-events: none;
+}
+.sub-nav::after {                  /* 右上光斑（同 hero 装饰语言） */
+  content: ''; position: absolute; top: -60px; right: -45px; width: 190px; height: 190px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(91,133,232,.38), rgba(91,133,232,0));
 }
 .sub-nav > * { position: relative; }
 .sub-nav .back { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;

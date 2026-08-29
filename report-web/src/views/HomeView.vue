@@ -20,7 +20,7 @@
     </div>
 
     <!-- 统计卡（图1：上浮叠在头区渐变上） -->
-    <div class="app-card overlap stats">
+    <div class="app-card overlap tl tex-a stats">
       <div class="stat"><b>{{ summary.studentCount ?? '—' }}</b><span>在册学生</span></div>
       <div class="stat"><b>{{ summary.reportCount ?? '—' }}</b><span>学期报告</span></div>
       <div class="stat"><b :class="{ hot: running > 0 }">{{ running }}</b><span>进行中任务</span></div>
@@ -28,7 +28,7 @@
 
     <!-- 快捷功能宫格（微光信箱阶段2接入首位） -->
     <div class="app-sec">快捷功能</div>
-    <div class="app-card grid">
+    <div class="app-card tex-b grid">
       <button v-for="g in grids" :key="g.to" class="g-item" type="button" @click="$router.push(g.to)">
         <span class="g-icon" :style="{ background: g.bg }"><van-icon :name="g.icon" /></span>
         <span>{{ g.name }}</span>
@@ -37,7 +37,7 @@
 
     <!-- 最近动态（图2 卡片样式缩略，查看全部 → 成长记录流） -->
     <div class="app-sec">最近动态<RouterLink class="more" to="/feed">查看全部 ›</RouterLink></div>
-    <div class="app-card feed">
+    <div class="app-card tex-c feed">
       <div v-if="!feed.length" class="feed-empty">还没有动态，去记一条学生表现吧</div>
       <div v-for="(f, i) in feed" :key="i" class="feed-item"
         @click="f.studentId && $router.push(`/student/${f.studentId}`)">
@@ -52,6 +52,9 @@
         </div>
       </div>
     </div>
+
+    <CampusSkyline />
+    <p class="app-foot">石实实验学校 · 数智成长</p>
   </div>
 </template>
 
@@ -59,6 +62,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import CampusSkyline from '../components/CampusSkyline.vue'
 import { useAiTasksStore } from '../stores/aiTasks'
 import { api } from '../api/http'
 import { relTime } from '../utils/fmt'
@@ -124,13 +128,14 @@ onMounted(async () => {
 .hello .sub { margin: 4px 0 0; font-size: 12px; color: rgba(255,255,255,.65); letter-spacing: 1px; }
 .hero-actions { display: flex; align-items: center; gap: 12px; }
 .hero-btn { position: relative; display: flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.16); color: #fff; }
+  width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.16); color: #fff;
+  box-shadow: 0 2px 6px rgba(10,22,60,.25); }   /* 压在光斑上时保住边缘清晰 */
 .hero-btn .van-icon { font-size: 19px; }
 .hero-btn .dot { position: absolute; top: 6px; right: 7px; width: 8px; height: 8px; border-radius: 50%;
   background: #F87171; border: 2px solid #1E3A8A; }
 .avatar { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px;
   border-radius: 50%; background: rgba(255,255,255,.92); color: var(--app-blue-deep);
-  font-weight: 700; text-decoration: none; }
+  font-weight: 700; text-decoration: none; box-shadow: 0 2px 6px rgba(10,22,60,.25); }
 
 /* 统计卡 */
 .stats { display: flex; padding: 14px 0; }

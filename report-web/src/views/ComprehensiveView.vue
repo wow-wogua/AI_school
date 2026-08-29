@@ -38,9 +38,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
 import { api } from '../api/http'
+
+const route = useRoute()
 
 const classes = ref<{ id: number; name: string }[]>([])
 const terms = ref<any[]>([])
@@ -84,6 +87,25 @@ async function init() {
     classId.value = cs[0].id
     await loadStudents()
   }
+  await preselect()
+}
+
+/** 学生详情宫格带学生进来：自动选中该生（班级 → 学生 → 拉五维） */
+async function preselect() {
+  const sid = Number(route.query.studentId)
+  if (!sid) return
+  if (route.query.termId && terms.value.some((t: any) => t.id === Number(route.query.termId))) {
+    termId.value = Number(route.query.termId)
+  }
+  try {
+    const s = await api<{ classId?: number }>(`/api/student/${sid}`)
+    if (s.classId && classes.value.some((c) => c.id === s.classId)) {
+      classId.value = s.classId
+      await loadStudents()
+      studentId.value = sid
+      await load()
+    }
+  } catch { /* 深链失效则保持默认视图 */ }
 }
 
 async function loadStudents() {

@@ -15,8 +15,8 @@
       </div>
     </div>
 
-    <!-- 功能入口：跳到各功能页（寄语/成长总结支持带学生预选） -->
-    <div class="app-card overlap grid">
+    <!-- 功能入口：跳到各功能页（除活动外全部带该生预选，打开即是 TA 的数据） -->
+    <div class="app-card overlap tl tex-a grid">
       <button v-for="g in entries" :key="g.name" class="g-item" type="button" @click="go(g)">
         <span class="g-icon" :style="{ background: g.bg }"><van-icon :name="g.icon" /></span>
         <span>{{ g.name }}</span>
@@ -24,7 +24,7 @@
     </div>
 
     <!-- TA的闪光时刻：微光照片墙（有微光才显示） -->
-    <div v-if="moments.length" class="app-card moments">
+    <div v-if="moments.length" class="app-card tl gold tex-d moments">
       <div class="app-sec" style="margin: 0 0 10px">TA的闪光时刻<span class="mo-cnt">{{ moments.length }}</span></div>
       <div class="mo-grid">
         <div v-for="m in moments" :key="m.id" class="mo-item">
@@ -34,12 +34,13 @@
       </div>
     </div>
 
-    <!-- 基本信息卡 -->
-    <div class="app-card info">
-      <div class="app-sec" style="margin: 0 0 6px">基本信息</div>
+    <!-- 基本信息卡（学籍卡风格） -->
+    <div class="app-card tl tex-e info">
+      <div class="app-sec" style="margin: 0 0 6px">基本信息<span class="card-tag">学籍卡</span></div>
       <van-cell title="状态" :value="stu.status || '—'" />
       <van-cell title="家长" :value="stu.guardianName || '—'" />
       <van-cell title="联系电话" :value="stu.guardianPhone || '—'" />
+      <div class="barcode" aria-hidden="true"><i v-for="n in 24" :key="n" :style="{ opacity: n % 3 ? .8 : .35 }"></i></div>
     </div>
   </div>
 </template>
@@ -60,22 +61,22 @@ const className = ref('')
 const termId = ref<number>()
 const moments = ref<{ id: number; photoUrl: string; sceneTag: string }[]>([])
 
-/* 入口配色（图4）：每格一色的实心圆角方底 + 白图标 */
+/* 入口配色（图4）：每格一色的实心圆角方底 + 白图标；noPre=目标页无按学生看数据的形态 */
 const entries = [
-  { name: '成绩', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA', preselect: false },
-  { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981', preselect: false },
-  { name: '活动', icon: 'flag-o', to: '/activity', bg: '#F43F5E', preselect: false },
-  { name: '荣誉', icon: 'medal-o', to: '/honor', bg: '#EAB308', preselect: false },
-  { name: '寄语', icon: 'chat-o', to: '/comments', bg: '#F59E0B', preselect: true },
-  { name: '成长总结', icon: 'notes-o', to: '/summary', bg: '#8B5CF6', preselect: true },
-  { name: '综合素质', icon: 'gem-o', to: '/comprehensive', bg: '#0EA5E9', preselect: false },
-  { name: '时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1', preselect: false },
+  { name: '成绩', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' },
+  { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
+  { name: '活动', icon: 'flag-o', to: '/activity', bg: '#F43F5E', noPre: true },
+  { name: '荣誉', icon: 'medal-o', to: '/honor', bg: '#EAB308' },
+  { name: '寄语', icon: 'chat-o', to: '/comments', bg: '#F59E0B' },
+  { name: '成长总结', icon: 'notes-o', to: '/summary', bg: '#8B5CF6' },
+  { name: '综合素质', icon: 'gem-o', to: '/comprehensive', bg: '#0EA5E9' },
+  { name: '时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1' },
 ]
 
-/** 寄语/成长总结页支持 query 预选学生（阶段3其余页面补齐预选） */
+/** 除「活动」外全部带该生预选（目标页 init 读 query 自动选中班级+学生） */
 function go(g: (typeof entries)[number]) {
   const studentId = Number(route.params.id)
-  if (g.preselect && studentId && termId.value) {
+  if (!g.noPre && studentId && termId.value) {
     router.push({ path: g.to, query: { studentId: String(studentId), termId: String(termId.value) } })
   } else {
     router.push(g.to)
@@ -95,8 +96,8 @@ onMounted(async () => {
   stu.value = await api<Stu>(`/api/student/${id}`)
   const classes = await api<{ id: number; name: string }[]>('/api/meta/my-classes')
   className.value = classes.find((c) => c.id === stu.value.classId)?.name ?? ''
-  const terms = await api<{ id: number; name: string }[]>('/api/meta/terms')
-  termId.value = terms[0]?.id
+  const terms = await api<{ id: number; name: string; isCurrent?: number }[]>('/api/meta/terms')
+  termId.value = terms.find((t) => t.isCurrent === 1)?.id ?? terms[0]?.id
   api<{ id: number; photoUrl: string; sceneTag: string }[]>(`/api/moment/student?studentId=${id}`)
     .then((d) => (moments.value = d)).catch(() => {})
 })
@@ -132,6 +133,12 @@ onMounted(async () => {
   border-radius: 999px; background: rgba(13,22,50,.55); color: #fff;
   font-size: 10px; backdrop-filter: blur(4px); }
 
-.info { margin-top: 12px; padding: 14px 4px 4px; }
+.info { margin-top: 12px; padding: 14px 4px 12px; }
 .info :deep(.van-cell) { font-size: 14px; }
+.card-tag { margin-left: 8px; padding: 1px 8px; border: 1px solid #D9E1F0; border-radius: 4px;
+  font-size: 10px; font-weight: 500; color: var(--app-text-3); letter-spacing: 2px; }
+.barcode { display: flex; align-items: center; justify-content: center; gap: 3px; height: 26px;
+  margin-top: 8px; }
+.barcode i { width: 2px; height: 100%; background: #2F5FC0; border-radius: 1px; }
+.barcode i:nth-child(2n) { width: 1px; }
 </style>

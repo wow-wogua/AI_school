@@ -253,9 +253,15 @@ body {
 .app-hero::before {                 /* 虚化校园底图：低透明度融进渐变，保住文字对比度 */
   content: ''; position: absolute; inset: -40px;
   background: url('/campus-bg.jpg') center 42%/cover no-repeat;
-  opacity: .16; filter: blur(10px) saturate(1.1); pointer-events: none;
+  opacity: .28; filter: blur(9px) saturate(1.15); pointer-events: none;
 }
 .app-hero > * { position: relative; }
+/* hero 右上光斑装饰（mark 页右上是校徽水印，排除以免叠影） */
+.app-hero:not(.mark)::after {
+  content: ''; position: absolute; top: -70px; right: -55px; width: 230px; height: 230px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(91,133,232,.28), rgba(91,133,232,0));
+}
 
 /* 顶部校园照片带（图1/图4）：hero 内可见的学校元素；要换更高清的原图同名直替 /campus-bg.jpg 即可 */
 .app-hero .hero-photo { display: block; width: 100%; height: 108px; object-fit: cover;
@@ -265,7 +271,7 @@ body {
 .app-hero.mark::after {
   content: ''; position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 16px;
   width: 52px; height: 52px; background: url('/badge.png') center/contain no-repeat;
-  opacity: .22; pointer-events: none;
+  opacity: .34; pointer-events: none;
 }
 
 /* 功能页过渡期：旧页面的 .page-title（石实红）在 App 壳内对齐深蓝（管理页除外，App.vue 已分流） */
@@ -280,10 +286,42 @@ body {
 /* hero 是 relative，叠卡必须显式提层，否则上浮进 hero 的部分被渐变盖住（统计数字/首行被压） */
 .app-card.overlap { margin-top: -40px; position: relative; z-index: 1; }
 
-/* 区块标题（图1「快捷功能」「最近动态」式小标题） */
+/* 卡片顶部彩色渐变条（修饰边框组件）：tl=主蓝 tl.gold=暖橙 tl.green=成长绿 */
+.app-card.tl { position: relative; overflow: hidden; }
+.app-card.tl::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: var(--app-radius) var(--app-radius) 0 0;   /* 贴合卡片圆角，免直角顶出 */
+  background: linear-gradient(90deg, var(--app-blue), #5B85E8 55%, transparent); }
+.app-card.tl.gold::before { background: linear-gradient(90deg, #F97316, #FBBF24 55%, transparent); }
+.app-card.tl.green::before { background: linear-gradient(90deg, #0D9467, #34D399 55%, transparent); }
+
+/* 页尾收尾装饰：短线 + 校名（主要 tab 页使用） */
+.app-foot { display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin: 20px 2px 2px; color: #B6C1D9; font-size: 11px; letter-spacing: 2px; }
+.app-foot::before, .app-foot::after { content: ''; flex: 1; max-width: 56px; border-top: 1px solid #D9E1F0; }
+
+/* 卡片虚化底纹：tex-a~f 六张校园主题图轮换垫底，上覆白纱（87%），文字永远清晰；
+   底图放大到 190% 取中心，像素自然发虚成「虚化大图」感 */
+.app-card[class*='tex-'] {
+  background-image: linear-gradient(rgba(255,255,255,.74), rgba(255,255,255,.74)), var(--tex);
+  background-size: cover, 190%;
+  background-position: center;
+}
+.app-card.tex-d {   /* 黑板图最深，多盖一层保文字对比 */
+  background-image: linear-gradient(rgba(255,255,255,.85), rgba(255,255,255,.85)), var(--tex);
+}
+.tex-a { --tex: url('/textures/tex-1503676260728-1c00da094a0b.jpg'); }  /* 书本教室 */
+.tex-b { --tex: url('/textures/tex-1427504494785-3a9ca7044f45.jpg'); }  /* 课桌教室 */
+.tex-c { --tex: url('/textures/tex-1509062522246-3755977927d7.jpg'); }  /* 铅笔文具 */
+.tex-d { --tex: url('/textures/tex-1546410531-bb4caa6b424d.jpg'); }     /* 黑板板书 */
+.tex-e { --tex: url('/textures/tex-1571260899304-425eee4c7efc.jpg'); }  /* 校舍建筑 */
+.tex-f { --tex: url('/textures/tex-1577896851231-70ef18881754.jpg'); }  /* 校园绿植 */
+.tex-g { --tex: url('/textures/tex-1507842217343-583bb7270b66.jpg'); }  /* 图书馆长廊 */
+
+/* 区块标题（图1「快捷功能」「最近动态」式小标题）：竖条 + 尾部虚线延伸 */
 .app-sec { display: flex; align-items: center; gap: 8px; margin: 18px 2px 10px;
   font-size: 15px; font-weight: 700; color: var(--app-text-1); }
 .app-sec::before { content: ''; width: 4px; height: 15px; border-radius: 2px; background: var(--app-blue); }
+.app-sec::after { content: ''; flex: 1; border-top: 1px dashed #D9E1F0; margin-left: 2px; margin-right: 12px; }
 .app-sec .more { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--app-text-2); }
 
 /* 圆角小标签 chips */
@@ -294,3 +332,21 @@ body {
 .app-page .app-card, .app-page .app-sec { animation: rise-in .35s ease-out backwards; }
 .app-page .app-card:nth-child(2) { animation-delay: .05s; }
 .app-page .app-card:nth-child(n + 3) { animation-delay: .1s; }
+
+/* ---------------- 10. EP 功能页统一轻装饰（App 壳内 8 个功能页一次生效；管理页除外） ----------------
+   对角淡蓝光斑底 + 卡片顶部主蓝细条，与 App 形态的 tl 卡装饰同语言 */
+.app-sub:not(.admin) .page {
+  background:
+    radial-gradient(420px 210px at 100% 0%, rgba(47,95,192,.07), transparent 70%),
+    radial-gradient(380px 190px at 0% 100%, rgba(91,133,232,.06), transparent 70%);
+}
+.app-sub:not(.admin) .el-card {
+  border-top: 3px solid #E3EBFA;
+  background-image: linear-gradient(rgba(255,255,255,.92), rgba(255,255,255,.92)),
+    url('/textures/tex-1503676260728-1c00da094a0b.jpg');   /* 浅书本底纹：表格可读性优先 */
+  background-size: cover, 190%;
+}
+/* 成绩单从学生详情进来的该生行高亮（淡蓝底+左竖条锚点） */
+.el-table .hl-row > td.el-table__cell { background: #E6F0FF; }
+.el-table .hl-row > td.el-table__cell:first-child { box-shadow: inset 3px 0 0 #2F5FC0; }
+.app-sub:not(.admin) .toolbar { border-top: 3px solid #E3EBFA; }

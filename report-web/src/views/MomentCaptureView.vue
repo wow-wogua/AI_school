@@ -1,7 +1,7 @@
 <template>
   <div class="app-page capture">
     <!-- 成功态：激励展示 -->
-    <div v-if="done" class="app-card done-card">
+    <div v-if="done" class="app-card tl green done-card">
       <span class="done-icon"><van-icon name="checked" /></span>
       <img class="done-photo" :src="donePhoto" alt="">
       <h2>微光已点亮</h2>

@@ -21,7 +21,7 @@
     </div>
 
     <!-- 本周微光：班级最近随手拍（横滑照片带；空态给拍照引导） -->
-    <div class="app-card overlap moments">
+    <div class="app-card overlap tl gold tex-d moments">
       <div class="mo-head">
         <div class="app-sec mo-title" style="margin: 0"
           @click="$router.push({ path: '/moment', query: { classId: String(classId ?? '') } })">
@@ -44,8 +44,8 @@
       </button>
     </div>
 
-    <!-- 学生卡片列表 -->
-    <div v-if="students.length" class="app-card list" :class="{ overlap: !moments.length }">
+    <!-- 学生卡片列表（图书馆长廊底纹） -->
+    <div v-if="students.length" class="app-card tl tex-g list" :class="{ overlap: !moments.length }">
       <div v-for="s in students" :key="s.id" class="stu" @click="$router.push(`/student/${s.id}`)">
         <span class="ava" :style="{ background: avaColor(s.name) }">{{ s.name.charAt(0) }}</span>
         <div class="stu-info">
@@ -63,6 +63,8 @@
     </div>
 
     <p class="count">共 {{ total }} 名学生</p>
+    <CampusSkyline />
+    <p class="app-foot">石实实验学校 · 数智成长</p>
 
     <!-- 班级选择（底部弹层） -->
     <van-popup v-model:show="pickOpen" position="bottom" round>
@@ -76,6 +78,7 @@ import { computed, onMounted, ref } from 'vue'
 import { showImagePreview } from 'vant'
 import { api } from '../api/http'
 import MomentPhoto from '../components/MomentPhoto.vue'
+import CampusSkyline from '../components/CampusSkyline.vue'
 
 interface Cls { id: number; name: string }
 interface Stu { id: number; name: string; studentNo?: string; gender?: string }
@@ -180,9 +183,12 @@ onMounted(async () => {
   border-radius: 12px; background: #FFF9F3; color: #EA580C; font-size: 13px; cursor: pointer; }
 .mo-empty .van-icon { font-size: 16px; }
 
-.list { padding: 4px 14px; }
-.stu { display: flex; align-items: center; gap: 12px; padding: 11px 0; cursor: pointer; }
-.stu + .stu { border-top: 1px solid var(--app-card-border); }
+.list { padding: 10px 14px; }
+/* 学生行垫白色玻璃片：与虚化底纹分层，名单清晰不融合 */
+.stu { display: flex; align-items: center; gap: 12px; padding: 11px 12px; cursor: pointer;
+  background: rgba(255,255,255,.92); border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(10,22,60,.06); }
+.stu + .stu { margin-top: 12px; }
 .stu:active { opacity: .75; }
 .ava { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px;
   border-radius: 50%; color: #fff; font-size: 16px; font-weight: 600; flex: none; }

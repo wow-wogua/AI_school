@@ -14,7 +14,7 @@
 
     <!-- 卡片流（图2 样式） -->
     <div v-if="filtered.length" class="cards">
-      <div v-for="(f, i) in filtered" :key="i" class="app-card card"
+      <div v-for="(f, i) in filtered" :key="i" class="app-card tex-c card"
         @click="f.studentId && $router.push(`/student/${f.studentId}`)">
         <div class="c-head">
           <span class="c-title">{{ cardTitle(f) }}</span>
@@ -31,9 +31,11 @@
         </div>
       </div>
     </div>
-    <div v-else class="app-card empty">
+    <div v-else class="app-card tex-e empty">
       <van-empty image-size="88" description="该分类下还没有记录" />
     </div>
+
+    <p class="app-foot">石实实验学校 · 数智成长</p>
   </div>
 </template>
 

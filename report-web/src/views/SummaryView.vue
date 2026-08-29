@@ -1,7 +1,7 @@
 <template>
   <div class="app-page summary">
     <!-- 筛选卡：班级 / 学生 / 学期 + AI 分析 -->
-    <div class="app-card filter">
+    <div class="app-card tex-a filter">
       <van-cell title="班级" is-link :value="curClassName || '选择班级'" @click="clsOpen = true" />
       <van-cell title="学生" is-link :value="curStuLabel || '选择学生'" @click="stuOpen = true" />
       <van-cell title="学期" is-link :value="curTermName || '选择学期'" @click="termOpen = true" />
@@ -21,7 +21,7 @@
         <div class="app-sec" style="margin: 0 0 8px">成长总结</div>
         <div class="text">{{ raw }}</div>
       </div>
-      <div v-for="(b, i) in blocks" :key="i" class="app-card result">
+      <div v-for="(b, i) in blocks" :key="i" class="app-card tl tex-b result">
         <div class="app-sec" style="margin: 0 0 8px">{{ b.title }}</div>
         <div class="text">{{ b.content }}</div>
       </div>
