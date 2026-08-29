@@ -1,0 +1,16 @@
+# 服务器（公网共用机）部署覆盖：只把 web 发布到偏僻高位端口，其余服务一律不映射宿主机端口
+# 用法：docker compose -f docker-compose.yml -f docker-compose.server.yml up -d --build
+# 说明：!override 是 Compose v2.24+ 标签，用空列表整体替换基础文件的 ports；
+#       普通合并只会追加条目、删不掉基础文件的端口，收敛端口必须用它。
+services:
+  mysql:
+    ports: !override []        # 仅容器内网可访问（report-server 经 compose 网络直连）
+  redis:
+    ports: !override []
+  minio:
+    ports: !override []
+  report-server:
+    ports: !override []        # 调试端口 8080 不对公网暴露
+  report-web:
+    ports: !override
+      - "18086:80"             # 唯一对外入口（共用服务器避开 80 等常用端口）
