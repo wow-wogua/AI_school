@@ -44,7 +44,7 @@ public class RenderPdf {
         ctx.setVariable("dataJson", om.writeValueAsString(data));
         // echarts 内联进 HTML，避免 file:// 相对路径问题
         ctx.setVariable("echartsJs", resourceText("/static/echarts.min.js"));
-        // 模板原版图片（提取自 学生成长报告册.pdf，见 架构设计.md §11.10）同样内联为 data URI
+        // 模板原版图片（提取自 学生成长报告册.pdf）同样内联为 data URI
         ctx.setVariable("imgIdeaBg", dataUri("/static/img/img_idea_bg.jpg"));
         ctx.setVariable("imgPhoto1", dataUri("/static/img/img_photo1.jpg"));
         ctx.setVariable("imgPhoto2", dataUri("/static/img/img_photo2.jpg"));

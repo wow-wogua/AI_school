@@ -1,4 +1,4 @@
--- AI_school M3/M4 数据库结构（架构设计.md 第四节 t_* 表）
+-- AI_school M3/M4 数据库结构（t_* 表）
 -- 数字列统一 DECIMAL(10,2)：既存整数也存 107.2 / 270.39 / 0.23 等样例真值
 SET NAMES utf8mb4;
 
