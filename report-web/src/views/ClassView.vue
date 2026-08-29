@@ -20,8 +20,32 @@
       </div>
     </div>
 
+    <!-- 本周微光：班级最近随手拍（横滑照片带；空态给拍照引导） -->
+    <div class="app-card overlap moments">
+      <div class="mo-head">
+        <div class="app-sec mo-title" style="margin: 0"
+          @click="$router.push({ path: '/moment', query: { classId: String(classId ?? '') } })">
+          本周微光<span class="mo-cnt">{{ moments.length }}</span><van-icon class="mo-more" name="arrow" />
+        </div>
+        <button class="mo-cam" type="button"
+          @click="$router.push({ path: '/moment/new', query: { classId: String(classId ?? '') } })">
+          <van-icon name="photograph" /> 拍照
+        </button>
+      </div>
+      <div v-if="moments.length" class="mo-row">
+        <div v-for="m in moments" :key="m.id" class="mo-card">
+          <MomentPhoto :url="m.photoUrl" @tap="(src) => showImagePreview({ images: [src] })" />
+          <span class="mo-tag">{{ m.sceneTag }}</span>
+        </div>
+      </div>
+      <button v-else class="mo-empty" type="button"
+        @click="$router.push({ path: '/moment/new', query: { classId: String(classId ?? '') } })">
+        <van-icon name="photograph" /> 拍下第一束微光，记录闪光时刻
+      </button>
+    </div>
+
     <!-- 学生卡片列表 -->
-    <div v-if="students.length" class="app-card overlap list">
+    <div v-if="students.length" class="app-card list" :class="{ overlap: !moments.length }">
       <div v-for="s in students" :key="s.id" class="stu" @click="$router.push(`/student/${s.id}`)">
         <span class="ava" :style="{ background: avaColor(s.name) }">{{ s.name.charAt(0) }}</span>
         <div class="stu-info">
@@ -49,14 +73,18 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { showImagePreview } from 'vant'
 import { api } from '../api/http'
+import MomentPhoto from '../components/MomentPhoto.vue'
 
 interface Cls { id: number; name: string }
 interface Stu { id: number; name: string; studentNo?: string; gender?: string }
+interface MomentItem { id: number; photoUrl: string; sceneTag: string; note: string }
 
 const classes = ref<Cls[]>([])
 const classId = ref<number>()
 const students = ref<Stu[]>([])
+const moments = ref<MomentItem[]>([])
 const total = ref(0)
 const keyword = ref('')
 const loading = ref(true)
@@ -69,6 +97,13 @@ function onPick({ value }: { value: number }) {
   classId.value = value
   pickOpen.value = false
   load()
+  loadMoments()
+}
+
+async function loadMoments() {
+  if (!classId.value) return
+  api<MomentItem[]>(`/api/moment/class?classId=${classId.value}&limit=12`)
+    .then((d) => (moments.value = d)).catch(() => (moments.value = []))
 }
 
 /** 头像底色：按姓名散列到一组柔和深浅蓝/暖色 */
@@ -102,6 +137,7 @@ onMounted(async () => {
   classes.value = await api<Cls[]>('/api/meta/my-classes')
   classId.value = classes.value[0]?.id
   await load()
+  loadMoments()
 })
 </script>
 
@@ -119,6 +155,30 @@ onMounted(async () => {
 .search .van-icon { font-size: 16px; }
 .search input { flex: 1; border: none; outline: none; background: none; font-size: 14px; color: var(--app-text-1); }
 .search input::placeholder { color: var(--app-text-3); }
+
+/* 本周微光照片带 */
+.moments { padding: 14px 14px 12px; }
+.mo-head { display: flex; align-items: center; justify-content: space-between; }
+.mo-title { display: flex; align-items: center; cursor: pointer; }
+.mo-more { margin-left: 2px; font-size: 13px; color: #C6CDD9; }
+.mo-cnt { margin-left: 6px; padding: 0 8px; border-radius: 999px; background: #FDEEE2;
+  color: #EA580C; font-size: 11px; font-weight: 600; }
+.mo-cam { display: flex; align-items: center; gap: 4px; padding: 6px 14px; border: none;
+  border-radius: 999px; background: linear-gradient(150deg, #F97316, #EA580C);
+  color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+.mo-cam .van-icon { font-size: 14px; }
+.mo-row { display: flex; gap: 10px; margin-top: 12px; overflow-x: auto;
+  scrollbar-width: none; }
+.mo-row::-webkit-scrollbar { display: none; }
+.mo-card { position: relative; flex: none; width: 112px; height: 148px;
+  border-radius: 12px; overflow: hidden; }
+.mo-tag { position: absolute; left: 6px; bottom: 6px; padding: 2px 8px;
+  border-radius: 999px; background: rgba(13,22,50,.55); color: #fff;
+  font-size: 10px; backdrop-filter: blur(4px); }
+.mo-empty { display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 12px; padding: 20px 0; border: 1.5px dashed #F3C9A8;
+  border-radius: 12px; background: #FFF9F3; color: #EA580C; font-size: 13px; cursor: pointer; }
+.mo-empty .van-icon { font-size: 16px; }
 
 .list { padding: 4px 14px; }
 .stu { display: flex; align-items: center; gap: 12px; padding: 11px 0; cursor: pointer; }

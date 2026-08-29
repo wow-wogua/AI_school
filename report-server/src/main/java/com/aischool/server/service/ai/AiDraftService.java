@@ -4,10 +4,14 @@ import com.aischool.server.common.BizException;
 import com.aischool.server.common.Exported;
 import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.Comment;
+import com.aischool.server.entity.Moment;
+import com.aischool.server.entity.MomentStudent;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.Term;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.CommentMapper;
+import com.aischool.server.mapper.MomentMapper;
+import com.aischool.server.mapper.MomentStudentMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.TermMapper;
 import com.aischool.server.security.UserPrincipal;
@@ -20,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +43,8 @@ public class AiDraftService {
     private final AiClient aiClient;
     private final RuleFactsService factsService;
     private final CommentMapper commentMapper;
+    private final MomentMapper momentMapper;
+    private final MomentStudentMapper momentStudentMapper;
     private final StudentMapper studentMapper;
     private final ClazzMapper clazzMapper;
     private final TermMapper termMapper;
@@ -116,6 +123,7 @@ public class AiDraftService {
 
     public Map<String, Object> commentDraft(Long studentId, Long termId) {
         Map<String, Object> facts = factsService.facts(studentId, termId);
+        injectMomentFacts(facts, studentId, termId);
         String draft;
         String source;
         AiClient.ChatResult llmResult = null;
@@ -215,6 +223,7 @@ public class AiDraftService {
 
     public Map<String, Object> summaryDraft(Long studentId, Long termId) {
         Map<String, Object> facts = factsService.facts(studentId, termId);
+        injectMomentFacts(facts, studentId, termId);
         Map<String, Object> m = new LinkedHashMap<>();
         if (aiClient.enabled()) {
             try {
@@ -238,6 +247,53 @@ public class AiDraftService {
     }
 
     // ───────────────── 内部 ─────────────────
+
+    /**
+     * 微光信箱素材注入：把该学生本学期（学期起止缺失则不限）的教师随手拍
+     * 以「日期/场景/教师备注」结构放进 facts，LLM 与模板两条路都可见。
+     */
+    private void injectMomentFacts(Map<String, Object> facts, Long studentId, Long termId) {
+        List<Long> momentIds = momentStudentMapper.selectList(new LambdaQueryWrapper<MomentStudent>()
+                        .eq(MomentStudent::getStudentId, studentId))
+                .stream().map(MomentStudent::getMomentId).toList();
+        if (momentIds.isEmpty()) {
+            return;
+        }
+        Term term = termMapper.selectById(termId);
+        LambdaQueryWrapper<Moment> qw = new LambdaQueryWrapper<Moment>()
+                .in(Moment::getId, momentIds)
+                .orderByDesc(Moment::getCreateTime)
+                .last("LIMIT 6");
+        // 当前学期截到今天（演示/假期跨期数据仍可入册）；历史学期按学期区间
+        if (term != null && term.getStartDate() != null && term.getEndDate() != null) {
+            LocalDate end = term.getIsCurrent() != null && term.getIsCurrent() == 1
+                    ? LocalDate.now() : term.getEndDate();
+            qw.between(Moment::getCreateTime, term.getStartDate().atStartOfDay(),
+                    end.plusDays(1).atStartOfDay());
+        }
+        List<Map<String, Object>> rows = momentMapper.selectList(qw).stream()
+                .map(m -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("日期", m.getCreateTime().toLocalDate().toString());
+                    row.put("场景", m.getSceneTag());
+                    row.put("教师备注", m.getNote() == null ? "" : m.getNote());
+                    return row;
+                }).toList();
+        if (!rows.isEmpty()) {
+            facts.put("微光时刻（教师随手拍下的闪光记录）", rows);
+        }
+    }
+
+    /** 模板用：微光条数与场景标签串（无微光返回 null） */
+    private String momentBrief(Map<String, Object> facts) {
+        Object raw = facts.get("微光时刻（教师随手拍下的闪光记录）");
+        if (!(raw instanceof List<?> rows) || rows.isEmpty()) {
+            return null;
+        }
+        String tags = rows.stream().map(r -> String.valueOf(((Map<?, ?>) r).get("场景")))
+                .distinct().collect(java.util.stream.Collectors.joining("、"));
+        return rows.size() + " 个闪光瞬间（" + tags + "）";
+    }
 
     private Comment upsertComment(Long studentId, Long termId) {
         Comment comment = commentMapper.selectOne(new LambdaQueryWrapper<Comment>()
@@ -276,6 +332,10 @@ public class AiDraftService {
                         .append(facts.get("学期累计被评价次数")).append(" 次教师评价，成长可见。");
             }
         }
+        String momentBrief = momentBrief(facts);
+        if (momentBrief != null) {
+            sb.append("老师们还用微光信箱记录下你的 ").append(momentBrief).append("，每一帧都是你成长的见证。");
+        }
         sb.append("新的学期，愿你保持热情与专注，查漏补缺、稳步前行，成为更好的自己。加油！");
         return sb.toString();
     }
@@ -284,7 +344,12 @@ public class AiDraftService {
         StringBuilder sb = new StringBuilder();
         sb.append("本学期亮点：").append(facts.get("姓名")).append("同学本学期获得 ")
                 .append(facts.get("学期累计被评价次数")).append(" 次教师评价，")
-                .append(facts.getOrDefault("优势学科", "")).append("表现稳定突出。\n");
+                .append(facts.getOrDefault("优势学科", "")).append("表现稳定突出");
+        String momentBrief = momentBrief(facts);
+        if (momentBrief != null) {
+            sb.append("，微光信箱记录了 ").append(momentBrief);
+        }
+        sb.append("。\n");
         sb.append("学习发展：期末总分 ").append(facts.get("总分")).append(" 分，")
                 .append(facts.getOrDefault("待提升学科", "")).append("有提升空间，需加强基础巩固。\n");
         sb.append("综合素质发展：九维评价显示 ")

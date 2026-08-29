@@ -22,9 +22,12 @@
         </div>
         <p class="c-meta">{{ f.className || '全校' }}<template v-if="f.typeLabel"> · {{ f.typeLabel }}</template></p>
         <p class="c-body">{{ f.content || f.title }}</p>
+        <div v-if="f.photoUrl" class="c-photo">
+          <MomentPhoto :url="f.photoUrl" @tap="(src) => showImagePreview({ images: [src] })" />
+        </div>
         <div class="c-foot">
           <span class="c-date">{{ fullTime(f.time) }}</span>
-          <span v-if="f.teacherName" class="c-from">来自：{{ f.teacherName }}老师</span>
+          <span v-if="f.teacherName" class="c-from">来自：{{ f.teacherName }}</span>
         </div>
       </div>
     </div>
@@ -36,18 +39,22 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { showImagePreview } from 'vant'
 import { api } from '../api/http'
 import { fullTime } from '../utils/fmt'
+import MomentPhoto from '../components/MomentPhoto.vue'
 
 interface FeedItem {
   type: string; title?: string; content?: string; teacherName?: string; time?: string
   studentId?: number; studentName?: string; className?: string; typeLabel?: string
+  photoUrl?: string; studentNames?: string
 }
 
 const feed = ref<FeedItem[]>([])
 const cat = ref('全部')
 const cats = [
   { k: '全部', label: '全部' },
+  { k: '微光', label: '微光' },
   { k: '评价', label: '评价' },
   { k: '寄语', label: '寄语' },
   { k: '活动', label: '活动' },
@@ -59,15 +66,17 @@ function cardTitle(f: FeedItem) {
   if (f.type === '寄语') return `${f.studentName ?? ''}的班主任寄语`
   if (f.type === '荣誉') return `${f.studentName ?? ''}获得「${f.title ?? ''}」`
   if (f.type === '活动') return f.title ?? ''
+  if (f.type === '微光') return `${f.studentNames || '班级'}的微光时刻`
   return `${f.studentName ?? ''} · ${f.title ?? ''}`
 }
 function chipClass(type: string) {
-  return { 评价: 'c-eval', 荣誉: 'c-honor', 寄语: 'c-comment', 活动: 'c-act' }[type] ?? ''
+  return { 评价: 'c-eval', 荣誉: 'c-honor', 寄语: 'c-comment', 活动: 'c-act', 微光: 'c-moment' }[type] ?? ''
 }
 function chipLabel(f: FeedItem) {
   if (f.type === '荣誉') return '荣誉时刻'
   if (f.type === '活动') return f.typeLabel || '校园活动'
   if (f.type === '寄语') return '班主任寄语'
+  if (f.type === '微光') return f.title || '微光时刻'
   return '日常表现'
 }
 
@@ -104,4 +113,6 @@ onMounted(() => {
 .c-honor { background: #FBF3DF; color: #B07A1C; }
 .c-comment { background: #E8F6EF; color: #0D9467; }
 .c-act { background: #F3EAFE; color: #7C4DD8; }
+.c-moment { background: #FDEEE2; color: #EA580C; }
+.c-photo { height: 170px; margin: 8px 0; border-radius: 10px; overflow: hidden; cursor: zoom-in; }
 </style>

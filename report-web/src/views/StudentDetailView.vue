@@ -23,6 +23,17 @@
       </button>
     </div>
 
+    <!-- TA的闪光时刻：微光照片墙（有微光才显示） -->
+    <div v-if="moments.length" class="app-card moments">
+      <div class="app-sec" style="margin: 0 0 10px">TA的闪光时刻<span class="mo-cnt">{{ moments.length }}</span></div>
+      <div class="mo-grid">
+        <div v-for="m in moments" :key="m.id" class="mo-item">
+          <MomentPhoto :url="m.photoUrl" @tap="(src) => showImagePreview({ images: [src] })" />
+          <span class="mo-tag">{{ m.sceneTag }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 基本信息卡 -->
     <div class="app-card info">
       <div class="app-sec" style="margin: 0 0 6px">基本信息</div>
@@ -36,7 +47,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { showImagePreview } from 'vant'
 import { api } from '../api/http'
+import MomentPhoto from '../components/MomentPhoto.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,6 +58,7 @@ interface Stu { name?: string; gender?: string; studentNo?: string; classId?: nu
 const stu = ref<Stu>({})
 const className = ref('')
 const termId = ref<number>()
+const moments = ref<{ id: number; photoUrl: string; sceneTag: string }[]>([])
 
 /* 入口配色（图4）：每格一色的实心圆角方底 + 白图标 */
 const entries = [
@@ -83,6 +97,8 @@ onMounted(async () => {
   className.value = classes.find((c) => c.id === stu.value.classId)?.name ?? ''
   const terms = await api<{ id: number; name: string }[]>('/api/meta/terms')
   termId.value = terms[0]?.id
+  api<{ id: number; photoUrl: string; sceneTag: string }[]>(`/api/moment/student?studentId=${id}`)
+    .then((d) => (moments.value = d)).catch(() => {})
 })
 </script>
 
@@ -106,6 +122,15 @@ onMounted(async () => {
 .g-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
   border-radius: 14px; box-shadow: 0 3px 8px rgba(23,43,99,.14); }
 .g-icon .van-icon { font-size: 22px; color: #fff; }
+
+.moments { margin-top: 12px; padding: 14px 14px 12px; }
+.mo-cnt { margin-left: 6px; padding: 0 8px; border-radius: 999px; background: #FDEEE2;
+  color: #EA580C; font-size: 11px; font-weight: 600; }
+.mo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mo-item { position: relative; aspect-ratio: 1/1; border-radius: 10px; overflow: hidden; }
+.mo-tag { position: absolute; left: 4px; bottom: 4px; padding: 1px 7px;
+  border-radius: 999px; background: rgba(13,22,50,.55); color: #fff;
+  font-size: 10px; backdrop-filter: blur(4px); }
 
 .info { margin-top: 12px; padding: 14px 4px 4px; }
 .info :deep(.van-cell) { font-size: 14px; }

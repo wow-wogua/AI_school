@@ -1,0 +1,162 @@
+<template>
+  <div class="app-page mlist" :class="{ tall: filtered.length }">
+    <!-- 班级行 + 标签筛选 -->
+    <div class="app-card top">
+      <van-cell title="班级" is-link :value="curClassName || '选择班级'" @click="clsOpen = true" />
+      <div class="chips">
+        <button class="chip" :class="{ on: tag === '' }" type="button" @click="tag = ''">全部</button>
+        <button v-for="t in tags" :key="t" class="chip" :class="{ on: tag === t }" type="button"
+          @click="tag = t">{{ t }}</button>
+      </div>
+    </div>
+
+    <!-- 照片墙：2 列竖卡，图上场景胶囊，图下学生/日期/备注 -->
+    <div v-if="filtered.length" class="wall">
+      <div v-for="m in filtered" :key="m.id" class="cell app-card" :data-id="m.id">
+        <div class="ph" @click="preview(m)">
+          <MomentPhoto :url="m.photoUrl" @tap="preview(m)" />
+          <span class="p-tag">{{ m.sceneTag }}</span>
+        </div>
+        <div class="info">
+          <p class="names" @click="goStudent(m)">{{ studentNames(m) }}</p>
+          <p class="meta">{{ fmtDate(m.createTime) }}<template v-if="m.teacherName"> · {{ m.teacherName }}</template></p>
+          <p v-if="m.note" class="note">{{ m.note }}</p>
+        </div>
+      </div>
+    </div>
+    <div v-else-if="!loading" class="app-card empty-card">
+      <van-empty image-size="88" :description="tag ? '该场景还没有微光' : '本班还没有微光记录'" />
+      <van-button round type="primary" class="go-cam" @click="goCam">
+        <van-icon name="photograph" /> 拍下第一束微光
+      </van-button>
+    </div>
+
+    <!-- 吸底拍照钮 -->
+    <button v-if="filtered.length" class="fab-cam" type="button" @click="goCam">
+      <van-icon name="photograph" /> 再拍一条
+    </button>
+
+    <van-popup v-model:show="clsOpen" position="bottom" round>
+      <van-picker title="选择班级" :columns="clsColumns" @confirm="onCls" @cancel="clsOpen = false" />
+    </van-popup>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { showImagePreview } from 'vant'
+import { useRoute, useRouter } from 'vue-router'
+import { api } from '../api/http'
+import MomentPhoto from '../components/MomentPhoto.vue'
+
+const SCENE_TAGS = ['课堂专注', '作业优秀', '劳动实践', '艺术风采', '运动健将', '助人为乐', '文明礼仪', '进步之星']
+
+interface Stu { id: number; name: string }
+interface MomentItem {
+  id: number; photoUrl: string; sceneTag: string; note: string
+  createTime?: string; teacherName?: string; students?: Stu[]
+}
+
+const route = useRoute()
+const router = useRouter()
+const classes = ref<{ id: number; name: string }[]>([])
+const classId = ref<number>()
+const moments = ref<MomentItem[]>([])
+const tag = ref('')
+const loading = ref(true)
+const clsOpen = ref(false)
+
+const tags = computed(() => SCENE_TAGS.filter((t) => moments.value.some((m) => m.sceneTag === t)))
+const curClassName = computed(() => classes.value.find((c) => c.id === classId.value)?.name)
+const clsColumns = computed(() => classes.value.map((c) => ({ text: c.name, value: c.id })))
+const filtered = computed(() => (tag.value ? moments.value.filter((m) => m.sceneTag === tag.value) : moments.value))
+
+function onCls({ value }: { value: number }) {
+  if (classId.value !== value) {
+    classId.value = value
+    load()
+  }
+  clsOpen.value = false
+}
+
+async function load() {
+  if (!classId.value) return
+  loading.value = true
+  try {
+    moments.value = await api<MomentItem[]>(`/api/moment/class?classId=${classId.value}&limit=50`)
+  } finally {
+    loading.value = false
+  }
+}
+
+function studentNames(m: MomentItem) {
+  const names = (m.students ?? []).map((s) => s.name)
+  if (!names.length) return '班级瞬间'
+  return names.length <= 3 ? names.join('、') : `${names.slice(0, 3).join('、')} 等${names.length}人`
+}
+
+function fmtDate(t?: string) {
+  return t ? String(t).slice(0, 10) : ''
+}
+
+/** 点学生名进详情；仅一名学生时才跳（多人卡跳转歧义） */
+function goStudent(m: MomentItem) {
+  if (m.students?.length === 1) router.push(`/student/${m.students[0].id}`)
+}
+
+async function preview(m: MomentItem) {
+  // 取已渲染的 objectURL（MomentPhoto 组件负责带鉴权拉取）
+  const el = document.querySelector<HTMLElement>(`.cell[data-id="${m.id}"] img`)
+  if (el?.src) showImagePreview({ images: [el.src] })
+}
+
+function goCam() {
+  router.push({ path: '/moment/new', query: { classId: String(classId.value ?? '') } })
+}
+
+onMounted(async () => {
+  classes.value = await api<{ id: number; name: string }[]>('/api/meta/my-classes')
+  const fromQuery = Number(route.query.classId)
+  classId.value = classes.value.find((c) => c.id === fromQuery)?.id ?? classes.value[0]?.id
+  await load()
+})
+</script>
+
+<style scoped>
+.top { padding: 0 0 12px; }
+/* 悬浮拍照钮遮挡最后一行 → 有数据时底部留白 */
+.mlist.tall { padding-bottom: 88px; }
+.top :deep(.van-cell) { padding: 12px 14px 8px; }
+.chips { display: flex; gap: 8px; margin: 4px 14px 0; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; padding: 6px 14px; border: 1px solid var(--app-card-border); border-radius: 999px;
+  background: #fff; color: var(--app-text-2); font-size: 12px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; }
+.chip.on { border-color: #EA580C; background: #FDEEE2; color: #EA580C; font-weight: 600; }
+
+/* 2 列照片墙 */
+.wall { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.cell { overflow: hidden; cursor: default; }
+.ph { position: relative; aspect-ratio: 3/4; background: #F2F5FB; }
+.ph :deep(img) { width: 100%; height: 100%; object-fit: cover; }
+.p-tag { position: absolute; left: 8px; bottom: 8px; padding: 2px 9px; border-radius: 999px;
+  background: rgba(13,22,50,.55); color: #fff; font-size: 10px; backdrop-filter: blur(4px); }
+.info { padding: 9px 11px 10px; }
+.names { margin: 0; font-size: 13px; font-weight: 600; color: var(--app-text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.meta { margin: 3px 0 0; font-size: 11px; color: var(--app-text-3); }
+.note { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--app-text-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.empty-card { display: flex; flex-direction: column; align-items: center; gap: 6px;
+  margin-top: 12px; padding-bottom: 18px; }
+.go-cam { height: 40px; padding: 0 22px; border: none; font-size: 14px;
+  background: linear-gradient(150deg, #F97316, #EA580C); }
+
+/* 吸底拍照 */
+.fab-cam { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 5px; padding: 12px 18px; border: none;
+  border-radius: 999px; background: linear-gradient(150deg, #F97316, #EA580C);
+  color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(234,88,12,.35); }
+</style>

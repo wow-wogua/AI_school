@@ -19,7 +19,7 @@
     </RouterLink>
   </nav>
 
-  <!-- 中央＋号：快捷记录菜单（拍照记录·微光信箱阶段2接入，排位第一） -->
+  <!-- 中央＋号：快捷记录菜单（拍照记录·微光信箱排位第一） -->
   <van-action-sheet
     v-model:show="sheetOpen" cancel-text="取消" :round="true" class="record-sheet"
     :actions="actions" @select="onSelect"
@@ -40,12 +40,14 @@ const running = computed(() => store.runningCount)
 
 const sheetOpen = ref(false)
 const actions: ActionSheetAction[] = [
+  { name: '拍照记录', subname: '微光信箱 · 闪光时刻', icon: 'photograph' },
+  { name: '微光瞬间', subname: '班级微光照片墙', icon: 'photo-o' },
   { name: '日常评价', subname: '课堂/作业表现', icon: 'edit' },
   { name: '成绩录入', subname: '学科成绩', icon: 'bar-chart-o' },
   { name: '活动记录', subname: '校园活动', icon: 'flag-o' },
   { name: '荣誉记录', subname: '获奖证书', icon: 'medal-o' },
 ]
-const routes: Record<string, string> = { '日常评价': '/evaluate', '成绩录入': '/scores', '活动记录': '/activity', '荣誉记录': '/honor' }
+const routes: Record<string, string> = { '拍照记录': '/moment/new', '微光瞬间': '/moment', '日常评价': '/evaluate', '成绩录入': '/scores', '活动记录': '/activity', '荣誉记录': '/honor' }
 
 function onSelect(action: ActionSheetAction) {
   sheetOpen.value = false

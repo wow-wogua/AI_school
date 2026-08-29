@@ -42,7 +42,7 @@
       <div v-for="(f, i) in feed" :key="i" class="feed-item"
         @click="f.studentId && $router.push(`/student/${f.studentId}`)">
         <div class="f-line1">
-          <span class="f-title">{{ f.studentName || '校园活动' }}<template v-if="f.type === '评价'"> · {{ f.title }}</template></span>
+          <span class="f-title">{{ f.studentName || f.studentNames || '校园活动' }}<template v-if="f.type === '评价' || f.type === '微光'"> · {{ f.title }}</template></span>
           <span class="f-time">{{ relTime(f.time) }}</span>
         </div>
         <p class="f-content">{{ f.content || f.title }}</p>
@@ -70,6 +70,7 @@ const running = computed(() => aiTasks.runningCount)
 interface FeedItem {
   type: string; title?: string; content?: string; teacherName?: string; time?: string
   studentId?: number; studentName?: string; className?: string; typeLabel?: string
+  momentId?: number; photoUrl?: string; studentNames?: string
 }
 
 const summary = ref<{ studentCount: number; reportCount: number; termName: string }>({} as never)
@@ -86,6 +87,7 @@ const avatarChar = computed(() => auth.realName?.charAt(0) || '师')
 
 /* 宫格配色（图1/图4）：每格一色的实心圆角方底 + 白图标 */
 const grids = [
+  { name: '微光信箱', icon: 'photograph', to: '/moment/new', bg: '#F97316' },
   { name: '成绩管理', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' },
   { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
   { name: '班主任寄语', icon: 'chat-o', to: '/comments', bg: '#F59E0B' },
@@ -98,12 +100,13 @@ const grids = [
 ]
 
 function chipClass(type: string) {
-  return { 评价: 'c-eval', 荣誉: 'c-honor', 寄语: 'c-comment', 活动: 'c-act' }[type] ?? ''
+  return { 评价: 'c-eval', 荣誉: 'c-honor', 寄语: 'c-comment', 活动: 'c-act', 微光: 'c-moment' }[type] ?? ''
 }
 function chipLabel(f: FeedItem) {
   if (f.type === '荣誉') return '荣誉时刻'
   if (f.type === '活动') return f.typeLabel || '校园活动'
   if (f.type === '寄语') return '班主任寄语'
+  if (f.type === '微光') return '微光时刻'
   return '日常表现'
 }
 
@@ -165,4 +168,5 @@ onMounted(async () => {
 .c-honor { background: #FBF3DF; color: #B07A1C; }
 .c-comment { background: #E8F6EF; color: #0D9467; }
 .c-act { background: #F3EAFE; color: #7C4DD8; }
+.c-moment { background: #FDEEE2; color: #EA580C; }
 </style>

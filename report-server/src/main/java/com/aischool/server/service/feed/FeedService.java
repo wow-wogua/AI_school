@@ -5,6 +5,8 @@ import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.Comment;
 import com.aischool.server.entity.Evaluation;
 import com.aischool.server.entity.Honor;
+import com.aischool.server.entity.Moment;
+import com.aischool.server.entity.MomentStudent;
 import com.aischool.server.entity.Report;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.Term;
@@ -14,6 +16,8 @@ import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.CommentMapper;
 import com.aischool.server.mapper.EvaluationMapper;
 import com.aischool.server.mapper.HonorMapper;
+import com.aischool.server.mapper.MomentMapper;
+import com.aischool.server.mapper.MomentStudentMapper;
 import com.aischool.server.mapper.ReportMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.TermMapper;
@@ -45,6 +49,8 @@ public class FeedService {
     private final StudentMapper studentMapper;
     private final EvaluationMapper evaluationMapper;
     private final HonorMapper honorMapper;
+    private final MomentMapper momentMapper;
+    private final MomentStudentMapper momentStudentMapper;
     private final CommentMapper commentMapper;
     private final ActivityMapper activityMapper;
     private final ClazzMapper clazzMapper;
@@ -93,6 +99,31 @@ public class FeedService {
                         "班主任寄语", c.getContent(), null, c.getUpdateTime()));
             }
         }
+        // 微光信箱：班级可见范围内的随手拍（照片走 /api/moment/file/{id}）
+        List<Moment> moments = momentMapper.selectList(new LambdaQueryWrapper<Moment>()
+                .in(visible != null, Moment::getClassId, visible != null ? visible : List.of(-1L))
+                .orderByDesc(Moment::getCreateTime)
+                .last("LIMIT " + PER_TYPE_CAP));
+        if (!moments.isEmpty()) {
+            Map<Long, List<MomentStudent>> msByMoment = momentStudentMapper.selectList(
+                            new LambdaQueryWrapper<MomentStudent>()
+                                    .in(MomentStudent::getMomentId,
+                                            moments.stream().map(Moment::getId).toList()))
+                    .stream().collect(Collectors.groupingBy(MomentStudent::getMomentId));
+            for (Moment m : moments) {
+                String names = msByMoment.getOrDefault(m.getId(), List.of()).stream()
+                        .map(MomentStudent::getStudentId).map(stuById::get)
+                        .filter(s -> s != null).map(Student::getName)
+                        .collect(Collectors.joining("、"));
+                Map<String, Object> mi = item("微光", null, classNames,
+                        m.getSceneTag(), m.getNote(), teacherNames.get(m.getTeacherId()), m.getCreateTime());
+                mi.put("momentId", m.getId());
+                mi.put("photoUrl", "/api/moment/file/" + m.getId());
+                mi.put("studentNames", names);
+                items.add(mi);
+            }
+        }
+
         for (Activity a : activityMapper.selectList(new LambdaQueryWrapper<Activity>()
                 .orderByDesc(Activity::getStartTime)
                 .last("LIMIT " + PER_TYPE_CAP))) {
