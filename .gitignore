@@ -2,6 +2,15 @@
 # AI key 所在的本机覆盖文件：gitignore 保护 + .example 模板进仓库
 docker-compose.override.yml
 
+# 服务器连接凭据与部署辅助脚本（本机专用，内容绝不入库）
+local/
+
+# APK 签名密钥库与密码（丢失 = 无法发更新，务必备份；密码记在 local/creds.md）
+report-web/android/app/aischool.keystore
+report-web/android/keystore.properties
+# 签名后的发布 APK 产物（交付件不走 git）
+report-web/android/app/release/
+
 # ── 依赖与构建产物 ─────────────────────────────────────
 **/node_modules/
 **/dist/
