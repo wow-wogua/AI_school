@@ -33134,7 +33134,7 @@ INSERT INTO t_teacher_profile (user_id, employee_no, gender, subject_id, title, 
 
 -- ─── 排名补算（2026-08-30）：种子直插绕过了录入后的自动重算，这里按同口径（竞争排名：同分同名次）一次算清 ───
 UPDATE t_score s JOIN (
-  SELECT id, RANK() OVER (PARTITION BY exam_id, subject_id, class_id ORDER BY score DESC) AS rk
+  SELECT sc.id, RANK() OVER (PARTITION BY sc.exam_id, sc.subject_id, st.class_id ORDER BY sc.score DESC) AS rk
   FROM t_score sc JOIN t_student st ON st.id = sc.student_id
 ) r ON r.id = s.id
 SET s.class_rank = r.rk;
