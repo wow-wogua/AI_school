@@ -33131,3 +33131,16 @@ INSERT INTO t_comment (student_id, term_id, type, content, ai_draft, status) VAL
 TRUNCATE t_teacher_profile;
 INSERT INTO t_teacher_profile (user_id, employee_no, gender, subject_id, title, duty, teaching_years, hire_date, intro) VALUES
 (2, 'SS001', '女', 1, '高级教师', '班主任', 16, '2010-09-01', '语文教师，深耕阅读与写作教学，相信每个孩子都值得被看见。');
+
+-- ─── 排名补算（2026-08-30）：种子直插绕过了录入后的自动重算，这里按同口径（竞争排名：同分同名次）一次算清 ───
+UPDATE t_score s JOIN (
+  SELECT id, RANK() OVER (PARTITION BY exam_id, subject_id, class_id ORDER BY score DESC) AS rk
+  FROM t_score sc JOIN t_student st ON st.id = sc.student_id
+) r ON r.id = s.id
+SET s.class_rank = r.rk;
+
+UPDATE t_score s JOIN (
+  SELECT id, RANK() OVER (PARTITION BY exam_id, subject_id ORDER BY score DESC) AS rk
+  FROM t_score
+) r ON r.id = s.id
+SET s.grade_rank = r.rk;

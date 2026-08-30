@@ -7,6 +7,7 @@
         <el-option label="任课教师" value="TEACHER" />
       </el-select>
       <el-button type="primary" @click="openCreate">新建账号</el-button>
+      <el-button @click="openImport">批量导入</el-button>
     </div>
 
     <el-table :data="users" size="small">
@@ -85,6 +86,32 @@
       </el-table-column>
     </el-table>
 
+    <el-dialog v-model="importDialog" title="批量导入教师（Excel）" width="560px">
+      <div style="margin-bottom: 10px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6">
+        先下载模板，从第 2 行开始填写。账号/姓名/角色必填；班主任可填「班主任所带班级」（该班已有班主任的行会跳过）。
+        任教学科须与系统一致（当前有：{{ subjects.map((s) => s.name).join('、') }}）。逐行校验：合法行入库，问题行列出原因。
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px">
+        <el-button size="small" @click="downloadTemplate">下载模板</el-button>
+        <input type="file" accept=".xlsx"
+          @change="(e: Event) => (importFile = (e.target as HTMLInputElement).files?.[0] ?? null)" />
+      </div>
+      <el-alert v-if="importResult" :type="importResult.failed ? 'warning' : 'success'" :closable="false">
+        成功导入 {{ importResult.inserted }} 人<template v-if="importResult.failed">，失败 {{ importResult.failed }} 行：
+          <div v-for="e in importResult.errors" :key="e.row" style="font-size: 12px">
+            第 {{ e.row }} 行：{{ e.reason }}
+          </div>
+        </template>
+        <div style="font-size: 12px; margin-top: 4px">
+          初始密码统一为 <b>{{ importResult.initialPassword }}</b>，请通知教师登录后在「我的-修改密码」自行更换。
+        </div>
+      </el-alert>
+      <template #footer>
+        <el-button @click="importDialog = false">关闭</el-button>
+        <el-button type="primary" :disabled="!importFile" :loading="importing" @click="doImport">开始导入</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="dialog" :title="editing ? '编辑账号' : '新建账号'" width="460px">
       <el-form label-width="90px">
         <el-form-item label="登录名">
@@ -118,7 +145,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { api, fetchBlob } from '../../api/http'
+import { api, apiForm, fetchBlob } from '../../api/http'
+import { saveFile } from '../../api/nativeShare'
 
 const users = ref<any[]>([])
 const classes = ref<{ id: number; name: string }[]>([])
@@ -171,6 +199,35 @@ function openCreate() {
   editing.value = null
   form.value = { role: 'TEACHER' }
   dialog.value = true
+}
+
+const importDialog = ref(false)
+const importFile = ref<File | null>(null)
+const importing = ref(false)
+const importResult = ref<any>(null)
+
+function openImport() {
+  importFile.value = null
+  importResult.value = null
+  importDialog.value = true
+}
+
+async function downloadTemplate() {
+  const blob = await fetchBlob('/api/admin/teacher/import-template')
+  await saveFile(blob, '教师导入模板.xlsx')
+}
+
+async function doImport() {
+  if (!importFile.value) return
+  importing.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', importFile.value)
+    importResult.value = await apiForm<any>('/api/admin/teacher/import', fd)
+    await loadUsers()
+  } finally {
+    importing.value = false
+  }
 }
 
 function openEdit(row: any) {

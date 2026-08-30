@@ -12,7 +12,7 @@
       <el-select v-if="subjects.length" v-model="subjectId" placeholder="学科" style="min-width: 140px" @change="load">
         <el-option v-for="s in subjects" :key="s.subjectId" :label="s.name" :value="s.subjectId" />
       </el-select>
-      <el-button v-if="auth.role === 'ADMIN'" type="primary" @click="examDialog = true">新建考试</el-button>
+      <el-button type="primary" @click="examDialog = true">新建考试</el-button>
       <el-button v-if="classId" @click="downloadTemplate">下载模板</el-button>
       <el-button v-if="examId && subjectId && classId" @click="exportXlsx">导出 Excel</el-button>
       <el-button v-if="examId && subjectId && classId && editable" @click="importDialog = true">导入 Excel</el-button>
@@ -41,7 +41,7 @@
       </el-table>
       <div style="margin-top: 12px">
         <el-button type="primary" :disabled="!editable" :loading="saving" @click="save">批量保存</el-button>
-        <el-tag v-if="!editable" size="small" type="info">非本班本学科任课教师，只读</el-tag>
+        <el-tag v-if="!editable" size="small" type="info">只读（本班班主任/该学科任课教师可编辑）</el-tag>
       </div>
     </el-card>
     <el-empty v-else-if="loaded" description="选择考试/班级/学科后加载成绩单" />
@@ -97,9 +97,7 @@ import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../api/http'
 import { saveFile } from '../api/nativeShare'
-import { useAuthStore } from '../stores/auth'
 
-const auth = useAuthStore()
 const route = useRoute()
 const hlStudentId = ref<number>(Number(route.query.studentId) || 0)   // 从学生详情进来：高亮该生行
 

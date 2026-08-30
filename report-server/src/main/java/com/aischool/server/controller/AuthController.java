@@ -26,6 +26,21 @@ public class AuthController {
         private String password;
     }
 
+    @Data
+    public static class ChangePwdReq {
+        @NotBlank(message = "旧密码不能为空")
+        private String oldPassword;
+        @NotBlank(message = "新密码不能为空")
+        private String newPassword;
+    }
+
+    /** 修改自己的密码（登录态） */
+    @PutMapping("/password")
+    public ApiResponse<Void> changePassword(@Validated @RequestBody ChangePwdReq req) {
+        authService.changePassword(AuthUtil.current().userId(), req.getOldPassword(), req.getNewPassword());
+        return ApiResponse.ok();
+    }
+
     @PostMapping("/login")
     public ApiResponse<Map<String, Object>> login(@Validated @RequestBody LoginReq req) {
         return ApiResponse.ok(authService.login(req.username, req.password));

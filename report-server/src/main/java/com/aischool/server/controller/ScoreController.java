@@ -1,7 +1,6 @@
 package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
-import com.aischool.server.common.BizException;
 import com.aischool.server.common.Exported;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.score.ScoreService;
@@ -54,12 +53,9 @@ public class ScoreController {
         private List<ScoreService.RowReq> rows;
     }
 
-    /** 建考试（仅管理员） */
+    /** 建考试（任意教师可建，2026-08-30 校方拍板放开） */
     @PostMapping("/exam")
     public ApiResponse<Map<String, Object>> createExam(@Validated @RequestBody ExamReq req) {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可创建考试");
-        }
         Long id = scoreService.createExam(AuthUtil.current(), req.getTermId(), req.getName(),
                 req.getExamDate(), req.getSubjects());
         return ApiResponse.ok(Map.of("examId", id));

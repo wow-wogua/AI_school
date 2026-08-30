@@ -20,10 +20,20 @@
     </div>
 
     <div class="app-card tex-e cells">
+      <van-cell title="修改密码" icon="lock" is-link @click="pwdOpen = true" />
       <van-cell title="服务器地址" icon="desktop-o" is-link :value="srvBase || '默认'" @click="srvOpen = true" />
       <van-cell title="关于" icon="info-o" is-link @click="aboutOpen = true" />
       <van-cell title="退出登录" icon="revoke" is-link class="logout" @click="logoutOpen = true" />
     </div>
+
+    <!-- 修改密码 -->
+    <van-dialog v-model:show="pwdOpen" title="修改密码" show-cancel-button :before-close="onPwdClose">
+      <div style="padding-top: 10px">
+        <van-field v-model="pwd.old" type="password" label="旧密码" placeholder="当前密码" />
+        <van-field v-model="pwd.next" type="password" label="新密码" placeholder="至少 6 位" />
+        <van-field v-model="pwd.again" type="password" label="确认新密码" placeholder="再输入一遍" />
+      </div>
+    </van-dialog>
 
     <!-- 服务器地址编辑 -->
     <van-dialog v-model:show="srvOpen" title="服务器地址" show-cancel-button @confirm="saveSrv">
@@ -51,7 +61,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { showSuccessToast } from 'vant'
+import { showFailToast, showSuccessToast } from 'vant'
 import { useAuthStore } from '../stores/auth'
 import { useAiTasksStore } from '../stores/aiTasks'
 import { api, apiBase } from '../api/http'
@@ -76,6 +86,24 @@ function saveSrv() {
 }
 
 const aboutOpen = ref(false)
+
+const pwdOpen = ref(false)
+const pwd = ref({ old: '', next: '', again: '' })
+async function onPwdClose(action: string) {
+  if (action !== 'confirm') return true
+  if (!pwd.value.old || !pwd.value.next) { showFailToast('请填写完整'); return false }
+  if (pwd.value.next.length < 6) { showFailToast('新密码至少 6 位'); return false }
+  if (pwd.value.next !== pwd.value.again) { showFailToast('两次新密码不一致'); return false }
+  try {
+    await api('/api/auth/password', { method: 'PUT', json: { oldPassword: pwd.value.old, newPassword: pwd.value.next } })
+    showSuccessToast('密码已修改')
+    pwd.value = { old: '', next: '', again: '' }
+    return true
+  } catch (e: any) {
+    showFailToast(e?.message || '修改失败')
+    return false
+  }
+}
 const version = __APP_VERSION__
 
 const logoutOpen = ref(false)

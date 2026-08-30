@@ -145,6 +145,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.list { margin-top: 12px; }   /* 与上方微光卡留出间隙（其余页面 .cells 同为 12px） */
 .hero-row { display: flex; align-items: flex-start; justify-content: space-between; }
 .hero .hero-photo { height: 72px; }   /* 列表页用矮照片带，给学生列表让空间 */
 .hero h1 { margin: 4px 0 2px; font-size: 21px; font-weight: 800; }

@@ -9,6 +9,7 @@ import com.aischool.server.entity.Score;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.Subject;
 import com.aischool.server.entity.Teach;
+import com.aischool.server.entity.TeacherProfile;
 import com.aischool.server.entity.Term;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.ExamMapper;
@@ -17,6 +18,7 @@ import com.aischool.server.mapper.ScoreMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.SubjectMapper;
 import com.aischool.server.mapper.TeachMapper;
+import com.aischool.server.mapper.TeacherProfileMapper;
 import com.aischool.server.mapper.TermMapper;
 import com.aischool.server.security.UserPrincipal;
 import com.aischool.server.service.auth.DataScopeService;
@@ -38,7 +40,7 @@ import java.util.stream.Collectors;
 
 /**
  * 成绩管理：考试（含科目满分）→ 按任课关系录入 → 全体竞争排名（同分同名次）→ 回填单科/总分最高分。
- * 排名纯 Java 内存计算，零自定义 SQL；报告契约不读排名列（种子全 NULL），重算零契约风险。
+ * 排名纯 Java 内存计算，零自定义 SQL；报告契约不读排名列，重算零契约风险。
  */
 @Service
 @RequiredArgsConstructor
@@ -50,6 +52,7 @@ public class ScoreService {
     private final StudentMapper studentMapper;
     private final SubjectMapper subjectMapper;
     private final TeachMapper teachMapper;
+    private final TeacherProfileMapper teacherProfileMapper;
     private final TermMapper termMapper;
     private final ClazzMapper clazzMapper;
     private final DataScopeService dataScope;
@@ -350,10 +353,10 @@ public class ScoreService {
 
     // ───────────────── 权限与查询小件 ─────────────────
 
-    /** 成绩录入：管理员或该班该科的任课教师（班主任非任课不可录，功能点 §1） */
+    /** 成绩录入：管理员 / 本班班主任（全学科）/ 该班该科任课教师 / 档案任教学科命中（2026-08-30 校方拍板放宽） */
     private void checkEnterable(UserPrincipal user, Long classId, Long subjectId) {
         if (!canEnter(user, classId, subjectId)) {
-            throw new BizException(403, "只有管理员或该班该科的任课教师可录入成绩");
+            throw new BizException(403, "只有管理员、本班班主任或该学科任课教师可录入成绩");
         }
     }
 
@@ -361,10 +364,21 @@ public class ScoreService {
         if ("ADMIN".equals(user.role())) {
             return true;
         }
-        return teachMapper.selectCount(new LambdaQueryWrapper<Teach>()
+        // 班主任：本班全部学科
+        Clazz clazz = clazzMapper.selectById(classId);
+        if (clazz != null && user.userId().equals(clazz.getHeadTeacherId())) {
+            return true;
+        }
+        // 任课表显式指派
+        if (teachMapper.selectCount(new LambdaQueryWrapper<Teach>()
                 .eq(Teach::getTeacherId, user.userId())
                 .eq(Teach::getClassId, classId)
-                .eq(Teach::getSubjectId, subjectId)) > 0;
+                .eq(Teach::getSubjectId, subjectId)) > 0) {
+            return true;
+        }
+        // 档案任教学科（班级可见性已由 checkClassVisible 隔离）
+        TeacherProfile profile = teacherProfileMapper.selectById(user.userId());
+        return profile != null && subjectId.equals(profile.getSubjectId());
     }
 
     private void checkClassVisible(UserPrincipal user, Long classId) {

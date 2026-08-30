@@ -64,6 +64,22 @@ public class AuthService {
         return m;
     }
 
+    /** 修改自己的密码：验证旧密码后更新（新密码至少 6 位） */
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(404, "账号不存在");
+        }
+        if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
+            throw new BizException(400, "旧密码不正确");
+        }
+        if (newPassword.length() < 6) {
+            throw new BizException(400, "新密码至少 6 位");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userMapper.updateById(user);
+    }
+
     private void recordFail(String username) {
         long now = System.currentTimeMillis();
         FailCount f = loginFails.compute(username, (k, v) -> {

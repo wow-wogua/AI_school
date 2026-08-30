@@ -81,13 +81,13 @@ cd ../report-web && npm install && npm run dev  # 前端 5173（vite 代理 /api
 ├─ deploy/          # schema.sql / seed.sql / backup.sh
 ├─ docs/            # 接口文档
 ├─ .github/         # CI（推送验证后端打包 + 前端构建）
-├─ 项目说明.md      # 项目总说明（问题→方案→选型理由→核心实现→踩坑→面试问答）
+├─ 使用手册.md      # 面向学校老师/管理员的操作手册
 └─ 功能点.md        # 需求原文（第二部分为本项目）
 ```
 
 ## 文档索引
 
-- **项目说明.md** —— 项目总说明：解决什么问题、技术选型与理由、核心模块实现（含核心代码）、踩坑记录、质量与运维、面试问答
+- **使用手册.md** —— 面向学校老师/管理员的操作手册（账号、成绩、报告、日常记录、常见问题）
 - **docs/接口文档.md** —— REST API 全量说明 + AI 接入与模型切换指南
 - **功能点.md** —— 需求原文（第一部分为另一项目，第二部分为本项目 16 个功能点）
 
@@ -115,4 +115,4 @@ cd ../report-web && npm install && npm run dev  # 前端 5173（vite 代理 /api
 7. `tools/m2-repo` 不入库（本机构建加速缓存，gitignore 只留 `.gitkeep`）：克隆后首次 `docker compose build` 由阿里云镜像全量拉取 Maven 依赖，耗时较长属预期。
 8. Docker Desktop 偶发整体崩溃（三容器同灭）时后端报 500——先 `docker ps` 看容器，等 healthy 即自愈。
 9. MinIO 中报告随重新生成累积（每次生成插入新记录），磁盘配额需关注；`deploy/backup.sh` 建议挂 cron 每日备份。
-10. 公网上线检查单见《项目说明.md》§7.3（改 JWT 密钥/三件默认密码/关 Swagger/CORS 白名单/演示账号改密等）。
+10. 公网上线检查单（改 JWT 密钥/三件默认密码/关 Swagger/CORS 白名单/演示账号改密等）由维护方内部资料承接。
