@@ -57,6 +57,7 @@ import { motion } from 'motion-v'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { api, fetchBlob } from '../api/http'
+import { isNative, openOrSavePdf } from '../api/nativeShare'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
@@ -171,6 +172,15 @@ function preview(row: { reportId?: number }) {
 async function download(row: { name: string; reportId?: number }) {
   if (!row.reportId) return
   const blob = await fetchBlob(`/api/report/file/${row.reportId}?disposition=attachment`)
+  if (isNative) {
+    // 安卓 WebView 无视 <a download>：写缓存+调系统分享面板（选「保存到文件」即存到手机）
+    try {
+      await openOrSavePdf(blob, `${row.name}-素质报告单.pdf`)
+    } catch {
+      ElMessage.error('打开失败，请重试')
+    }
+    return
+  }
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
