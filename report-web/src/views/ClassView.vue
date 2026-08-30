@@ -44,8 +44,8 @@
       </button>
     </div>
 
-    <!-- 学生卡片列表（图书馆长廊底纹） -->
-    <div v-if="students.length" class="app-card tl tex-g list" :class="{ overlap: !moments.length }">
+    <!-- 学生卡片列表（图书馆长廊底纹；微光卡恒在流内——空态也有引导按钮，列表永不上叠） -->
+    <div v-if="students.length" class="app-card tl tex-g list">
       <div v-for="s in students" :key="s.id" class="stu" @click="$router.push(`/student/${s.id}`)">
         <span class="ava" :style="{ background: avaColor(s.name) }">{{ s.name.charAt(0) }}</span>
         <div class="stu-info">
@@ -58,7 +58,7 @@
         <van-icon class="stu-arrow" name="arrow" />
       </div>
     </div>
-    <div v-else-if="!loading" class="app-card overlap list">
+    <div v-else-if="!loading" class="app-card list">
       <van-empty image-size="88" :description="keyword ? '没有找到该学生' : '本班暂无在读学生'" />
     </div>
 

@@ -19,6 +19,13 @@ export function apiBase(): string {
   return ((import.meta.env.VITE_API_BASE as string) || '').replace(/\/+$/, '')
 }
 
+/** 带 HTTP 状态码的错误（调用方可按 status 区分网络失败/密码错/限流） */
+function httpError(message: string, status: number): Error & { status: number } {
+  const e = new Error(message) as Error & { status: number }
+  e.status = status
+  return e
+}
+
 export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const auth = useAuthStore()
   const headers: Record<string, string> = {}
@@ -32,12 +39,12 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
   if (resp.status === 401) {
     auth.logout()
     router.push('/login')
-    throw new Error('未登录或登录已过期')
+    throw httpError('未登录或登录已过期', 401)
   }
   const r = (await resp.json()) as ApiResp<T>
   if (!resp.ok || r.code !== 0) {
     ElMessage.error(r.message || `请求失败(${resp.status})`)
-    throw new Error(r.message)
+    throw httpError(r.message || `请求失败(${resp.status})`, resp.status)
   }
   return r.data
 }

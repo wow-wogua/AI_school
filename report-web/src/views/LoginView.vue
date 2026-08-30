@@ -41,7 +41,7 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { motion } from 'motion-v'
-import { showSuccessToast } from 'vant'
+import { showSuccessToast, showFailToast } from 'vant'
 import { api, apiBase } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 
@@ -72,6 +72,13 @@ async function doLogin() {
     })
     auth.set(data.token, data.user.realName, data.user.role)
     router.push('/')
+  } catch (e) {
+    // 按 HTTP 状态区分失败原因，绝不把"密码错/限流"误报成"连不上服务器"
+    // （登录接口的 401 是密码错，与"会话过期"同码不同义——登录页必须自己解释）
+    const st = (e as { status?: number }).status
+    if (st === 401) showFailToast('用户名或密码错误')
+    else if (st === 429) showFailToast('尝试过于频繁，请等 10 分钟再试')
+    else showFailToast('连接服务器失败，请检查网络或服务器地址')
   } finally {
     loading.value = false
   }

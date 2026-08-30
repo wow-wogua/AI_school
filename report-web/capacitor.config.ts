@@ -9,6 +9,15 @@ const config: CapacitorConfig = {
   appId: 'com.shishi.growth',
   appName: '数智成长',
   webDir: 'dist',
+  android: {
+    // 界面跑在 https://localhost（Capacitor 默认），而后端是 http://IP:端口（明文）——
+    // 「https 页面发 http 请求」属混合内容，WebView 默认直接拦截（请求根本发不出，
+    // 服务器日志一条不留）。usesCleartextTraffic 只开网络层的闸，这里再开内容策略的闸。
+    // ⚠️ 键名必须是 allowMixedContent（读 @capacitor/android 的 CapConfig.java 源码确认：
+    // 它找 "android.allowMixedContent" 布尔值；TS 类型声明里没这个键、写错键名会被静默忽略）。
+    // 将来服务器上了 HTTPS（备案+域名）即可移除此配置。
+    allowMixedContent: true,
+  },
 }
 
 export default config
