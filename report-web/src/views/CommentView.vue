@@ -36,6 +36,7 @@ import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
 import { api, fetchBlob } from '../api/http'
+import { saveFile } from '../api/nativeShare'
 import { useAiTasksStore } from '../stores/aiTasks'
 
 const store = useAiTasksStore()
@@ -172,14 +173,9 @@ async function batchAll() {
 /** 导出本班寄语（班级×学期 → xlsx，含生效内容与 AI 草稿） */
 async function exportXlsx() {
   const blob = await fetchBlob(`/api/ai/comment/export?classId=${classId.value}&termId=${termId.value}`)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
   const cls = classes.value.find((c) => c.id === classId.value)?.name ?? ''
   const tm = terms.value.find((t) => t.id === termId.value)?.name ?? ''
-  a.download = `寄语_${cls}_${tm}.xlsx`
-  a.click()
-  URL.revokeObjectURL(url)
+  await saveFile(blob, `寄语_${cls}_${tm}.xlsx`)
 }
 
 async function save(confirm: boolean) {

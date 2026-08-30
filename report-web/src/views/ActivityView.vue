@@ -28,7 +28,7 @@
           <el-button link size="small" @click.stop="del(row)">删除</el-button>
         </template>
       </el-table-column>
-      <template #empty>暂无活动，点击上方「新建活动」创建</template>
+      <template #empty>暂无活动{{ isAdmin ? '，点击上方「新建活动」创建' : '' }}</template>
     </el-table>
 
     <el-card v-if="current" style="margin-top: 16px">

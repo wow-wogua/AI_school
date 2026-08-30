@@ -198,6 +198,9 @@ body {
   .toolbar .el-select { width: 100% !important; }   /* 原规则原样保留（E2E 依赖不横向滚动） */
   .el-table { font-size: 13px; }
   .page-title { font-size: 18px; }
+  /* 固定宽（420-560px）弹窗在小屏横向溢出：收到视口内。width 是 el-dialog 的内联样式，须 !important */
+  .el-dialog { width: 92vw !important; max-width: 92vw; }
+  .el-message-box { width: 88vw !important; max-width: 88vw; }
 }
 
 /* ---------------- 8. 减少动效 ---------------- */

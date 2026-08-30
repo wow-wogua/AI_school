@@ -18,9 +18,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { fetchBlob } from '../api/http'
-import { isNative, openOrSavePdf } from '../api/nativeShare'
+import { isNative, openFile } from '../api/nativeShare'
 
 const route = useRoute()
 const url = ref('')
@@ -51,9 +50,7 @@ async function openShare() {
   if (!blob.value || shareBusy.value) return
   shareBusy.value = true
   try {
-    await openOrSavePdf(blob.value, fileName.value)
-  } catch {
-    ElMessage.error('打开失败，请重试')
+    await openFile(blob.value, fileName.value)
   } finally {
     shareBusy.value = false
   }

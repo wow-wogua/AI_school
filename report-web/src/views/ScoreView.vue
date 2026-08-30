@@ -96,6 +96,7 @@ import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../api/http'
+import { saveFile } from '../api/nativeShare'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
@@ -223,25 +224,15 @@ async function createExam() {
 
 async function downloadTemplate() {
   const blob = await fetchBlob(`/api/score/template?classId=${classId.value}`)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = '成绩导入模板.xlsx'
-  a.click()
-  URL.revokeObjectURL(url)
+  await saveFile(blob, '成绩导入模板.xlsx')
 }
 
 async function exportXlsx() {
   const blob = await fetchBlob(`/api/score/export?examId=${examId.value}&subjectId=${subjectId.value}&classId=${classId.value}`)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
   const ex = exams.value.find((e: any) => e.id === examId.value)?.name ?? ''
   const sub = subjects.value.find((s: any) => s.id === subjectId.value)?.name ?? ''
   const cls = classes.value.find((c: any) => c.id === classId.value)?.name ?? ''
-  a.download = `成绩_${ex}_${sub}_${cls}.xlsx`
-  a.click()
-  URL.revokeObjectURL(url)
+  await saveFile(blob, `成绩_${ex}_${sub}_${cls}.xlsx`)
 }
 
 async function doImport() {

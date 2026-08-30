@@ -116,6 +116,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../../api/http'
+import { saveFile } from '../../api/nativeShare'
 
 const classes = ref<any[]>([])
 const records = ref<any[]>([])
@@ -205,12 +206,7 @@ function openImport() {
 
 async function downloadTemplate() {
   const blob = await fetchBlob('/api/admin/student/import-template')
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = '新生导入模板.xlsx'
-  a.click()
-  URL.revokeObjectURL(url)
+  await saveFile(blob, '新生导入模板.xlsx')
 }
 
 async function doImport() {

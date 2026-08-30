@@ -77,6 +77,7 @@ import { motion } from 'motion-v'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../api/http'
+import { openFile } from '../api/nativeShare'
 
 const route = useRoute()
 
@@ -205,7 +206,7 @@ async function del(h: Honor) {
 
 async function view(h: Honor) {
   const blob = await fetchBlob(`/api/honor/file/${h.id}`)
-  window.open(URL.createObjectURL(blob))
+  await openFile(blob, h.name || `荣誉_${h.id}`)
 }
 
 onMounted(init)
