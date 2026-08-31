@@ -141,13 +141,14 @@ function avaColor(name?: string) {
   return palette[h % palette.length]
 }
 
-function onCls({ value }: { value: number }) {
-  classId.value = value
+/** Vant4 confirm 载荷：{selectedValues, selectedOptions, selectedIndexes}，取值走 selectedOptions */
+function onCls(ev: { selectedOptions?: { value: number }[] }) {
+  classId.value = ev.selectedOptions?.[0]?.value
   clsOpen.value = false
   loadStudents()
 }
-function onTerm({ value }: { value: number }) {
-  termId.value = value
+function onTerm(ev: { selectedOptions?: { value: number }[] }) {
+  termId.value = ev.selectedOptions?.[0]?.value
   termOpen.value = false
 }
 function onStu(s: { id: number }) {

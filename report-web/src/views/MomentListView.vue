@@ -71,7 +71,9 @@ const curClassName = computed(() => classes.value.find((c) => c.id === classId.v
 const clsColumns = computed(() => classes.value.map((c) => ({ text: c.name, value: c.id })))
 const filtered = computed(() => (tag.value ? moments.value.filter((m) => m.sceneTag === tag.value) : moments.value))
 
-function onCls({ value }: { value: number }) {
+/** Vant4 confirm 载荷：{selectedValues, selectedOptions, selectedIndexes}，取值走 selectedOptions */
+function onCls(ev: { selectedOptions?: { value: number }[] }) {
+  const value = ev.selectedOptions?.[0]?.value
   if (classId.value !== value) {
     classId.value = value
     load()

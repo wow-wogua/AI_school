@@ -152,7 +152,9 @@ function toggle(id: number) {
   picked.value = s
 }
 
-function onCls({ value }: { value: number }) {
+/** Vant4 confirm 载荷：{selectedValues, selectedOptions, selectedIndexes}，取值走 selectedOptions */
+function onCls(ev: { selectedOptions?: { value: number }[] }) {
+  const value = ev.selectedOptions?.[0]?.value
   if (classId.value !== value) {
     classId.value = value
     picked.value = new Set()

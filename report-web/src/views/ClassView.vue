@@ -96,8 +96,9 @@ const pickOpen = ref(false)
 const curClassName = computed(() => classes.value.find((c) => c.id === classId.value)?.name ?? '选择班级')
 const classColumns = computed(() => classes.value.map((c) => ({ text: c.name, value: c.id })))
 
-function onPick({ value }: { value: number }) {
-  classId.value = value
+/** Vant4 confirm 载荷：{selectedValues, selectedOptions, selectedIndexes}，取值走 selectedOptions */
+function onPick(ev: { selectedOptions?: { value: number }[] }) {
+  classId.value = ev.selectedOptions?.[0]?.value
   pickOpen.value = false
   load()
   loadMoments()
