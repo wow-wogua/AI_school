@@ -7,7 +7,7 @@
         <el-radio-button value="class">班级</el-radio-button>
         <el-radio-button value="grade">全年级</el-radio-button>
       </el-radio-group>
-      <el-select v-if="scope === 'grade'" v-model="gradeId" placeholder="年级" style="min-width: 140px">
+      <el-select v-if="scope === 'grade'" v-model="gradeId" placeholder="年级" style="min-width: 140px" @change="reload">
         <el-option v-for="g in grades" :key="g.id" :label="g.name" :value="g.id" />
       </el-select>
       <el-select v-else v-model="classId" placeholder="班级" style="min-width: 140px" @change="reload">
@@ -26,6 +26,7 @@
     </div>
 
     <el-table :data="rows" size="small" border>
+      <el-table-column v-if="scope === 'grade'" prop="className" label="班级" width="110" />
       <el-table-column prop="studentNo" label="学号" width="90" />
       <el-table-column prop="name" label="学生" min-width="90" />
       <el-table-column label="状态" width="100">
@@ -69,7 +70,7 @@ const classId = ref<number>()
 const gradeId = ref<number>()
 const termId = ref<number>()
 const scope = ref<'class' | 'grade'>('class')
-const rows = ref<{ studentId: number; studentNo: string; name: string; status: string; error?: string; reportId?: number }[]>([])
+const rows = ref<{ className?: string; studentId: number; studentNo: string; name: string; status: string; error?: string; reportId?: number }[]>([])
 const generating = ref<number | null>(null)
 const batching = ref(false)
 
@@ -92,10 +93,29 @@ async function init() {
 }
 
 function onScopeChange() {
-  rows.value = []
+  reload()
 }
 
 async function reload() {
+  if (scope.value === 'grade') {
+    if (!gradeId.value || !termId.value) return
+    const cls = classes.value.filter((c) => c.gradeId === gradeId.value)
+    const parts = await Promise.all(cls.map(async (c) => {
+      const stu = await api<{ records: { id: number; studentNo: string; name: string }[] }>(
+        `/api/student/list?classId=${c.id}&page=1&size=100`,
+      )
+      const reports = await api<{ studentId: number; status: string; error?: string; reportId?: number }[]>(
+        `/api/report/list?classId=${c.id}&termId=${termId.value}`,
+      )
+      const byStu = new Map(reports.map((r) => [r.studentId, r]))
+      return stu.records.map((s) => {
+        const r = byStu.get(s.id)
+        return { className: c.name, studentId: s.id, studentNo: s.studentNo, name: s.name, status: r?.status ?? '未生成', error: r?.error, reportId: r?.reportId }
+      })
+    }))
+    rows.value = parts.flat()
+    return
+  }
   if (!classId.value || !termId.value) return
   const stu = await api<{ records: { id: number; studentNo: string; name: string }[] }>(
     `/api/student/list?classId=${classId.value}&page=1&size=100`,
