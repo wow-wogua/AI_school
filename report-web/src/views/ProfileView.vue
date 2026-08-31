@@ -41,6 +41,11 @@
         label="简介" placeholder="个人教育理念、专长、荣誉等（选填）" />
     </div>
 
+    <!-- 我的成就入口（教师风采） -->
+    <div class="app-card cells honor-entry">
+      <van-cell title="我的成就" icon="medal-o" is-link to="/teacher-honor/new" />
+    </div>
+
     <!-- 吸底保存 -->
     <div class="submit-bar">
       <van-button round block type="primary" class="submit" :loading="saving"
@@ -224,6 +229,10 @@ onUnmounted(() => {
 .cells :deep(.van-field) { padding: 11px 16px; font-size: 14px; }
 .cells :deep(.van-field__label) { color: var(--app-text-2); width: 84px; }
 .cells :deep(.van-field__control) { color: var(--app-text-1); }
+.honor-entry { padding: 0; }
+.honor-entry :deep(.van-cell) { padding: 12px 16px; font-size: 14px; }
+.honor-entry :deep(.van-cell .van-icon:not(.van-cell__right-icon)) {
+  color: var(--app-gold); font-size: 17px; margin-right: 2px; }
 
 .submit-bar { position: sticky; bottom: 0; z-index: 5; margin-top: 16px;
   padding: 14px 0 calc(8px + env(safe-area-inset-bottom));

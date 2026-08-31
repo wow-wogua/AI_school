@@ -101,6 +101,7 @@ const grids = [
   { name: '荣誉证书', icon: 'medal-o', to: '/honor', bg: '#EAB308' },
   { name: '成长时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1' },
   { name: '成长报告', icon: 'orders-o', to: '/reports', bg: '#14B8A6' },
+  { name: '教师风采', icon: 'friends-o', to: '/teacher-honor', bg: '#EC4899' },
 ]
 
 function chipClass(type: string) {
