@@ -18,6 +18,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import TeacherTab from '../components/admin/TeacherTab.vue'
 import TeacherProfileTab from '../components/admin/TeacherProfileTab.vue'
@@ -29,7 +30,8 @@ import TemplateTab from '../components/admin/TemplateTab.vue'
 import AuditTab from '../components/admin/AuditTab.vue'
 import AiUsageTab from '../components/admin/AiUsageTab.vue'
 
-const tab = ref('teacher')
+/* 支持 ?tab= 直达指定页签（首页快捷功能「教师档案」入口用） */
+const tab = ref((useRoute().query.tab as string) || 'teacher')
 </script>
 
 <style scoped>

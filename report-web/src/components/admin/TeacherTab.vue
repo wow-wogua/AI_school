@@ -31,7 +31,7 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '停用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="280">
+      <el-table-column label="操作" min-width="320">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link @click="openProfile(row)">档案</el-button>
@@ -287,6 +287,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 操作列 5 个按钮收一行：缩小按钮间距防换行 */
+.el-table :deep(.el-button + .el-button) { margin-left: 8px; }
 .pf { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .pf-photo { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; }
 .pf-none { display: flex; align-items: center; justify-content: center;

@@ -89,8 +89,9 @@ const greeting = computed(() => {
 })
 const avatarChar = computed(() => auth.realName?.charAt(0) || '师')
 
-/* 宫格配色（图1/图4）：每格一色的实心圆角方底 + 白图标 */
-const grids = [
+/* 宫格配色（图1/图4）：每格一色的实心圆角方底 + 白图标；
+   教师档案全员可见——老师进自己的档案页，管理员进全校总览页签 */
+const grids = computed(() => [
   { name: '微光信箱', icon: 'photograph', to: '/moment/new', bg: '#F97316' },
   { name: '成绩管理', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' },
   { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
@@ -102,7 +103,8 @@ const grids = [
   { name: '成长时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1' },
   { name: '成长报告', icon: 'orders-o', to: '/reports', bg: '#14B8A6' },
   { name: '教师风采', icon: 'friends-o', to: '/teacher-honor', bg: '#EC4899' },
-]
+  { name: '教师档案', icon: 'manager-o', to: auth.role === 'ADMIN' ? '/admin?tab=teacherProfile' : '/profile', bg: '#475569' },
+])
 
 function chipClass(type: string) {
   return { 评价: 'c-eval', 荣誉: 'c-honor', 寄语: 'c-comment', 活动: 'c-act', 微光: 'c-moment' }[type] ?? ''
