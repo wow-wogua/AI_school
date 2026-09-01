@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/** 教师档案：本人查看/维护（照片走 MinIO），管理员可看全员档案 */
+/** 教师档案：本人查看/维护（照片走 MinIO），管理员可看全员档案并代填代改 */
 @RestController
 @RequestMapping("/api/profile")
 @RequiredArgsConstructor
@@ -49,7 +49,40 @@ public class TeacherProfileController {
     /** 保存我的档案（upsert；工号全校唯一） */
     @PutMapping("/me")
     public ApiResponse<Map<String, Object>> save(@RequestBody ProfileReq req) {
-        Long userId = AuthUtil.current().userId();
+        return ApiResponse.ok(saveProfile(AuthUtil.current().userId(), req));
+    }
+
+    /** 管理员代改教师档案 */
+    @PutMapping("/admin/{userId}")
+    public ApiResponse<Map<String, Object>> adminSave(@PathVariable Long userId, @RequestBody ProfileReq req) {
+        requireAdmin();
+        requireUser(userId);
+        return ApiResponse.ok(saveProfile(userId, req));
+    }
+
+    /** 管理员代传教师照片 */
+    @PostMapping("/admin/{userId}/photo")
+    public ApiResponse<Map<String, Object>> adminUploadPhoto(@PathVariable Long userId,
+            @RequestParam("photo") MultipartFile photo) throws Exception {
+        requireAdmin();
+        requireUser(userId);
+        return uploadPhotoTo(userId, photo);
+    }
+
+    private void requireAdmin() {
+        if (!"ADMIN".equals(AuthUtil.current().role())) {
+            throw new BizException(403, "只有管理员可操作");
+        }
+    }
+
+    private void requireUser(Long userId) {
+        if (userMapper.selectById(userId) == null) {
+            throw new BizException(404, "账号不存在");
+        }
+    }
+
+    /** 档案 upsert（本人/管理员代改共用；工号全校唯一） */
+    private Map<String, Object> saveProfile(Long userId, ProfileReq req) {
         if (req.employeeNo != null && !req.employeeNo.isBlank()) {
             TeacherProfile dup = profileMapper.selectOne(new LambdaQueryWrapper<TeacherProfile>()
                     .eq(TeacherProfile::getEmployeeNo, req.employeeNo.trim())
@@ -77,13 +110,17 @@ public class TeacherProfileController {
         } else {
             profileMapper.insert(p);
         }
-        return ApiResponse.ok(view(userMapper.selectById(userId), p, subjectNames()));
+        return view(userMapper.selectById(userId), p, subjectNames());
     }
 
     /** 上传/更换我的照片（jpg/png，≤5MB，存 MinIO teacher/{userId}/{uuid}.{ext}） */
     @PostMapping("/me/photo")
     public ApiResponse<Map<String, Object>> uploadPhoto(@RequestParam("photo") MultipartFile photo) throws Exception {
-        Long userId = AuthUtil.current().userId();
+        return uploadPhotoTo(AuthUtil.current().userId(), photo);
+    }
+
+    /** 照片上传共用（本人/管理员代传）：校验→MinIO→回写档案→删旧照 */
+    private ApiResponse<Map<String, Object>> uploadPhotoTo(Long userId, MultipartFile photo) throws Exception {
         String ext = extOf(photo.getOriginalFilename());
         if (!ext.equals("png") && !ext.equals("jpg")) {
             throw new BizException(400, "仅支持 jpg/png 图片");

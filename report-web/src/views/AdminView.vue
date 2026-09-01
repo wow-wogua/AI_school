@@ -4,6 +4,7 @@
       :transition="{ type: 'spring', stiffness: 400, damping: 32 }"><el-icon><Setting /></el-icon>系统管理</motion.h2>
     <el-tabs v-model="tab">
       <el-tab-pane label="教师与任课" name="teacher"><TeacherTab /></el-tab-pane>
+      <el-tab-pane label="教师档案" name="teacherProfile"><TeacherProfileTab /></el-tab-pane>
       <el-tab-pane label="年级与班级" name="org"><OrgTab /></el-tab-pane>
       <el-tab-pane label="学生" name="student"><StudentTab /></el-tab-pane>
       <el-tab-pane label="学期" name="term"><TermTab /></el-tab-pane>
@@ -19,6 +20,7 @@
 import { ref } from 'vue'
 import { motion } from 'motion-v'
 import TeacherTab from '../components/admin/TeacherTab.vue'
+import TeacherProfileTab from '../components/admin/TeacherProfileTab.vue'
 import OrgTab from '../components/admin/OrgTab.vue'
 import StudentTab from '../components/admin/StudentTab.vue'
 import TermTab from '../components/admin/TermTab.vue'
