@@ -183,6 +183,6 @@ onMounted(async () => {
 .pfp-none { display: flex; align-items: center; justify-content: center;
   background: #f0f2f8; color: #909399; font-weight: 600; }
 .pfp-lg.pfp-none { font-size: 24px; }
-.photo-row { display: flex; align-items: center; gap: 10px; }
+.photo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .photo-hint { font-size: 12px; color: var(--el-color-success); }
 </style>

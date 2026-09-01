@@ -72,7 +72,7 @@
         <el-form-item label="家长姓名"><el-input v-model="form.guardianName" /></el-form-item>
         <el-form-item label="家长电话"><el-input v-model="form.guardianPhone" /></el-form-item>
         <el-form-item v-if="form.id" label="照片">
-          <div style="display: flex; align-items: center; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
             <el-image v-if="photos[form.id]" :src="photos[form.id]" fit="cover"
               style="width: 56px; height: 56px; border-radius: 4px" :preview-src-list="[photos[form.id]]"
               preview-teleported />
@@ -92,7 +92,7 @@
         先下载模板，从第 2 行开始填写。班级名称必须与系统完全一致（当前有：{{ classNames.join('、') || '（先去组织管理建班）' }}）。
         逐行校验：合法行入库，问题行跳过并列出原因。
       </div>
-      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px">
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap">
         <el-button size="small" @click="downloadTemplate">下载模板</el-button>
         <input type="file" accept=".xlsx"
           @change="(e: Event) => (importFile = (e.target as HTMLInputElement).files?.[0] ?? null)" />

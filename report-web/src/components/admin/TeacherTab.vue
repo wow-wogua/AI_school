@@ -91,7 +91,7 @@
         先下载模板，从第 2 行开始填写。账号/姓名/角色必填；班主任可填「班主任所带班级」（该班已有班主任的行会跳过）。
         任教学科须与系统一致（当前有：{{ subjects.map((s) => s.name).join('、') }}）。逐行校验：合法行入库，问题行列出原因。
       </div>
-      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px">
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap">
         <el-button size="small" @click="downloadTemplate">下载模板</el-button>
         <input type="file" accept=".xlsx"
           @change="(e: Event) => (importFile = (e.target as HTMLInputElement).files?.[0] ?? null)" />

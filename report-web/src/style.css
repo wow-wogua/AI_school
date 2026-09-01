@@ -146,6 +146,12 @@ body {
 
 .el-dialog { border-radius: var(--radius-lg); }
 .el-dialog__title { font-weight: 600; }
+/* 原生 file input 固有宽 ~238px 且 min-width:auto 顶着不缩，窄弹窗里会把行撑出边界 */
+.el-dialog input[type="file"] { max-width: 100%; min-width: 0; }
+/* el-form-item__content 是 flex 项且默认 min-width:auto，内容（照片行等）再宽也不收缩会把弹窗撑破 */
+.el-dialog .el-form-item__content { min-width: 0; }
+/* content 里的行级 div（照片行/按钮行）限宽，超宽时靠自身 flex-wrap 换行收纳 */
+.el-dialog .el-form-item__content > div { max-width: 100%; }
 
 .el-tabs__active-bar { height: 3px; border-radius: 3px; background: var(--el-color-primary); }
 .el-tabs__item.is-active { font-weight: 700; }
