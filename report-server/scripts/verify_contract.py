@@ -4,7 +4,7 @@
 1. 登录取 JWT → GET /api/report/data/1?termId=2（聚合层产出的契约 JSON）
 2. 与 golden_student.json 深比对：数值 int/float 视为相等（1020==1020.0，渲染层 JS 等价；
    growthSymbol 已在后端恒为 Double），其余字段须全等；差异逐条打印
-3. 聚合 JSON 走渲染核心 → PDF，页数 51（封面+目录+49 内容页）且每页中文大标题序列与 target/report.pdf 一致
+3. 聚合 JSON 走渲染核心 → PDF，页数 51（50 内容页+空白尾页：尾页换校批次起存在，基线同口径）且每页中文大标题序列与 target/report.pdf 一致
 
 用法：PYTHONIOENCODING=utf-8 python scripts/verify_contract.py
 """

@@ -200,7 +200,7 @@ def main():
             st, pdf, ctype = call_raw("GET", f"/api/report/file/{rid}", admin)
             import fitz
             doc = fitz.open(stream=pdf, filetype="pdf")
-            check("PDF 仍 50 页", doc.page_count == 50, f"pages={doc.page_count}")
+            check("PDF 仍 51 页", doc.page_count == 51, f"pages={doc.page_count}")  # 50 内容页+空白尾页（换校批次起存在，契约/基线同口径）
             idx = next((i for i in range(doc.page_count)
                         if "主题活动参与记录" in doc[i].get_text()), None)
             text = doc[idx].get_text() if idx is not None else ""

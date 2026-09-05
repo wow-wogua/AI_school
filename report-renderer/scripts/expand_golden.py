@@ -314,6 +314,10 @@ def main():
                               '学习上，你自觉性很高，总能超前预习，所以学习时毫不费劲。这学期，你的成绩也有了很大的进步。'
                               '作为值日班长，本学期在班级管理上有些松懈，老师希望你在班级工作上能够更加用心一点，'
                               '做老师的得力助手。加油！',
+        # 微光掠影不进 golden：种子无 t_moment（MinIO 照片也无法随种子复现），
+        # golden 只钉「无微光基线」保证新栈可复现；有微光的 52 页变体由
+        # report-web/scripts/qa_moments_pdf*.mjs 动态覆盖。勿再手改 JSON 加 moments。
+        'moments': [],
     }
 
     with open(PATH, 'w', encoding='utf-8') as fp:
