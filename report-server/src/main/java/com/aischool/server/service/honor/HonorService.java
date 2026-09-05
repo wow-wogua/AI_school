@@ -82,8 +82,13 @@ public class HonorService {
                                 + "\"issuer\":\"主办单位\",\"date\":\"yyyy-MM-dd，无法判断填空串\"}",
                         dataUrl);
                 parsed = parseRecognized(raw);
-                source = "ai";
-                detail = "AI 识别完成，请核对后确认";
+                if (parsed.values().stream().allMatch(v -> v == null)) {
+                    parsed = null;               // 空 JSON/全空字段：按未识别降级手动，别谎报「识别完成」
+                    detail = "AI 未识别出证书内容，请手动填写";
+                } else {
+                    source = "ai";
+                    detail = "AI 识别完成，请核对后确认";
+                }
             } catch (Exception e) {
                 log.warn("证书 AI 识别失败，降级手动: {}", e.getMessage());
                 detail = "AI 识别失败，请手动填写";
@@ -92,7 +97,9 @@ public class HonorService {
 
         Honor h = new Honor();
         h.setStudentId(studentId);
-        h.setName(parsed == null ? "" : parsed.getOrDefault("name", ""));
+        // name 列 NOT NULL：parseRecognized 将空串归一成 null 放进 map，getOrDefault 不替换已存在的
+        // null（AI 返回空 name → key 在、值为 null）→ INSERT 省列即 500。此处统一 null 归 ""。
+        h.setName(parsed == null || parsed.get("name") == null ? "" : parsed.get("name"));
         h.setLevel(parsed == null ? null : parsed.get("level"));
         h.setIssuer(parsed == null ? null : parsed.get("issuer"));
         h.setHonorDate(parsed == null ? null : parseDate(parsed.get("date")));
