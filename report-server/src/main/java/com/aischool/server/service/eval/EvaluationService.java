@@ -2,13 +2,8 @@ package com.aischool.server.service.eval;
 
 import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Clazz;
-import com.aischool.server.entity.CoinWeek;
-import com.aischool.server.entity.ClassGridAvg;
 import com.aischool.server.entity.Evaluation;
-import com.aischool.server.entity.GradeGridAvg;
 import com.aischool.server.entity.Grid;
-import com.aischool.server.entity.GridStatTerm;
-import com.aischool.server.entity.GridStatWeek;
 import com.aischool.server.entity.Indicator;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.Term;
@@ -107,70 +102,16 @@ public class EvaluationService {
         e.setEvalTime(evalTime);
         evaluationMapper.insert(e);
 
-        // ② 学期九维累计
-        GridStatTerm stat = gridStatTermMapper.selectOne(new LambdaQueryWrapper<GridStatTerm>()
-                .eq(GridStatTerm::getStudentId, studentId)
-                .eq(GridStatTerm::getTermId, term.getId())
-                .eq(GridStatTerm::getGridId, grid.getId()));
-        if (stat == null) {
-            stat = new GridStatTerm();
-            stat.setStudentId(studentId);
-            stat.setTermId(term.getId());
-            stat.setGridId(grid.getId());
-            stat.setPoints(score);
-            stat.setEvalCount(1);
-            stat.setKindCount(1);
-            stat.setScore(score);
-            gridStatTermMapper.insert(stat);
-        } else {
-            stat.setPoints(stat.getPoints().add(score));
-            stat.setEvalCount(stat.getEvalCount() + 1);
-            stat.setScore(stat.getScore().add(score));
-            stat.setKindCount(kindCount(studentId, term, grid.getId()));
-            gridStatTermMapper.updateById(stat);
-        }
+        // ② 学期九维累计（原子 upsert：ODKU 消除 select-then-update 的并发丢增量，唯一键见 V6）
+        gridStatTermMapper.upsertIncrement(studentId, term.getId(), grid.getId(), score,
+                kindCount(studentId, term, grid.getId()));
 
-        // ③ 周九维
+        // ③ 周九维（原子 upsert）
         int weekNo = weekNo(term, evalTime);
-        GridStatWeek week = gridStatWeekMapper.selectOne(new LambdaQueryWrapper<GridStatWeek>()
-                .eq(GridStatWeek::getStudentId, studentId)
-                .eq(GridStatWeek::getTermId, term.getId())
-                .eq(GridStatWeek::getGridId, grid.getId())
-                .eq(GridStatWeek::getWeekNo, weekNo));
-        if (week == null) {
-            week = new GridStatWeek();
-            week.setStudentId(studentId);
-            week.setTermId(term.getId());
-            week.setGridId(grid.getId());
-            week.setWeekNo(weekNo);
-            week.setScore(score);
-            gridStatWeekMapper.insert(week);
-        } else {
-            week.setScore(week.getScore().add(score));
-            gridStatWeekMapper.updateById(week);
-        }
+        gridStatWeekMapper.upsertIncrement(studentId, term.getId(), grid.getId(), weekNo, score);
 
-        // ④ 周能量币（只动本人的 in_mine；in_class/in_grade 是全组共现值，改动会波及他人报告）
-        CoinWeek coinWeek = coinWeekMapper.selectOne(new LambdaQueryWrapper<CoinWeek>()
-                .eq(CoinWeek::getStudentId, studentId)
-                .eq(CoinWeek::getTermId, term.getId())
-                .eq(CoinWeek::getWeekNo, weekNo));
-        if (coinWeek == null) {
-            coinWeek = new CoinWeek();
-            coinWeek.setStudentId(studentId);
-            coinWeek.setTermId(term.getId());
-            coinWeek.setWeekNo(weekNo);
-            coinWeek.setInMine(score);
-            coinWeek.setInClass(BigDecimal.ZERO);
-            coinWeek.setInGrade(BigDecimal.ZERO);
-            coinWeek.setOutMine(BigDecimal.ZERO);
-            coinWeek.setOutClass(BigDecimal.ZERO);
-            coinWeek.setOutGrade(BigDecimal.ZERO);
-            coinWeekMapper.insert(coinWeek);
-        } else {
-            coinWeek.setInMine(coinWeek.getInMine().add(score));
-            coinWeekMapper.updateById(coinWeek);
-        }
+        // ④ 周能量币（原子 upsert；只动本人的 in_mine，in_class/in_grade 是全组共现值，改动会波及他人报告）
+        coinWeekMapper.upsertMineIncome(studentId, term.getId(), weekNo, score);
 
         // ⑤ 能量币流水 + 账户（module=格名-指标名 与种子模块并列，display_order=99 不进收入 TOP5）
         coinLedger.income(studentId, evalTime.toLocalDate(), "评价", e.getId(),
@@ -276,40 +217,12 @@ public class EvaluationService {
     }
 
     private void shiftClassAvg(Long classId, Long termId, Long gridId, BigDecimal s, long size) {
-        ClassGridAvg row = classGridAvgMapper.selectOne(new LambdaQueryWrapper<ClassGridAvg>()
-                .eq(ClassGridAvg::getClassId, classId)
-                .eq(ClassGridAvg::getTermId, termId)
-                .eq(ClassGridAvg::getGridId, gridId));
         BigDecimal delta = s.divide(BigDecimal.valueOf(size), 4, RoundingMode.HALF_UP);
-        if (row == null) {
-            row = new ClassGridAvg();
-            row.setClassId(classId);
-            row.setTermId(termId);
-            row.setGridId(gridId);
-            row.setAvgScore(delta);
-            classGridAvgMapper.insert(row);
-        } else {
-            row.setAvgScore(row.getAvgScore().add(delta));
-            classGridAvgMapper.updateById(row);
-        }
+        classGridAvgMapper.upsertShift(classId, termId, gridId, delta);
     }
 
     private void shiftGradeAvg(Long gradeId, Long termId, Long gridId, BigDecimal s, long size) {
-        GradeGridAvg row = gradeGridAvgMapper.selectOne(new LambdaQueryWrapper<GradeGridAvg>()
-                .eq(GradeGridAvg::getGradeId, gradeId)
-                .eq(GradeGridAvg::getTermId, termId)
-                .eq(GradeGridAvg::getGridId, gridId));
         BigDecimal delta = s.divide(BigDecimal.valueOf(size), 4, RoundingMode.HALF_UP);
-        if (row == null) {
-            row = new GradeGridAvg();
-            row.setGradeId(gradeId);
-            row.setTermId(termId);
-            row.setGridId(gridId);
-            row.setAvgScore(delta);
-            gradeGridAvgMapper.insert(row);
-        } else {
-            row.setAvgScore(row.getAvgScore().add(delta));
-            gradeGridAvgMapper.updateById(row);
-        }
+        gradeGridAvgMapper.upsertShift(gradeId, termId, gridId, delta);
     }
 }

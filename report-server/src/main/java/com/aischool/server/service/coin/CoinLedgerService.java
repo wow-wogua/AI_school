@@ -1,7 +1,6 @@
 package com.aischool.server.service.coin;
 
 import com.aischool.server.common.BizException;
-import com.aischool.server.entity.CoinAccount;
 import com.aischool.server.entity.CoinIncome;
 import com.aischool.server.entity.Term;
 import com.aischool.server.mapper.CoinAccountMapper;
@@ -43,19 +42,8 @@ public class CoinLedgerService {
         row.setCreateTime(LocalDateTime.now());  // 该列 NOT NULL 且无默认值
         coinIncomeMapper.insert(row);
 
-        CoinAccount account = coinAccountMapper.selectOne(new LambdaQueryWrapper<CoinAccount>()
-                .eq(CoinAccount::getStudentId, studentId));
-        if (account == null) {
-            account = new CoinAccount();
-            account.setStudentId(studentId);
-            account.setCurrentCoin(coin);
-            account.setTotalCoin(coin);
-            coinAccountMapper.insert(account);
-        } else {
-            account.setCurrentCoin(account.getCurrentCoin().add(coin));
-            account.setTotalCoin(account.getTotalCoin().add(coin));
-            coinAccountMapper.updateById(account);
-        }
+        // 账户原子 upsert（student_id 建表即 UNIQUE）：并发入账不再丢增量
+        coinAccountMapper.upsertIncome(studentId, coin);
         return term.getId();
     }
 
