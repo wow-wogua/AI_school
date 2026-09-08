@@ -103,7 +103,7 @@ cd ../report-web && npm install && npm run dev  # 前端 5173（vite 代理 /api
 
 1. **E2E 回归必须关闭 AI**（把 override 改名移开后 `docker compose up -d report-server`）：真实大模型延迟 9~61 秒波动，会击穿 E2E 等待并消耗额度；跑完恢复 override 即可。
 2. **全新空库跑 m6 E2E 前需先造数据**：seed 只建账号不建活动/荣誉，`verify_m6_web` 依赖已存在的活动与已确认荣誉。
-3. `verify_m7_web` 偶发时序抖动（历史出现过一次 41/42），复跑即绿，脚本本身无问题。
+3. `verify_m7_web` 已于 2026-09-08 按 App 化新壳（hash 路由）整族重写并全绿；历史版本的时序抖动经验（复跑即绿）仍适用。
 4. **渲染器改动**：`cd report-renderer && mvn package -DskipTests` 即生效（每次渲染 fork 新 JVM 读最新 classpath），无需重启后端；不要 `mvn clean` 后不起服务就期望能渲染（渲染 classpath 在 target/ 下）。
 5. **契约基线不入库**（`report-renderer/target/report.pdf` 是本机产物）：新机器或模板改动后刷新基线再跑契约——
    ```bash

@@ -1,18 +1,20 @@
 // M6 E2E 冒烟：活动管理 / 荣誉证书 / 成长时间轴 三页
 // 桌面(1440x900) + 手机(390x844) 两档：zhaolaoshi（初一(2)班班主任）
 // 流程：登录 → 活动页选活动/录参与 → 荣誉页上传+确认 → 时间轴断言事件 → 每页无横向滚动 + 截图
+// 2026-09-08 按 App 化新壳重写：hash 路由（/#/），页面跳转 goto 直达（页面内 EP 选择器未变）
 // 运行：node e2e/verify_m6_web.mjs（需后端 8080 + vite 5173；系统 Chrome）
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
 const BASE = process.env.BASE_URL || 'http://localhost:5173'
+const H = (p) => BASE + '/#' + p
 const USER = { username: 'zhaolaoshi', password: 'aischool123' }
 const SHOTS = 'e2e/shots'
 fs.mkdirSync(SHOTS, { recursive: true })
 
 // 1x1 JPEG（与后端 verify_m6.py 同源）
 const JPEG = Buffer.from(
-  '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwcJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPDIzNP/AABEIAAEAAQMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/aAAwDAQACEQMRAD8A/v4ooooA/9k=',
+  '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwcJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPDIzNP/AABEIAAEAAQMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrL09TV1tfX2drh4uPk5ebn6Onq8fLz9PX29/j5+v/aAAwDAQACEQMRAD8A/v4ooooA/9k=',
   'base64',
 )
 
@@ -31,11 +33,18 @@ async function noHScroll(page, tag) {
 }
 
 async function login(page) {
-  await page.goto(BASE + '/login')
+  await page.goto(H('/login'))
   await page.getByPlaceholder('用户名').fill(USER.username)
   await page.getByPlaceholder('密码').fill(USER.password)
   await page.getByRole('button', { name: '登录' }).click()
-  await page.waitForURL(BASE + '/')
+  await page.waitForURL(H('/'))
+}
+
+/** goto 式导航 + 等页面唯一标记（hash 同文档跳转无 load 事件，旧页选择器会短暂存活，必须等新页挂载） */
+async function navTo(page, path, marker) {
+  await page.goto(H(path))
+  await page.getByText(marker).first().waitFor({ state: 'visible', timeout: 10000 })
+  await page.waitForTimeout(500) // 等 onMounted 的 init 接口回填（学生列表等）
 }
 
 async function m6Flow(browser, { name, width, height, mobile }) {
@@ -47,8 +56,7 @@ async function m6Flow(browser, { name, width, height, mobile }) {
     check(`${name} 登录成功`, true)
 
     // ── 活动管理：列表 → 录参与 ──
-    await page.getByRole('link', { name: '活动管理' }).click()
-    await page.waitForURL(BASE + '/activity')
+    await navTo(page, '/activity', '活动管理')
     await page.waitForSelector('.el-table__row', { timeout: 15000 })
     await noHScroll(page, `${name} 活动页`)
     await page.screenshot({ path: `${SHOTS}/m6-${name}-1-activity.png` })
@@ -70,8 +78,7 @@ async function m6Flow(browser, { name, width, height, mobile }) {
     await page.screenshot({ path: `${SHOTS}/m6-${name}-2-signup.png` })
 
     // ── 荣誉证书：上传 → 表单 → 确认 ──
-    await page.getByRole('link', { name: '荣誉证书' }).click()
-    await page.waitForURL(BASE + '/honor')
+    await navTo(page, '/honor', '荣誉证书')
     await page.waitForSelector('.el-select', { timeout: 8000 })
     await noHScroll(page, `${name} 荣誉页`)
     // 选第一个学生
@@ -83,8 +90,10 @@ async function m6Flow(browser, { name, width, height, mobile }) {
     const dlg2 = page.locator('.el-dialog').last()
     await dlg2.waitFor({ state: 'visible' })
     await dlg2.getByRole('textbox').first().fill('E2E绘画比赛优胜奖')
-    // 无日期的荣誉不进时间轴（按学期过滤），必须填日期
+    // 无日期的荣誉不进时间轴（按学期过滤），必须填日期（fill 后按 Enter 提交并收起日历面板，否则面板挡保存按钮）
     await dlg2.locator('.el-form-item', { hasText: '日期' }).locator('input').first().fill('2026-03-18')
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(300)
     await dlg2.getByRole('button', { name: '保存' }).click()
     await page.waitForTimeout(1000)
     // 列表上直接确认（带能量币）
@@ -100,8 +109,7 @@ async function m6Flow(browser, { name, width, height, mobile }) {
     await page.screenshot({ path: `${SHOTS}/m6-${name}-3-honor.png` })
 
     // ── 成长时间轴 ──
-    await page.getByRole('link', { name: '成长时间轴' }).click()
-    await page.waitForURL(BASE + '/timeline')
+    await navTo(page, '/timeline', '成长时间轴')
     await page.waitForSelector('.el-select', { timeout: 8000 })
     await noHScroll(page, `${name} 时间轴页`)
     await page.locator('.el-select').nth(1).click() // 学生
@@ -118,7 +126,7 @@ async function m6Flow(browser, { name, width, height, mobile }) {
   }
 }
 
-// 用系统 Chrome（channel），免下载 playwright chromium
+// 用系统 Chrome（channel），免下载 190MB playwright chromium
 const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome' })
 try {
   await m6Flow(browser, { name: 'desktop', width: 1440, height: 900, mobile: false })

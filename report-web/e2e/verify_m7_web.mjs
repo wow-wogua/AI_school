@@ -1,12 +1,14 @@
 // M7 E2E：成绩 / 日常评价 / 成长总结 / 综合素质 / 系统管理 / 报告列表年级视角
 // 桌面(1440x900) + 手机(390x844)；三角色 admin / wanglaoshi（初一(2)班语文任课）/ zhaolaoshi（初一(2)班班主任）
 // 全部写操作走 class2；脚本自带 mysqldump 快照信封，结束恢复（评价会平移学生1 gradeAvg，必须还原）
+// 2026-09-08 按 App 化新壳重写：hash 路由（/#/）+ 宫格角色分流断言 + 成长总结页 Vant 化交互（学生弹层）
 // 运行：node e2e/verify_m7_web.mjs（需后端 8080 + vite 5173；系统 Chrome + docker MySQL）
 import { chromium } from 'playwright'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 
 const BASE = process.env.BASE_URL || 'http://localhost:5173'
+const H = (p) => BASE + '/#' + p
 const SHOTS = 'e2e/shots'
 const SNAP = 'e2e/_m7web_snapshot.sql'
 const TABLES = ('t_user t_teach t_grade t_class t_student t_term t_report_template t_indicator '
@@ -46,11 +48,18 @@ async function noHScroll(page, tag) {
 }
 
 async function login(page, username, password) {
-  await page.goto(BASE + '/login')
+  await page.goto(H('/login'))
   await page.getByPlaceholder('用户名').fill(username)
   await page.getByPlaceholder('密码').fill(password)
   await page.getByRole('button', { name: '登录' }).click()
-  await page.waitForURL(BASE + '/')
+  await page.waitForURL(H('/'))
+}
+
+/** goto 式导航 + 等页面唯一标记（hash 同文档跳转无 load 事件，旧页选择器会短暂存活，必须等新页挂载） */
+async function navTo(page, path, marker) {
+  await page.goto(H(path))
+  await page.getByText(marker).first().waitFor({ state: 'visible', timeout: 10000 })
+  await page.waitForTimeout(500) // 等 onMounted 的 init 接口回填（学生/考试列表等）
 }
 
 /** 展开第 n 个 el-select，点可见选项（含文本匹配可选）；等待选项渲染完成 */
@@ -71,16 +80,21 @@ async function countSelectOptions(page, nth) {
   return n
 }
 
-// ── admin：新建考试（M7-E2E）→ 系统管理六页 → 报告列表年级视角 ──
+// ── admin：宫格角色分流 → 新建考试（M7-E2E）→ 系统管理页签 → 报告列表年级视角 ──
 async function adminFlow(ctx, name, examName) {
   const page = await ctx.newPage()
   try {
     await login(page, 'admin', 'admin123')
-    check(`${name} admin 见系统管理入口`, (await page.getByRole('link', { name: '系统管理' }).count()) === 1)
+    // 新壳角色分流：ADMIN 宫格「教师档案」直达系统管理（/?tab=teacherProfile）
+    await page.getByRole('button', { name: '教师档案' }).click()
+    await page.waitForURL((u) => u.toString().includes('#/admin'))
+    check(`${name} admin 宫格直达系统管理`, true)
+    // el-tabs 九页签全渲染且非活动页签 display:none：必须限定活动页签内的行，否则等到的是隐藏行
+    await page.locator('.el-tab-pane:visible .el-table__row').first().waitFor({ timeout: 10000 })
+    check(`${name} admin 档案页签加载`, (await page.locator('.el-tab-pane:visible .el-table__row').count()) > 0)
 
     // /scores：新建考试（写路径走 UI，日期 2026-06-13 早于期末，不动 latestExam）
-    await page.getByRole('link', { name: '成绩管理' }).click()
-    await page.waitForURL(BASE + '/scores')
+    await navTo(page, '/scores', '成绩单（满分') // 前页 /admin 也有表格行，必须等新页标记
     await page.waitForSelector('.el-table__row', { timeout: 15000 }) // 成绩单加载=学科上下文就绪
     const subjCount = await countSelectOptions(page, 2) // 0=考试 1=班级 2=学科（exam1 全科）
     check(`${name} admin 学科全科可见`, subjCount >= 2, `n=${subjCount}`)
@@ -100,21 +114,20 @@ async function adminFlow(ctx, name, examName) {
     await page.waitForTimeout(1500)
     check(`${name} 建考试成功`, (await page.getByText('考试已创建').count()) > 0)
 
-    // /admin：六页签 + 模板锁
-    await page.getByRole('link', { name: '系统管理' }).click()
-    await page.waitForURL(BASE + '/admin')
-    await page.waitForSelector('.el-table__row', { timeout: 10000 })
-    check(`${name} admin 教师页加载`, (await page.locator('.el-table__row').count()) > 0)
-    const tabs = ['年级与班级', '学生', '学期', '育人指标', '报告模板']
+    // /admin：页签巡检 + 模板锁
+    await navTo(page, '/admin', '年级与班级') // 前页 /scores 也有表格行，必须等新页标记
+    await page.locator('.el-tab-pane:visible .el-table__row').first().waitFor({ timeout: 10000 })
+    const tabs = ['年级与班级', '学生', '学期', '育人指标', '报告模板', '审计日志', 'AI 用量']
     for (const t of tabs) await page.getByRole('tab', { name: t }).click()
-    await page.getByText('锁定').first().waitFor({ timeout: 10000 }) // 模板页启用行渲染完成
-    check(`${name} 模板页含锁定标记`, (await page.getByText('锁定').count()) > 0)
+    await page.getByRole('tab', { name: '报告模板' }).click() // 巡检停在 AI 用量；锁定按钮在隐藏 pane 中不可见，须切回
+    const lockBtn = page.locator('.el-tab-pane:visible').getByText('锁定')
+    await lockBtn.first().waitFor({ timeout: 10000 })
+    check(`${name} 模板页含锁定标记`, (await lockBtn.count()) > 0)
     await noHScroll(page, `${name} admin页`)
     await page.screenshot({ path: `${SHOTS}/m7-${name}-1-admin.png` })
 
     // /reports：班级/全年级切换
-    await page.getByRole('link', { name: '报告列表' }).click()
-    await page.waitForURL(BASE + '/reports')
+    await navTo(page, '/reports', '报告列表')
     await page.locator('.el-radio-button', { hasText: '全年级' }).waitFor({ timeout: 10000 })
     await page.locator('.el-radio-button', { hasText: '全年级' }).click()
     check(`${name} 年级视角出批量按钮`, (await page.getByRole('button', { name: '批量生成全年级' }).count()) === 1)
@@ -125,22 +138,24 @@ async function adminFlow(ctx, name, examName) {
   }
 }
 
-// ── wanglaoshi：任课录入成绩 + 日常评价写穿 ──
+// ── wanglaoshi：角色分流（教师→自己档案）→ 任课录入成绩 + 日常评价写穿 ──
 async function wangFlow(ctx, name, examName) {
   const page = await ctx.newPage()
   try {
     await login(page, 'wanglaoshi', 'aischool123')
-    check(`${name} 任课不见系统管理`, (await page.getByRole('link', { name: '系统管理' }).count()) === 0)
+    // 新壳角色分流：非 ADMIN 宫格「教师档案」进自己的档案页（不是 /admin）
+    await page.getByRole('button', { name: '教师档案' }).click()
+    await page.waitForURL(H('/profile'))
+    check(`${name} 任课宫格进自己档案（非系统管理）`, true)
 
     // /scores：只见语文；用 admin 建的 M7-E2E 考试录一笔
-    await page.getByRole('link', { name: '成绩管理' }).click()
-    await page.waitForURL(BASE + '/scores')
+    await navTo(page, '/scores', '成绩单（满分') // 前页档案页也有表格行，必须等新页标记
     await page.waitForSelector('.el-table__row', { timeout: 15000 }) // 成绩单就绪
     check(`${name} 任课本学科可编辑`, (await page.locator('.el-table__row .el-input-number').count()) > 0)
     // 切数学（非任课学科）→ 只读态
     await pickSelect(page, 2, '数学')
     await page.waitForTimeout(800)
-    check(`${name} 非任课学科只读`, (await page.getByText('非本班本学科任课教师，只读').count()) > 0)
+    check(`${name} 非任课学科只读`, (await page.getByText('只读（本班班主任/该学科任课教师可编辑）').count()) > 0)
     await pickSelect(page, 2, '语文') // 切回可写学科
     await page.waitForTimeout(800)
     await pickSelect(page, 0, examName)
@@ -156,10 +171,11 @@ async function wangFlow(ctx, name, examName) {
     await noHScroll(page, `${name} 成绩页`)
     await page.screenshot({ path: `${SHOTS}/m7-${name}-3-score.png` })
 
-    // /evaluate：选第一个学生 +2 提交
-    await page.getByRole('link', { name: '日常评价' }).click()
-    await page.waitForURL(BASE + '/evaluate')
-    await page.waitForSelector('.el-select', { timeout: 10000 })
+    // /evaluate：选第一个学生 +2 提交（表单主体 v-if=studentId，未选学生时只有 toolbar——
+    // 故等页面标题「日常评价」而非表单按钮）
+    await page.goto(H('/evaluate'))
+    await page.getByText('日常评价').first().waitFor({ state: 'visible', timeout: 10000 })
+    await page.waitForTimeout(500)
     await pickSelect(page, 1) // 0=班级(默认) 1=学生
     await page.waitForSelector('.el-radio-button', { timeout: 8000 })
     await page.locator('.el-radio-button', { hasText: '+2' }).click()
@@ -175,16 +191,18 @@ async function wangFlow(ctx, name, examName) {
   }
 }
 
-// ── zhaolaoshi：综评五维保存 + 成长总结 ──
+// ── zhaolaoshi：综评五维保存 + 成长总结（Vant 筛选卡/学生弹层） ──
 async function zhaoFlow(ctx, name) {
   const page = await ctx.newPage()
   try {
     await login(page, 'zhaolaoshi', 'aischool123')
 
-    // /comprehensive
-    await page.getByRole('link', { name: '综合素质' }).click()
-    await page.waitForURL(BASE + '/comprehensive')
+    // /comprehensive（「综合素质评价（五维…」在 v-if=studentId 卡片头里，未选学生不渲染；
+    // 页标题「综合素质」又与首页宫格撞名；EP select 的 placeholder 是文本节点非 input 属性——
+    // 统一等 toolbar 的 .el-select，首页无此元素无竞态）
+    await page.goto(H('/comprehensive'))
     await page.waitForSelector('.el-select', { timeout: 10000 })
+    await page.waitForTimeout(500)
     await pickSelect(page, 1) // 学生
     await page.waitForTimeout(600) // 等学生下拉关闭动画走完，避免旧 popper 干扰 :visible 匹配
     await page.waitForSelector('.el-form-item', { timeout: 8000 })
@@ -204,14 +222,15 @@ async function zhaoFlow(ctx, name) {
     await noHScroll(page, `${name} 综评页`)
     await page.screenshot({ path: `${SHOTS}/m7-${name}-5-comprehensive.png` })
 
-    // /summary
-    await page.getByRole('link', { name: '成长总结' }).click()
-    await page.waitForURL(BASE + '/summary')
-    await page.waitForSelector('.el-select', { timeout: 10000 })
-    await pickSelect(page, 1) // 学生
+    // /summary（Vant 化：筛选卡 → 学生弹层 → AI 分析 → 四块卡片）
+    await navTo(page, '/summary', '成长总结')
+    await page.locator('.van-cell', { hasText: '学生' }).first().waitFor({ timeout: 10000 })
+    await page.locator('.van-cell', { hasText: '学生' }).first().click()
+    await page.locator('.stu-row').first().waitFor({ timeout: 10000 })
+    await page.locator('.stu-row').first().click()
     await page.getByRole('button', { name: 'AI 分析该学生' }).click()
-    await page.locator('.el-card').first().waitFor({ timeout: 20000 })
-    const titles = await page.locator('.el-card .el-card__header').allInnerTexts()
+    await page.locator('.app-card.result').first().waitFor({ timeout: 30_000 })
+    const titles = await page.locator('.app-card.result .app-sec').allInnerTexts()
     check(`${name} 总结四块卡片`, titles.includes('本学期亮点') && titles.length >= 4, titles.join('/'))
     await noHScroll(page, `${name} 总结页`)
     await page.screenshot({ path: `${SHOTS}/m7-${name}-6-summary.png` })

@@ -79,7 +79,8 @@ public class MetaController {
         var user = AuthUtil.current();
         List<Long> visible = dataScopeService.visibleClassIds(user);
         List<Clazz> list = clazzMapper.selectList(new LambdaQueryWrapper<Clazz>()
-                .in(visible != null, Clazz::getId, visible != null ? visible : List.of(-1L))
+                // 空列表须转哨兵：MyBatis-Plus .in(空集合) 生成 IN () 非法 SQL（无班教师 500）
+                .in(visible != null, Clazz::getId, visible == null || visible.isEmpty() ? List.of(-1L) : visible)
                 .orderByAsc(Clazz::getId));
         return ApiResponse.ok(list.stream().map(c -> {
             Map<String, Object> m = new LinkedHashMap<>();

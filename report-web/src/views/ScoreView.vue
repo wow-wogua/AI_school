@@ -46,7 +46,7 @@
     </el-card>
     <el-empty v-else-if="loaded" description="选择考试/班级/学科后加载成绩单" />
 
-    <el-dialog v-model="examDialog" title="新建考试（管理员）" width="560px">
+    <el-dialog v-model="examDialog" title="新建考试" width="560px">
       <el-form label-width="90px">
         <el-form-item label="学期">
           <el-select v-model="newExam.termId" style="width: 100%">
@@ -151,6 +151,8 @@ async function init() {
       }
     } catch { /* 深链失效则保持默认视图 */ }
   }
+  // 无班无课教师走不到 load()：兜底置 loaded，让空态提示（而非空白）出现
+  loaded.value = true
 }
 
 async function onExamChange() {

@@ -64,7 +64,8 @@ public class FeedService {
     public List<Map<String, Object>> feed(UserPrincipal user, int limit) {
         List<Long> visible = dataScope.visibleClassIds(user);
         List<Student> students = studentMapper.selectList(new LambdaQueryWrapper<Student>()
-                .in(visible != null, Student::getClassId, visible != null ? visible : List.of(-1L)));
+                // 空列表须转哨兵：MyBatis-Plus .in(空集合) 生成 IN () 非法 SQL（无班教师 500）
+                .in(visible != null, Student::getClassId, visible == null || visible.isEmpty() ? List.of(-1L) : visible));
         Map<Long, String> classNames = clazzMapper.selectList(null).stream()
                 .collect(Collectors.toMap(Clazz::getId, Clazz::getName, (a, b) -> a));
         Map<Long, Student> stuById = students.stream()
@@ -101,7 +102,8 @@ public class FeedService {
         }
         // 微光信箱：班级可见范围内的随手拍（照片走 /api/moment/file/{id}）
         List<Moment> moments = momentMapper.selectList(new LambdaQueryWrapper<Moment>()
-                .in(visible != null, Moment::getClassId, visible != null ? visible : List.of(-1L))
+                // 空列表须转哨兵：MyBatis-Plus .in(空集合) 生成 IN () 非法 SQL（无班教师 500）
+                .in(visible != null, Moment::getClassId, visible == null || visible.isEmpty() ? List.of(-1L) : visible)
                 .orderByDesc(Moment::getCreateTime)
                 .last("LIMIT " + PER_TYPE_CAP));
         if (!moments.isEmpty()) {
@@ -141,7 +143,8 @@ public class FeedService {
     public Map<String, Object> homeSummary(UserPrincipal user) {
         List<Long> visible = dataScope.visibleClassIds(user);
         Long studentCount = studentMapper.selectCount(new LambdaQueryWrapper<Student>()
-                .in(visible != null, Student::getClassId, visible != null ? visible : List.of(-1L)));
+                // 空列表须转哨兵：MyBatis-Plus .in(空集合) 生成 IN () 非法 SQL（无班教师 500）
+                .in(visible != null, Student::getClassId, visible == null || visible.isEmpty() ? List.of(-1L) : visible));
         Term current = termMapper.selectList(new LambdaQueryWrapper<Term>()
                 .orderByDesc(Term::getIsCurrent).orderByDesc(Term::getId)).stream().findFirst().orElse(null);
         Long reportCount = 0L;

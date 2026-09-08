@@ -36,7 +36,8 @@ public class StudentController {
                 .eq(Student::getStatus, "在读")
                 .eq(classId != null, Student::getClassId, classId)
                 .like(keyword != null && !keyword.isBlank(), Student::getName, keyword)
-                .in(visible != null, Student::getClassId, visible != null ? visible : List.of(-1L))
+                // 空列表须转哨兵：MyBatis-Plus .in(空集合) 生成 IN () 非法 SQL（无班教师 500）
+                .in(visible != null, Student::getClassId, visible == null || visible.isEmpty() ? List.of(-1L) : visible)
                 .orderByAsc(Student::getStudentNo);
         Page<Student> p = studentMapper.selectPage(Page.of(page, Math.min(size, 100)), qw);
 
