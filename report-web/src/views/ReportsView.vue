@@ -44,6 +44,10 @@
             :disabled="generating !== null && generating !== row.studentId"
             @click="generateOne(row)"
           >{{ row.status === '失败' ? '重新生成' : '生成' }}</el-button>
+          <el-button v-else size="small" type="primary"
+            :loading="generating === row.studentId"
+            :disabled="generating !== null && generating !== row.studentId"
+            @click="regenerate(row)">重新生成</el-button>
           <el-button v-if="row.status === '成功'" size="small" type="primary" @click="preview(row)">预览</el-button>
           <el-button v-if="row.status === '成功'" size="small" @click="download(row)">下载</el-button>
         </template>
@@ -56,7 +60,7 @@
 import { onMounted, ref } from 'vue'
 import { motion } from 'motion-v'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, fetchBlob } from '../api/http'
 import { saveFile } from '../api/nativeShare'
 import { useAuthStore } from '../stores/auth'
@@ -128,6 +132,14 @@ async function reload() {
     const r = byStu.get(s.id)
     return { studentId: s.id, studentNo: s.studentNo, name: s.name, status: r?.status ?? '未生成', error: r?.error, reportId: r?.reportId }
   })
+}
+
+/** 成功行重新生成：确认后按最新数据再出一份（后端 INSERT 新报告行，旧版本保留，列表恒显最新） */
+async function regenerate(row: { studentId: number; name: string }) {
+  await ElMessageBox.confirm(
+    `按最新数据重新生成 ${row.name} 的报告？新增的奖项、微光、成绩都会刷新进新版本，历史版本仍保留可追溯。`,
+    '重新生成', { type: 'warning' })
+  await generateOne(row)
 }
 
 /** 单份生成：提交后轮询任务到终态（验收② 30s 内出 PDF） */

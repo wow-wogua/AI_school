@@ -52,7 +52,8 @@ public class AuthService {
         }
         loginFails.remove(username);
         lockUntil.remove(username);
-        String token = jwtService.issue(user.getId(), user.getUsername(), user.getRealName(), user.getRole());
+        boolean mustChangePwd = user.getMustChangePwd() != null && user.getMustChangePwd() == 1;
+        String token = jwtService.issue(user.getId(), user.getUsername(), user.getRealName(), user.getRole(), mustChangePwd);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("token", token);
         Map<String, Object> u = new LinkedHashMap<>();
@@ -60,12 +61,14 @@ public class AuthService {
         u.put("username", user.getUsername());
         u.put("realName", user.getRealName());
         u.put("role", user.getRole());
+        u.put("mustChangePassword", mustChangePwd);
         m.put("user", u);
         return m;
     }
 
-    /** 修改自己的密码：验证旧密码后更新（新密码至少 6 位） */
-    public void changePassword(Long userId, String oldPassword, String newPassword) {
+    /** 修改自己的密码：验证旧密码后更新（新密码至少 8 位，与管理员设密口径统一/NIST SP 800-63B）。
+     *  成功后清「待改密」标志并换发新 token（旧 token 的 mcp claim 仍为 1，自然失效于拦截）。 */
+    public String changePassword(Long userId, String oldPassword, String newPassword) {
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new BizException(404, "账号不存在");
@@ -73,11 +76,13 @@ public class AuthService {
         if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
             throw new BizException(400, "旧密码不正确");
         }
-        if (newPassword.length() < 6) {
-            throw new BizException(400, "新密码至少 6 位");
+        if (newPassword.length() < 8) {
+            throw new BizException(400, "新密码至少 8 位");
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePwd(0);
         userMapper.updateById(user);
+        return jwtService.issue(user.getId(), user.getUsername(), user.getRealName(), user.getRole(), false);
     }
 
     private void recordFail(String username) {

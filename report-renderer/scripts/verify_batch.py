@@ -1,4 +1,4 @@
-# Phase E 校验：10 份变体 PDF 全部 52 页（50 原版 + p51 成长掠影），且每页中文标题序列与 golden 渲染一致（分页一致）
+# Phase E 校验：10 份变体 PDF 全部 52 页（golden 无微光派生，含改进方向页；掠影由 qa_moments_pdf*.mjs 动态覆盖），且每页中文标题序列与 golden 渲染一致（分页一致）
 import fitz, re, pathlib
 ROOT = pathlib.Path(__file__).resolve().parents[1] / 'target'
 BASE = str(ROOT / 'report.pdf')

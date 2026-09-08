@@ -19,6 +19,7 @@ public class User {
     private String role;
     private String phone;
     private Integer status;
+    private Integer mustChangePwd;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

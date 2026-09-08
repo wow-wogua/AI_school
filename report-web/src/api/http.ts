@@ -42,6 +42,13 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
     throw httpError('未登录或登录已过期', 401)
   }
   const r = (await resp.json()) as ApiResp<T>
+  // 首登待改密（本地标志被清但 token 仍带 mcp，如多标签页场景）：补设标志并引到改密页
+  if (resp.status === 403 && r.message && r.message.includes('修改初始密码')) {
+    auth.mustChangePwd = true
+    localStorage.setItem('mustChangePwd', '1')
+    router.push('/change-password')
+    throw httpError(r.message, 403)
+  }
   if (!resp.ok || r.code !== 0) {
     ElMessage.error(r.message || `请求失败(${resp.status})`)
     throw httpError(r.message || `请求失败(${resp.status})`, resp.status)

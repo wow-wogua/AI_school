@@ -1,7 +1,7 @@
 # 数智成长 · 中学素质报告平台
 
 围绕「**采集数据 → 形成成长档案 → AI 分析 → 教师干预 → 生成成长报告**」建设的中学素质报告平台。
-教师日常录入成绩与过程性评价，系统自动聚合九维综合素质、成长时间轴、活动、荣誉与综评，AI 生成学业分析与班主任寄语，最终一键渲染 **51 页 1:1 复刻纸质模板**的《学生成长报告册》PDF（支持单生 / 班级 / 全年级批量）。
+教师日常录入成绩与过程性评价，系统自动聚合九维综合素质、成长时间轴、活动、荣誉与综评，AI 生成学业分析与班主任寄语，最终一键渲染 **52 页 1:1 复刻纸质模板**的《学生成长报告册》PDF（支持单生 / 班级 / 全年级批量）。
 
 ## 功能亮点
 
@@ -77,7 +77,7 @@ cd ../report-web && npm install && npm run dev  # 前端 5173（vite 代理 /api
 ├─ Dockerfile / docker-compose.yml / nginx.conf   # 一键容器化（apt/npm 国内镜像源）
 ├─ report-web/      # Vue3 前端（桌面 EP + 移动 Vant 双形态，含 e2e 冒烟与 qa 脚本）
 ├─ report-server/   # Spring Boot 后端（Flyway 迁移 + 审计 + 防爆破）
-├─ report-renderer/ # Playwright 渲染核心（51 页报告，golden 生成器=换校单一事实源）
+├─ report-renderer/ # Playwright 渲染核心（52 页报告，golden 生成器=换校单一事实源）
 ├─ deploy/          # schema.sql / seed.sql / backup.sh
 ├─ docs/            # 接口文档
 ├─ .github/         # CI（推送验证后端打包 + 前端构建）
@@ -95,7 +95,7 @@ cd ../report-web && npm install && npm run dev  # 前端 5173（vite 代理 /api
 
 - 服务端回归 10 脚本约 160 断言（契约零漂移 / RBAC 18 / AI 11 / 重试 / 并发 / M6 / M7 89）+ 容器自检脚本
 - 前端 E2E 冒烟 94 断言全绿（桌面 1440 + 手机 390 双档：批量生成/预览下载/荣誉证书/时间轴/综合素质等）；移动端工作台另有 qa_*.mjs 质检脚本组
-- 空库首启自动种子；批量 51 页 PDF 中文渲染无方块（含微光掠影学生 52 页）
+- 空库首启自动种子；批量 52 页 PDF 中文渲染无方块（含微光掠影学生 53 页）
 - 容器化实测：五容器 healthy、nginx:80 端到端、容器内渲染 PDF 中文无方块（2026-08-22）
 - 推送到 main 自动跑 CI（后端 mvn package + 前端 npm build）
 
@@ -109,7 +109,7 @@ cd ../report-web && npm install && npm run dev  # 前端 5173（vite 代理 /api
    ```bash
    cd report-server && PYTHONIOENCODING=utf-8 python scripts/verify_contract.py   # 渲染学生1 出 target/contract-check/agg.pdf
    cp report-server/target/contract-check/agg.pdf ../report-renderer/target/report.pdf
-   # 重跑 verify_contract.py 应双 PASS（① 聚合≡golden ② 51 页标题序列≡基线）
+   # 重跑 verify_contract.py 应双 PASS（① 聚合≡golden ② 52 页标题序列≡基线）
    ```
 6. **换校 SOP**（半天级完成一校换装，历史已验证东华→石实）：改 `report-renderer/scripts/expand_golden.py` 的 school 块（intro/九维理念六条/motto，长度同量级防溢出）→ 重跑 expand_golden.py 与 `report-server/scripts/seed_db.py` → 导库（`docker exec -i aischool-mysql mysql --default-character-set=utf8mb4 -uroot -paischool123 ai_school < deploy/seed.sql`）→ 替换 4 张静态图（`img_photo1/2.jpg` 3:2、`img_logo.png` 492×424 椭圆、`img_principal.png` 1414×2000）→ 前端 `public/` 资产与文案 → 按上条刷新契约基线。
 7. `tools/m2-repo` 不入库（本机构建加速缓存，gitignore 只留 `.gitkeep`）：克隆后首次 `docker compose build` 由阿里云镜像全量拉取 Maven 依赖，耗时较长属预期。

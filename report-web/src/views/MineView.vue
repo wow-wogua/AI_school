@@ -30,7 +30,7 @@
     <van-dialog v-model:show="pwdOpen" title="修改密码" show-cancel-button :before-close="onPwdClose">
       <div style="padding-top: 10px">
         <van-field v-model="pwd.old" type="password" label="旧密码" placeholder="当前密码" />
-        <van-field v-model="pwd.next" type="password" label="新密码" placeholder="至少 6 位" />
+        <van-field v-model="pwd.next" type="password" label="新密码" placeholder="至少 8 位" />
         <van-field v-model="pwd.again" type="password" label="确认新密码" placeholder="再输入一遍" />
       </div>
     </van-dialog>
@@ -92,10 +92,11 @@ const pwd = ref({ old: '', next: '', again: '' })
 async function onPwdClose(action: string) {
   if (action !== 'confirm') return true
   if (!pwd.value.old || !pwd.value.next) { showFailToast('请填写完整'); return false }
-  if (pwd.value.next.length < 6) { showFailToast('新密码至少 6 位'); return false }
+  if (pwd.value.next.length < 8) { showFailToast('新密码至少 8 位'); return false }
   if (pwd.value.next !== pwd.value.again) { showFailToast('两次新密码不一致'); return false }
   try {
-    await api('/api/auth/password', { method: 'PUT', json: { oldPassword: pwd.value.old, newPassword: pwd.value.next } })
+    const d = await api<{ token: string }>('/api/auth/password', { method: 'PUT', json: { oldPassword: pwd.value.old, newPassword: pwd.value.next } })
+    auth.refreshToken(d.token, true) // 换发新 token（顺带清待改密态）
     showSuccessToast('密码已修改')
     pwd.value = { old: '', next: '', again: '' }
     return true

@@ -34,11 +34,12 @@ public class AuthController {
         private String newPassword;
     }
 
-    /** 修改自己的密码（登录态） */
+    /** 修改自己的密码（登录态）：成功换发新 token（清除待改密态） */
     @PutMapping("/password")
-    public ApiResponse<Void> changePassword(@Validated @RequestBody ChangePwdReq req) {
-        authService.changePassword(AuthUtil.current().userId(), req.getOldPassword(), req.getNewPassword());
-        return ApiResponse.ok();
+    public ApiResponse<Map<String, Object>> changePassword(@Validated @RequestBody ChangePwdReq req) {
+        String token = authService.changePassword(
+                AuthUtil.current().userId(), req.getOldPassword(), req.getNewPassword());
+        return ApiResponse.ok(Map.of("token", token));
     }
 
     @PostMapping("/login")
@@ -51,6 +52,7 @@ public class AuthController {
         var user = AuthUtil.current();
         return ApiResponse.ok(Map.of(
                 "id", user.userId(), "username", user.username(),
-                "realName", user.realName(), "role", user.role()));
+                "realName", user.realName(), "role", user.role(),
+                "mustChangePassword", user.mustChangePwd()));
     }
 }

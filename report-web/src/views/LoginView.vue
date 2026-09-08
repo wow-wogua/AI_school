@@ -66,12 +66,13 @@ async function doLogin() {
   if (!form.username || !form.password) return
   loading.value = true
   try {
-    const data = await api<{ token: string; user: { realName: string; role: string } }>('/api/auth/login', {
+    const data = await api<{ token: string; user: { realName: string; role: string; mustChangePassword?: boolean } }>('/api/auth/login', {
       method: 'POST',
       json: { username: form.username, password: form.password },
     })
-    auth.set(data.token, data.user.realName, data.user.role)
-    router.push('/')
+    auth.set(data.token, data.user.realName, data.user.role, !!data.user.mustChangePassword)
+    // 管理员设密/重置/批量导入的账号：首登强制先改密
+    router.push(data.user.mustChangePassword ? '/change-password' : '/')
   } catch (e) {
     // 按 HTTP 状态区分失败原因，绝不把"密码错/限流"误报成"连不上服务器"
     // （登录接口的 401 是密码错，与"会话过期"同码不同义——登录页必须自己解释）

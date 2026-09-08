@@ -22,13 +22,14 @@ public class JwtService {
         this.expireMillis = expireHours * 3600_000L;
     }
 
-    public String issue(Long userId, String username, String realName, String role) {
+    public String issue(Long userId, String username, String realName, String role, boolean mustChangePwd) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("username", username)
                 .claim("realName", realName)
                 .claim("role", role)
+                .claim("mcp", mustChangePwd)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expireMillis))
                 .signWith(key)
@@ -43,7 +44,8 @@ public class JwtService {
             return new UserPrincipal(Long.parseLong(c.getSubject()),
                     c.get("username", String.class),
                     c.get("realName", String.class),
-                    c.get("role", String.class));
+                    c.get("role", String.class),
+                    Boolean.TRUE.equals(c.get("mcp", Boolean.class)));
         } catch (Exception e) {
             return null;
         }

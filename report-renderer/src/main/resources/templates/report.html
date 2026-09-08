@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <title>学生成长报告册</title>
 <style>
-  /* ===== 全局：A4 固定 51 页（封面+目录+49 内容页），每页 210×296.9mm，页眉页码由每页 CSS 绝对定位（JS 注入） ===== */
+  /* ===== 全局：A4 固定 52 页（封面+目录+50 内容页），每页 210×296.9mm，页眉页码由每页 CSS 绝对定位（JS 注入） ===== */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: "HarmonyOS Sans SC", Arial, sans-serif; color: #000; background: #fff; }
   .page { width: 210mm; height: 296.9mm; position: relative; overflow: hidden;
@@ -119,6 +119,7 @@
     <div class="toc-row"><span>成长银行</span><span class="dots"></span><span>44</span></div>
     <div class="toc-row"><span>我的成长象征物</span><span class="dots"></span><span>48</span></div>
     <div class="toc-row"><span>综合素质评定</span><span class="dots"></span><span>50</span></div>
+    <div class="toc-row"><span>学生改进方向</span><span class="dots"></span><span>51</span></div>
   </div>
 </div>
 
@@ -488,6 +489,61 @@
        th:text="${r.headTeacherComment}">班主任寄语</div>
 </div>
 
+<!-- ═══════════ p50 学生改进方向（规则引擎实时聚合：学业差距+九维弱项；p49 综评后、掠影/封底前） ═══════════ -->
+<div class="page z-o">
+  <div class="t16" style="top:97pt">学生改进方向</div>
+  <div class="abs" style="top:152pt;left:60.7pt;width:473.6pt">
+    <div style="font-size:12pt;font-weight:bold;color:#DC7717">学业提升空间（与班级最高分差距）</div>
+    <table style="table-layout:fixed;width:100%;background:#FFF8E7;border-collapse:collapse;margin-top:4pt">
+      <colgroup><col style="width:86pt"><col style="width:74pt"><col style="width:74pt"><col style="width:56pt"><col></colgroup>
+      <tr>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">科目</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">我的得分</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">班级最高</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">差距</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">努力建议</th>
+      </tr>
+      <tr th:each="s : ${r.improvement.subjects}">
+        <td th:text="${s.name}" style="border:1pt solid #F5D9A8;color:#1A1A1A;font-size:9pt;padding:9pt 2pt;text-align:center">道德与法治</td>
+        <td th:text="${s.score}" style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:9pt 2pt;text-align:center">74</td>
+        <td th:text="${s.classMax}" style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:9pt 2pt;text-align:center">88</td>
+        <td th:text="${s.gap}" style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:9pt 2pt;text-align:center">14</td>
+        <td th:text="${s.suggestion}" style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:9pt 6pt;text-align:left">专项巩固：固定复习时段，主动请教任课老师</td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(r.improvement.subjects)}">
+        <td colspan="5" style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:14pt 2pt;text-align:center">各科与班级最高分差距微小，学业均衡发展，继续保持</td>
+      </tr>
+    </table>
+  </div>
+  <div class="abs" style="top:340pt;left:60.7pt;width:473.6pt">
+    <div style="font-size:12pt;font-weight:bold;color:#DC7717">综合素质弱项（与班级人均差距）</div>
+    <table style="table-layout:fixed;width:100%;background:#FFF8E7;border-collapse:collapse;margin-top:4pt">
+      <colgroup><col style="width:86pt"><col style="width:74pt"><col style="width:74pt"><col style="width:56pt"><col></colgroup>
+      <tr>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">维度</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">我的得分</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">班级人均</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">差距</th>
+        <th style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:1pt 2pt;text-align:center">努力建议</th>
+      </tr>
+      <tr th:each="g : ${r.improvement.grids}">
+        <td th:text="${g.name}" style="border:1pt solid #F5D9A8;color:#1A1A1A;font-size:9pt;padding:9pt 2pt;text-align:center">实践创新</td>
+        <td th:text="${g.mine}" style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:9pt 2pt;text-align:center">7</td>
+        <td th:text="${g.classAvg}" style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:9pt 2pt;text-align:center">24</td>
+        <td th:text="${g.gap}" style="border:1pt solid #F5D9A8;color:#DC7717;font-size:9pt;padding:9pt 2pt;text-align:center">17</td>
+        <td th:text="${g.suggestion}" style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:9pt 6pt;text-align:left">新学期主动争取该维度的表现与活动机会</td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(r.improvement.grids)}">
+        <td colspan="5" style="border:1pt solid #F5D9A8;color:#6A747E;font-size:9pt;padding:14pt 2pt;text-align:center">九维得分均不低于班级人均，全面发展态势良好</td>
+      </tr>
+    </table>
+  </div>
+  <div class="abs" style="top:600pt;left:60.7pt;width:473.6pt;font-size:9pt;color:#6A747E;line-height:16pt">
+    本版块由系统依据本学期数据自动生成：学业取与班级最高分差距最大的 3 个学科，综合素质取低于班级人均幅度最大的
+    2 个维度；建议文字为规则模板，供学生新学期规划与家校沟通参考。
+  </div>
+</div>
+
 <!-- ═══════════ p51 成长掠影（微光信箱随手拍，可选页：无记录整页跳过、不占页码契约） ═══════════ -->
 <div class="page z-o" th:if="${!#lists.isEmpty(r.moments)}">
   <div class="t16" style="top:97pt">成长掠影</div>
@@ -508,7 +564,7 @@
   </div>
 </div>
 
-<!-- ═══════════ p50 封底 ═══════════ -->
+<!-- ═══════════ p52 封底 ═══════════ -->
 <div class="page z-o nohdr nonum" style="background:linear-gradient(180deg,#1E7FA8 0%,#35B6C9 100%)"></div>
 <script th:utext="${echartsJs}"></script>
 <script th:inline="javascript">

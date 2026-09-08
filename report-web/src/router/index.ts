@@ -13,6 +13,8 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: '/login', component: () => import('../views/LoginView.vue'), meta: { layout: 'bare' } },
+    // 首登强制改密页（管理员设密/重置/批量导入初始密码后；改完才放行业务）
+    { path: '/change-password', component: () => import('../views/ChangePasswordView.vue'), meta: { layout: 'bare' } },
     // 底部 Tab 一级页
     { path: '/', component: () => import('../views/HomeView.vue'), meta: { layout: 'tab', tab: 'home' } },
     { path: '/class', component: () => import('../views/ClassView.vue'), meta: { layout: 'tab', tab: 'class' } },
@@ -46,7 +48,11 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  if (to.path !== '/login' && !auth.token) return '/login'
+  if (to.path !== '/login' && to.path !== '/change-password' && !auth.token) return '/login'
+  // 首登强制改密：未改密前一切页面都拦到改密页（改密页/登录页除外）
+  if (auth.mustChangePwd && to.path !== '/change-password' && to.path !== '/login') {
+    return '/change-password'
+  }
 })
 
 export default router

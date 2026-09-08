@@ -19,6 +19,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -57,7 +58,7 @@ public class AdminUserController {
     private final ExcelTeacherHelper excelTeacher;
     private final PasswordEncoder passwordEncoder;
 
-    /** 批量导入的统一初始密码（导入后教师可登录 App 自行修改） */
+    /** 批量导入的统一初始密码（导入后教师首登强制改密） */
     public static final String INITIAL_PASSWORD = "Shishi@2026";
 
     private static final List<String> ROLES = List.of("ADMIN", "HEAD_TEACHER", "TEACHER");
@@ -73,6 +74,7 @@ public class AdminUserController {
         @NotBlank(message = "username 不能为空")
         private String username;
         @NotBlank(message = "password 不能为空")
+        @Size(min = 8, message = "password 至少 8 位")
         private String password;
         @NotBlank(message = "realName 不能为空")
         private String realName;
@@ -91,6 +93,7 @@ public class AdminUserController {
     @Data
     public static class PasswordReq {
         @NotBlank(message = "password 不能为空")
+        @Size(min = 8, message = "password 至少 8 位")
         private String password;
     }
 
@@ -154,6 +157,7 @@ public class AdminUserController {
         u.setRole(req.getRole());
         u.setPhone(req.getPhone());
         u.setStatus(1);
+        u.setMustChangePwd(1); // 管理员设的密码非本人自设：首登强制改密
         userMapper.insert(u);
         return ApiResponse.ok(Map.of("userId", u.getId()));
     }
@@ -231,6 +235,7 @@ public class AdminUserController {
             u.setRole(roleMap.get(r.role()));
             u.setPhone(r.phone().isBlank() ? null : r.phone());
             u.setStatus(1);
+            u.setMustChangePwd(1); // 统一初始密码：首登强制改密
             userMapper.insert(u);
             boolean anyProfileField = !r.employeeNo().isBlank() || !r.gender().isBlank()
                     || !r.subjectName().isBlank() || !r.title().isBlank() || !r.duty().isBlank()
@@ -318,7 +323,7 @@ public class AdminUserController {
         return ApiResponse.ok();
     }
 
-    /** 重置密码 */
+    /** 重置密码（重置后该账号下次登录强制改密） */
     @PutMapping("/user/{id}/password")
     public ApiResponse<Void> resetPassword(@PathVariable Long id, @Validated @RequestBody PasswordReq req) {
         checkAdmin();
@@ -327,7 +332,8 @@ public class AdminUserController {
         }
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, id)
-                .set(User::getPasswordHash, passwordEncoder.encode(req.getPassword())));
+                .set(User::getPasswordHash, passwordEncoder.encode(req.getPassword()))
+                .set(User::getMustChangePwd, 1));
         return ApiResponse.ok();
     }
 

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""按 docs/CONTINUE_PROMPT.md「数据契约差距清单」生成 golden_student.json（52 页样例 1:1 数据面）。
+"""按 docs/CONTINUE_PROMPT.md「数据契约差距清单」生成 golden_student.json（原版 52 页样例 1:1 数据面）。
 
 所有文案/统计数字/记录卡抄自 target/sample_typography.txt 的样例真值；
 图表轴 (min/max/step) 取自样例刻度，随数据下发以便模板固定复刻坐标轴。
 确定性生成，可重复运行；勿手改 JSON，改这里。
+（改进方向批次起：+1「学生改进方向」页 → 无微光基线 52 页 / 含微光 53 页；improvement 块同 ReportDataBuilder 口径）
 """
 import json
 
@@ -175,6 +176,42 @@ HOMEWORK_ROWS = [
 ]
 
 
+def subject_suggestion(gap):
+    """学业建议档位（与 ReportDataBuilder.subjectSuggestion 同文案）"""
+    if gap >= 20:
+        return '重点补强：错题整理+每周专项练习'
+    if gap >= 10:
+        return '专项巩固：固定复习时段，主动请教任课老师'
+    return '保持节奏：加强薄弱知识点练习'
+
+
+GRID_SUGGESTION = '新学期主动争取该维度的表现与活动机会'
+
+
+def build_improvement():
+    """学生改进方向页数据（与 ReportDataBuilder.buildImprovement 同口径）：
+    学业=与班级最高分差距>0 降序前3（平分按学科序）；九维=低于班级人均差距降序前2。"""
+    subj_rows = []
+    for i, (name, score, cmax, _gmax, _motto, _ph, _pos, _neg, _pw, _hi) in enumerate(SUBJECTS):
+        gap = round(cmax - score, 6)
+        if gap > 0:
+            subj_rows.append((i, name, score, cmax, gap))
+    subj_rows.sort(key=lambda r: (-r[4], r[0]))
+    subjects = [{'name': n, 'score': s, 'classMax': c, 'gap': g,
+                 'suggestion': subject_suggestion(g)} for _i, n, s, c, g in subj_rows[:3]]
+
+    grid_rows = []
+    for gi, (name, _stats, cur, _prev, _wk, _recs) in enumerate(GRIDS):
+        mine, class_avg = cur[0], cur[1]
+        gap = round(class_avg - mine, 6)
+        if gap > 0:
+            grid_rows.append((gi, name, mine, class_avg, gap))
+    grid_rows.sort(key=lambda r: (-r[4], r[0]))
+    grids = [{'name': n, 'mine': m, 'classAvg': c, 'gap': g,
+              'suggestion': GRID_SUGGESTION} for _gi, n, m, c, g in grid_rows[:2]]
+    return {'subjects': subjects, 'grids': grids}
+
+
 def build_subject_pages():
     pages = []
     for i, (name, score, cmax, gmax, motto, ph, pos, neg, pwmax, hi) in enumerate(SUBJECTS):
@@ -310,12 +347,13 @@ def main():
             ],
             'finalLevel': 'A',
         },
+        'improvement': build_improvement(),
         'headTeacherComment': '“百舸争流，奋楫者先；中流击水，勇进者胜。” 小华，你聪明上进，是老师心目中的好学生。'
                               '学习上，你自觉性很高，总能超前预习，所以学习时毫不费劲。这学期，你的成绩也有了很大的进步。'
                               '作为值日班长，本学期在班级管理上有些松懈，老师希望你在班级工作上能够更加用心一点，'
                               '做老师的得力助手。加油！',
         # 微光掠影不进 golden：种子无 t_moment（MinIO 照片也无法随种子复现），
-        # golden 只钉「无微光基线」保证新栈可复现；有微光的 52 页变体由
+        # golden 只钉「无微光基线」保证新栈可复现；有微光的 53 页变体由
         # report-web/scripts/qa_moments_pdf*.mjs 动态覆盖。勿再手改 JSON 加 moments。
         'moments': [],
     }
@@ -331,8 +369,10 @@ def main():
         s = sum(int(r['score']) for r in g['records'])
         assert s == g['points'], '%s 记录和 %d != 积分 %d' % (g['name'], s, g['points'])
     assert (len(build_subject_pages()) == 11)
-    print('grids=%d records=%d subjectPages=%d pages=%d' % (
+    imp = build_improvement()
+    print('grids=%d records=%d subjectPages=%d improvementSubj=%d improvementGrids=%d pages=%d' % (
         len(grids), sum(len(g['records']) for g in grids), 11,
+        len(imp['subjects']), len(imp['grids']),
         21 + sum(1 + g['recordPageCount'] for g in grids)))
 
 

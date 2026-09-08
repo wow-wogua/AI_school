@@ -107,6 +107,7 @@ public class ReportDataBuilder {
         data.put("coin", buildCoin(student, term, sections));
         data.put("growthSymbol", buildGrowthSymbol(student, term));
         data.put("comprehensive", buildComprehensive(student, term));
+        data.put("improvement", buildImprovement(student, term, clazz));
         data.put("headTeacherComment", buildHeadTeacherComment(student, term));
         data.put("moments", buildMoments(student, term));
         return data;
@@ -735,6 +736,89 @@ public class ReportDataBuilder {
         m.put("name", name);
         m.put("level", level);
         return m;
+    }
+
+    // ───────────────── improvement（学生改进方向页：规则引擎实时聚合，口径同 expand_golden.py） ─────────────────
+
+    /** 学业提升空间：与班级最高分差距>0 的学科，差距降序前 3（平分按学科序）；
+     *  九维弱项：低于班级人均的维度，差距降序前 2。均为确定性规则产物（无 AI），供新学期规划参考。 */
+    private Map<String, Object> buildImprovement(Student student, Term term, Clazz clazz) {
+        Exam exam = latestExam(term.getId());
+        Map<Long, Subject> subjects = allSubjects();
+        List<Score> scores = exam != null ? scoreMapper.selectList(new LambdaQueryWrapper<Score>()
+                .eq(Score::getExamId, exam.getId()).eq(Score::getStudentId, student.getId())) : List.of();
+        Map<Long, ExamSubject> examSubject = exam != null ? examSubjectMapper.selectList(
+                        new LambdaQueryWrapper<ExamSubject>().eq(ExamSubject::getExamId, exam.getId())).stream()
+                .collect(Collectors.toMap(ExamSubject::getSubjectId, es -> es)) : Map.of();
+
+        record WeakSubject(int subjectSort, String name, BigDecimal score, BigDecimal classMax, BigDecimal gap) {}
+        List<WeakSubject> weakSubjects = new ArrayList<>();
+        for (Score sc : scores) {
+            Subject s = subjects.get(sc.getSubjectId());
+            ExamSubject es = examSubject.get(sc.getSubjectId());
+            if (s == null || es == null || es.getClassMax() == null) {
+                continue;
+            }
+            BigDecimal gap = es.getClassMax().subtract(sc.getScore());
+            if (gap.signum() > 0) {
+                weakSubjects.add(new WeakSubject(s.getSort() == null ? 99 : s.getSort(),
+                        s.getName(), sc.getScore(), es.getClassMax(), gap));
+            }
+        }
+        weakSubjects.sort(Comparator.comparing(WeakSubject::gap).reversed()
+                .thenComparing(WeakSubject::subjectSort));
+        List<Map<String, Object>> subjectRows = weakSubjects.stream().limit(3).map(x -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("name", x.name());
+            row.put("score", Num.of(x.score()));
+            row.put("classMax", Num.of(x.classMax()));
+            row.put("gap", Num.of(x.gap()));
+            row.put("suggestion", subjectSuggestion(x.gap()));
+            return row;
+        }).toList();
+
+        Map<Long, GridStatTerm> cur = gridStatTerm(student.getId(), term.getId());
+        Map<Long, BigDecimal> classAvg = gridAvg(classGridAvgMapper, clazz.getId(), term.getId());
+        record WeakGrid(int gridSort, String name, BigDecimal mine, BigDecimal avg, BigDecimal gap) {}
+        List<WeakGrid> weakGrids = new ArrayList<>();
+        for (Grid g : orderedGrids()) {
+            GridStatTerm st = cur.get(g.getId());
+            BigDecimal avg = classAvg.get(g.getId());
+            if (st == null || avg == null) {
+                continue;
+            }
+            BigDecimal gap = avg.subtract(st.getScore());
+            if (gap.signum() > 0) {
+                weakGrids.add(new WeakGrid(g.getSort() == null ? 99 : g.getSort(),
+                        g.getName(), st.getScore(), avg, gap));
+            }
+        }
+        weakGrids.sort(Comparator.comparing(WeakGrid::gap).reversed().thenComparing(WeakGrid::gridSort));
+        List<Map<String, Object>> gridRows = weakGrids.stream().limit(2).map(x -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("name", x.name());
+            row.put("mine", Num.of(x.mine()));
+            row.put("classAvg", Num.of(x.avg()));
+            row.put("gap", Num.of(x.gap()));
+            row.put("suggestion", "新学期主动争取该维度的表现与活动机会");
+            return row;
+        }).toList();
+
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("subjects", subjectRows);
+        m.put("grids", gridRows);
+        return m;
+    }
+
+    /** 学业建议档位（与 expand_golden.py 同文案）：≥20 重点补强 / ≥10 专项巩固 / 其余保持节奏 */
+    private String subjectSuggestion(BigDecimal gap) {
+        if (gap.compareTo(BigDecimal.valueOf(20)) >= 0) {
+            return "重点补强：错题整理+每周专项练习";
+        }
+        if (gap.compareTo(BigDecimal.valueOf(10)) >= 0) {
+            return "专项巩固：固定复习时段，主动请教任课老师";
+        }
+        return "保持节奏：加强薄弱知识点练习";
     }
 
     private String buildHeadTeacherComment(Student student, Term term) {
