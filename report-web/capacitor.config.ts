@@ -4,11 +4,20 @@ import type { CapacitorConfig } from '@capacitor/cli'
  * App 壳配置：webDir 指向 vite 构建产物；打包时可用环境变量注入默认服务器地址：
  *   cross-env VITE_API_BASE=http://ip:端口 npm run build   （Windows 本机打包建议装 cross-env）
  * App 内 API 地址运行时可在「登录页/我的页 · 服务器地址」修改（存 localStorage）。
+ *
+ * 在线升级模式：打包脚本（local/build_apk.sh）同时注入 CAP_SERVER_URL 时，WebView 直接
+ * 加载服务器上的前端页面——前端改动=服务器重建 web 容器即对 App 全量生效，老师无需重装 APK
+ * （v1.0.14 起启用）。不注入（本地 dev 联调）则保持本地资源模式。
  */
+const serverUrl = process.env.CAP_SERVER_URL
+
 const config: CapacitorConfig = {
   appId: 'com.shishi.growth',
   appName: '数智成长',
   webDir: 'dist',
+  // 页面与 API 同源（http://服务器），比「本地 https 壳发 http 请求」更干净，
+  // CORS/混合内容问题一并消失；usesCleartextTraffic 明文闸此前已开。
+  ...(serverUrl ? { server: { url: serverUrl } } : {}),
   android: {
     // 界面跑在 https://localhost（Capacitor 默认），而后端是 http://IP:端口（明文）——
     // 「https 页面发 http 请求」属混合内容，WebView 默认直接拦截（请求根本发不出，
