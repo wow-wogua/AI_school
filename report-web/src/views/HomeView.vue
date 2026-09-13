@@ -1,5 +1,6 @@
 <template>
   <div class="app-page home">
+    <van-pull-refresh v-model="refreshing" @refresh="reload" success-text="已刷新">
     <!-- 头区（图1）：顶部校园照片带 + 问候 + 铃铛/头像，渐变下垫虚化校园底图 -->
     <div class="app-hero hero">
       <img class="hero-photo" src="/campus-bg.jpg" alt="石实实验学校">
@@ -38,7 +39,8 @@
     <!-- 最近动态（图2 卡片样式缩略，查看全部 → 成长记录流） -->
     <div class="app-sec">最近动态<RouterLink class="more" to="/feed">查看全部 ›</RouterLink></div>
     <div class="app-card tex-c feed">
-      <div v-if="!feed.length" class="feed-empty">还没有动态，去记一条学生表现吧</div>
+      <van-skeleton v-if="!loaded" :row="6" class="feed-skeleton" />
+      <div v-else-if="!feed.length" class="feed-empty">还没有动态，去记一条学生表现吧</div>
       <div v-for="(f, i) in feed" :key="i" class="feed-item"
         @click="f.studentId && $router.push(`/student/${f.studentId}`)">
         <div class="f-line1">
@@ -55,6 +57,7 @@
 
     <CampusSkyline />
     <p class="app-foot">石实实验学校 · 数智成长</p>
+    </van-pull-refresh>
   </div>
 </template>
 
@@ -79,6 +82,8 @@ interface FeedItem {
 
 const summary = ref<{ studentCount: number; reportCount: number; termName: string }>({} as never)
 const feed = ref<FeedItem[]>([])
+const refreshing = ref(false)
+const loaded = ref(false)
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -117,11 +122,21 @@ function chipLabel(f: FeedItem) {
   return '日常表现'
 }
 
-onMounted(async () => {
-  api<{ studentCount: number; reportCount: number; termName: string }>('/api/feed/home-summary')
-    .then((d) => (summary.value = d)).catch(() => {})
-  api<FeedItem[]>('/api/feed?limit=5').then((d) => (feed.value = d)).catch(() => {})
-})
+async function loadAll() {
+  await Promise.allSettled([
+    api<{ studentCount: number; reportCount: number; termName: string }>('/api/feed/home-summary')
+      .then((d) => (summary.value = d)).catch(() => {}),
+    api<FeedItem[]>('/api/feed?limit=5').then((d) => (feed.value = d)).catch(() => {}),
+  ])
+  loaded.value = true
+}
+
+/** 下拉刷新：重拉首页数据（统计卡 + 最近动态） */
+async function reload() {
+  try { await loadAll() } finally { refreshing.value = false }
+}
+
+onMounted(loadAll)
 </script>
 
 <style scoped>
@@ -161,6 +176,7 @@ onMounted(async () => {
 
 /* 最近动态 */
 .feed { padding: 4px 14px; }
+.feed-skeleton { padding: 14px 0; }
 .feed-empty { padding: 26px 0; text-align: center; color: var(--app-text-3); font-size: 13px; }
 .feed-item { padding: 12px 0; }
 .feed-item + .feed-item { border-top: 1px solid var(--app-card-border); }

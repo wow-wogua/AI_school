@@ -1,5 +1,6 @@
 <template>
   <div class="app-page mlist" :class="{ tall: filtered.length }">
+    <van-pull-refresh v-model="refreshing" @refresh="reload" success-text="已刷新">
     <!-- 班级行 + 标签筛选 -->
     <div class="app-card tl gold tex-d top">
       <van-cell title="班级" is-link :value="curClassName || '选择班级'" @click="clsOpen = true" />
@@ -31,23 +32,25 @@
       </van-button>
     </div>
 
-    <!-- 吸底拍照钮 -->
-    <button v-if="filtered.length" class="fab-cam" type="button" @click="goCam">
-      <van-icon name="photograph" /> 再拍一条
-    </button>
-
     <van-popup v-model:show="clsOpen" position="bottom" round>
       <van-picker title="选择班级" :columns="clsColumns" @confirm="onCls" @cancel="clsOpen = false" />
     </van-popup>
+    </van-pull-refresh>
+
+    <!-- 吸底拍照钮（fixed 定位须在 pull-refresh 外：track 的 transform 会牵动 fixed 元素） -->
+    <button v-if="filtered.length" class="fab-cam" type="button" @click="goCam">
+      <van-icon name="photograph" /> 再拍一条
+    </button>
+    <PhotoPreview ref="photoPreview" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { showImagePreview } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/http'
 import MomentPhoto from '../components/MomentPhoto.vue'
+import PhotoPreview from '../components/PhotoPreview.vue'
 
 const SCENE_TAGS = ['课堂专注', '作业优秀', '劳动实践', '艺术风采', '运动健将', '助人为乐', '文明礼仪', '进步之星']
 
@@ -65,6 +68,8 @@ const moments = ref<MomentItem[]>([])
 const tag = ref('')
 const loading = ref(true)
 const clsOpen = ref(false)
+const refreshing = ref(false)
+const photoPreview = ref<InstanceType<typeof PhotoPreview>>()
 
 const tags = computed(() => SCENE_TAGS.filter((t) => moments.value.some((m) => m.sceneTag === t)))
 const curClassName = computed(() => classes.value.find((c) => c.id === classId.value)?.name)
@@ -109,7 +114,12 @@ function goStudent(m: MomentItem) {
 async function preview(m: MomentItem) {
   // 取已渲染的 objectURL（MomentPhoto 组件负责带鉴权拉取）
   const el = document.querySelector<HTMLElement>(`.cell[data-id="${m.id}"] img`)
-  if (el?.src) showImagePreview({ images: [el.src] })
+  if (el?.src) photoPreview.value?.open([el.src])
+}
+
+/** 下拉刷新：重拉当前班级微光 */
+async function reload() {
+  try { await load() } finally { refreshing.value = false }
 }
 
 function goCam() {

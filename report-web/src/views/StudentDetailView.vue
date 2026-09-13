@@ -28,11 +28,12 @@
       <div class="app-sec" style="margin: 0 0 10px">TA的闪光时刻<span class="mo-cnt">{{ moments.length }}</span></div>
       <div class="mo-grid">
         <div v-for="m in moments" :key="m.id" class="mo-item">
-          <MomentPhoto :url="m.photoUrl" @tap="(src) => showImagePreview({ images: [src] })" />
+          <MomentPhoto :url="m.photoUrl" @tap="previewMoments" />
           <span class="mo-tag">{{ m.sceneTag }}</span>
         </div>
       </div>
     </div>
+    <PhotoPreview ref="photoPreview" />
 
     <!-- 基本信息卡（学籍卡风格） -->
     <div class="app-card tl tex-e info">
@@ -48,9 +49,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showImagePreview } from 'vant'
 import { api } from '../api/http'
 import MomentPhoto from '../components/MomentPhoto.vue'
+import PhotoPreview from '../components/PhotoPreview.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -60,6 +61,14 @@ const stu = ref<Stu>({})
 const className = ref('')
 const termId = ref<number>()
 const moments = ref<{ id: number; photoUrl: string; sceneTag: string }[]>([])
+const photoPreview = ref<InstanceType<typeof PhotoPreview>>()
+
+/** 闪光时刻全屏预览：收集整墙已加载照片，可左右滑动，当前张定位 */
+function previewMoments(cur: string) {
+  const all = [...document.querySelectorAll<HTMLElement>('.mo-item img')]
+    .map((i) => i.src).filter(Boolean)
+  photoPreview.value?.open(all.length ? all : [cur], Math.max(0, all.indexOf(cur)))
+}
 
 /* 入口配色（图4）：每格一色的实心圆角方底 + 白图标；noPre=目标页无按学生看数据的形态 */
 const entries = [

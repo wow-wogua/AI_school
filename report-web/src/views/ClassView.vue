@@ -1,5 +1,6 @@
 <template>
   <div class="app-page classview">
+    <van-pull-refresh v-model="refreshing" @refresh="reload" success-text="已刷新">
     <!-- 头区（图4）：标题 + 校园全景照片带 + 班级切换 -->
     <div class="app-hero hero">
       <div class="hero-row">
@@ -34,7 +35,7 @@
       </div>
       <div v-if="moments.length" class="mo-row">
         <div v-for="m in moments" :key="m.id" class="mo-card">
-          <MomentPhoto :url="m.photoUrl" @tap="(src) => showImagePreview({ images: [src] })" />
+          <MomentPhoto :url="m.photoUrl" @tap="(src) => photoPreview?.open([src])" />
           <span class="mo-tag">{{ m.sceneTag }}</span>
         </div>
       </div>
@@ -58,7 +59,10 @@
         <van-icon class="stu-arrow" name="arrow" />
       </div>
     </div>
-    <div v-else-if="!loading" class="app-card list">
+    <div v-else-if="loading" class="app-card list">
+      <van-skeleton v-for="i in 6" :key="i" :row="1" title class="stu-skeleton" />
+    </div>
+    <div v-else class="app-card list">
       <van-empty image-size="88" :description="keyword ? '没有找到该学生' : '本班暂无在读学生'" />
     </div>
 
@@ -70,15 +74,17 @@
     <van-popup v-model:show="pickOpen" position="bottom" round>
       <van-picker title="选择班级" :columns="classColumns" @confirm="onPick" @cancel="pickOpen = false" />
     </van-popup>
+    </van-pull-refresh>
+    <PhotoPreview ref="photoPreview" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { showImagePreview } from 'vant'
 import { api } from '../api/http'
 import MomentPhoto from '../components/MomentPhoto.vue'
 import CampusSkyline from '../components/CampusSkyline.vue'
+import PhotoPreview from '../components/PhotoPreview.vue'
 
 interface Cls { id: number; name: string }
 interface Stu { id: number; name: string; studentNo?: string; gender?: string }
@@ -92,6 +98,8 @@ const total = ref(0)
 const keyword = ref('')
 const loading = ref(true)
 const pickOpen = ref(false)
+const refreshing = ref(false)
+const photoPreview = ref<InstanceType<typeof PhotoPreview>>()
 
 const curClassName = computed(() => classes.value.find((c) => c.id === classId.value)?.name ?? '选择班级')
 const classColumns = computed(() => classes.value.map((c) => ({ text: c.name, value: c.id })))
@@ -137,6 +145,15 @@ async function load() {
   }
 }
 
+/** 下拉刷新：重拉学生列表 + 本周微光 */
+async function reload() {
+  try {
+    await Promise.allSettled([load(), loadMoments()])
+  } finally {
+    refreshing.value = false
+  }
+}
+
 onMounted(async () => {
   classes.value = await api<Cls[]>('/api/meta/my-classes')
   classId.value = classes.value[0]?.id
@@ -147,6 +164,8 @@ onMounted(async () => {
 
 <style scoped>
 .list { margin-top: 12px; }   /* 与上方微光卡留出间隙（其余页面 .cells 同为 12px） */
+.stu-skeleton { padding: 8px 0; }
+.stu-skeleton + .stu-skeleton { border-top: 1px solid var(--app-card-border); }
 .hero-row { display: flex; align-items: flex-start; justify-content: space-between; }
 .hero .hero-photo { height: 72px; }   /* 列表页用矮照片带，给学生列表让空间 */
 .hero h1 { margin: 4px 0 2px; font-size: 21px; font-weight: 800; }

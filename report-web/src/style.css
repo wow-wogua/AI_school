@@ -256,6 +256,9 @@ body {
   --van-cell-background: transparent;
 }
 
+/* 下拉刷新：内容不足一屏（空列表/短页）时 track 高度塌陷会拉不动——保住整页高 */
+.van-pull-refresh__track { min-height: 100vh; }
+
 /* App 页面骨架：手机全宽；平板/横屏 ≥600px 限宽居中（适配平板等安卓设备） */
 .app-page { min-height: 100%; padding: 0 14px calc(16px + var(--sab)); }
 @media (min-width: 600px) { .app-page { max-width: 720px; margin: 0 auto; } }

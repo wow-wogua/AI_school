@@ -1,5 +1,6 @@
 <template>
   <div class="app-page feedview">
+    <van-pull-refresh v-model="refreshing" @refresh="reload" success-text="已刷新">
     <!-- 头区（图2） -->
     <div class="app-hero hero">
       <h1>成长记录</h1>
@@ -13,7 +14,12 @@
     </div>
 
     <!-- 卡片流（图2 样式） -->
-    <div v-if="filtered.length" class="cards">
+    <div v-if="!loaded" class="cards">
+      <div v-for="i in 2" :key="i" class="app-card tex-c card">
+        <van-skeleton title :row="3" class="card-skeleton" />
+      </div>
+    </div>
+    <div v-else-if="filtered.length" class="cards">
       <div v-for="(f, i) in filtered" :key="i" class="app-card tex-c card"
         @click="f.studentId && $router.push(`/student/${f.studentId}`)">
         <div class="c-head">
@@ -23,7 +29,7 @@
         <p class="c-meta">{{ f.className || '全校' }}<template v-if="f.typeLabel"> · {{ f.typeLabel }}</template></p>
         <p class="c-body">{{ f.content || f.title }}</p>
         <div v-if="f.photoUrl" class="c-photo">
-          <MomentPhoto :url="f.photoUrl" @tap="(src) => showImagePreview({ images: [src] })" />
+          <MomentPhoto :url="f.photoUrl" @tap="(src) => photoPreview?.open([src])" />
         </div>
         <div class="c-foot">
           <span class="c-date">{{ fullTime(f.time) }}</span>
@@ -36,15 +42,17 @@
     </div>
 
     <p class="app-foot">石实实验学校 · 数智成长</p>
+    </van-pull-refresh>
+    <PhotoPreview ref="photoPreview" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { showImagePreview } from 'vant'
 import { api } from '../api/http'
 import { fullTime } from '../utils/fmt'
 import MomentPhoto from '../components/MomentPhoto.vue'
+import PhotoPreview from '../components/PhotoPreview.vue'
 
 interface FeedItem {
   type: string; title?: string; content?: string; teacherName?: string; time?: string
@@ -54,6 +62,9 @@ interface FeedItem {
 
 const feed = ref<FeedItem[]>([])
 const cat = ref('全部')
+const refreshing = ref(false)
+const loaded = ref(false)
+const photoPreview = ref<InstanceType<typeof PhotoPreview>>()
 const cats = [
   { k: '全部', label: '全部' },
   { k: '微光', label: '微光' },
@@ -82,9 +93,19 @@ function chipLabel(f: FeedItem) {
   return '日常表现'
 }
 
-onMounted(() => {
-  api<FeedItem[]>('/api/feed?limit=50').then((d) => (feed.value = d)).catch(() => {})
-})
+async function load() {
+  try {
+    feed.value = await api<FeedItem[]>('/api/feed?limit=50')
+  } catch { /* 空态兜底 */ }
+  loaded.value = true
+}
+
+/** 下拉刷新：重拉成长记录流 */
+async function reload() {
+  try { await load() } finally { refreshing.value = false }
+}
+
+onMounted(load)
 </script>
 
 <style scoped>
@@ -101,6 +122,7 @@ onMounted(() => {
 
 .cards { display: flex; flex-direction: column; gap: 12px; }
 .card { cursor: default; }
+.card-skeleton { padding: 6px 0; }
 .card:hover { box-shadow: var(--app-shadow-float); }
 .c-head { display: flex; align-items: center; gap: 8px; }
 .c-title { flex: 1; font-size: 15px; font-weight: 700; color: var(--app-text-1);
