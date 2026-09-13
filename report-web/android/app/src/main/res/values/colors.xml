@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 启动屏品牌底色：与前端 CSS 变量 app-blue-deep(#1B2E6B) 一致 -->
-    <color name="splashBg">#1B2E6B</color>
+    <!-- 启动屏底色（Android 12+ 单色背景）：取品牌渐变中段，与图标渐变连贯 -->
+    <color name="splashBg">#1E3A8A</color>
 </resources>
