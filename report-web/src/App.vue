@@ -40,6 +40,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { MotionConfig } from 'motion-v'
 import { useAuthStore } from './stores/auth'
 import { useAiTasksStore } from './stores/aiTasks'
+import { checkForUpdate } from './utils/appUpdate'
 import AppTabbar from './components/AppTabbar.vue'
 
 const auth = useAuthStore()
@@ -56,8 +57,16 @@ function goBack() {
   else router.push('/')
 }
 
-/* AI 任务轮询随登录态启停（登录即恢复展示后台跑的任务，退出即停并清空） */
-watch(() => auth.token, (t) => (t ? aiTasks.start() : aiTasks.stop()), { immediate: true })
+/* AI 任务轮询随登录态启停（登录即恢复展示后台跑的任务，退出即停并清空）；
+   登录后顺带检测 App 更新（有新版本弹窗提示，见 utils/appUpdate.ts） */
+watch(() => auth.token, (t) => {
+  if (t) {
+    aiTasks.start()
+    checkForUpdate().catch(() => { /* 静默：更新检测失败不打扰 */ })
+  } else {
+    aiTasks.stop()
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>

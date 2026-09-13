@@ -21,6 +21,7 @@
 
     <div class="app-card tex-e cells">
       <van-cell title="修改密码" icon="lock" is-link @click="pwdOpen = true" />
+      <van-cell title="检查更新" icon="upgrade" is-link :value="appVersion" @click="onCheckUpdate" />
       <van-cell title="服务器地址" icon="desktop-o" is-link :value="srvBase || '默认'" @click="srvOpen = true" />
       <van-cell title="关于" icon="info-o" is-link @click="aboutOpen = true" />
       <van-cell title="退出登录" icon="revoke" is-link class="logout" @click="logoutOpen = true" />
@@ -49,7 +50,7 @@
         <b>佛山市南海区石实实验学校</b>
         <p>数智成长 · 中学素质报告平台</p>
         <p class="motto">任重道远，毋忘奋斗 · 扬长教育，出彩人生</p>
-        <p class="ver">v{{ version }}</p>
+        <p class="ver">{{ appVersion }}</p>
       </div>
     </van-dialog>
 
@@ -62,9 +63,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
+import { App as CapApp } from '@capacitor/app'
 import { useAuthStore } from '../stores/auth'
 import { useAiTasksStore } from '../stores/aiTasks'
 import { api, apiBase } from '../api/http'
+import { isNative } from '../api/nativeShare'
+import { checkForUpdate } from '../utils/appUpdate'
 
 const auth = useAuthStore()
 const aiTasks = useAiTasksStore()
@@ -106,6 +110,19 @@ async function onPwdClose(action: string) {
   }
 }
 const version = __APP_VERSION__
+
+/** App 内显示真实安装包版本（网页版回退 package.json 版本） */
+const appVersion = ref('')
+onMounted(async () => {
+  if (isNative) {
+    try { appVersion.value = 'v' + (await CapApp.getInfo()).version } catch { /* 忽略 */ }
+  }
+  if (!appVersion.value) appVersion.value = 'v' + version
+})
+
+function onCheckUpdate() {
+  checkForUpdate(true).catch(() => showFailToast('检查更新失败，请稍后重试'))
+}
 
 const logoutOpen = ref(false)
 

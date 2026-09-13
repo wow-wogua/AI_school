@@ -12,6 +12,7 @@
       <el-tab-pane label="报告模板" name="template"><TemplateTab /></el-tab-pane>
       <el-tab-pane label="审计日志" name="audit"><AuditTab /></el-tab-pane>
       <el-tab-pane label="AI 用量" name="aiUsage"><AiUsageTab /></el-tab-pane>
+      <el-tab-pane label="版本更新" name="appRelease"><AppReleaseTab /></el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -29,6 +30,7 @@ import IndicatorTab from '../components/admin/IndicatorTab.vue'
 import TemplateTab from '../components/admin/TemplateTab.vue'
 import AuditTab from '../components/admin/AuditTab.vue'
 import AiUsageTab from '../components/admin/AiUsageTab.vue'
+import AppReleaseTab from '../components/admin/AppReleaseTab.vue'
 
 /* 支持 ?tab= 直达指定页签（首页快捷功能「教师档案」入口用） */
 const tab = ref((useRoute().query.tab as string) || 'teacher')
