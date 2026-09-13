@@ -135,7 +135,9 @@ public class FeedService {
             items.add(m);
         }
 
-        items.sort(Comparator.comparing(m -> (LocalDateTime) m.get("time"), Comparator.reverseOrder()));
+        // 活动等记录的时间字段可空（公网实测：无 start_time 的活动曾让整页 feed 500）——null 沉底
+        items.sort(Comparator.comparing(m -> (LocalDateTime) m.get("time"),
+                Comparator.nullsLast(Comparator.reverseOrder())));
         return items.size() > limit ? items.subList(0, limit) : items;
     }
 
