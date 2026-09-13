@@ -81,7 +81,9 @@ async function offerApkUpdate(latest: LatestInfo, manual: boolean): Promise<void
       toast.message = d.total > 0 ? `正在下载 ${d.progress}%（${mb(d.received)}/${mb(d.total)}MB）` : '正在下载…'
     })
     const res = await plugin.downloadAndInstall({
-      url: apiBase() + latest.url,
+      // 原生插件 HttpURLConnection 只认绝对 URL；server.url 模式下 apiBase() 为空
+      // （同源相对路径），须以页面 origin 兜底拼绝对地址，否则 new URL() 直接抛异常
+      url: new URL(apiBase() + latest.url, window.location.origin).href,
       token: localStorage.getItem('token') || '',
     })
     listener.remove()
