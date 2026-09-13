@@ -84,7 +84,8 @@ async function m6Flow(browser, { name, width, height, mobile }) {
     // 选第一个学生
     await page.locator('.el-select').nth(1).click() // 0=班级 1=学生
     await page.locator('.el-select-dropdown__item:visible').first().click()
-    await page.waitForSelector('.el-table__row', { timeout: 8000 })
+    // 等表格本身即可（冷库该生暂无荣誉=空态；上传保存后才有行，勿依赖历史数据）
+    await page.waitForSelector('.el-table', { timeout: 8000 })
     await page.locator('input[type=file]').setInputFiles({ name: 'e2e.jpg', mimeType: 'image/jpeg', buffer: JPEG })
     await page.waitForTimeout(2500)
     const dlg2 = page.locator('.el-dialog').last()

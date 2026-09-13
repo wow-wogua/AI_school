@@ -261,7 +261,7 @@ onUnmounted(() => {
 
 /* 吸底提交（同微光拍摄） */
 .submit-bar { position: sticky; bottom: 0; z-index: 5; margin-top: 16px;
-  padding: 14px 0 calc(8px + env(safe-area-inset-bottom));
+  padding: 14px 0 calc(8px + var(--sab));
   background: linear-gradient(180deg, rgba(244,246,251,0), #F4F6FB 42%); }
 .submit { height: 46px; font-size: 16px; font-weight: 600; border: none;
   background: linear-gradient(150deg, #B07A1C, #8F5E10); }

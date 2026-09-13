@@ -213,7 +213,7 @@ onMounted(init)
 .empty-badge { width: 44px; opacity: .3; }
 .empty-card p { margin: 0; font-size: 13px; color: var(--app-text-3); }
 
-.stu-pop { display: flex; flex-direction: column; height: 100%; padding: 14px 14px calc(10px + env(safe-area-inset-bottom)); }
+.stu-pop { display: flex; flex-direction: column; height: 100%; padding: 14px 14px calc(10px + var(--sab)); }
 .stu-search { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 12px;
   background: #F2F4F8; color: var(--app-text-3); }
 .stu-search .van-icon { font-size: 15px; }

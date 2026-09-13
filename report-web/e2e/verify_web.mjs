@@ -220,12 +220,41 @@ async function mcpFlow(browser) {
   }
 }
 
+// 断网统一中文提示：拦截所有 /api 请求模拟断网 → 登录提交 → 应出现中文提示且不透出英文原生错误
+// （http.ts 网络层统一转「网络连接失败…」message；登录页另有更具体的中文兜底）
+async function netDownFlow(browser) {
+  console.log('\n===== 断网统一中文提示 =====')
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  try {
+    const page = await ctx.newPage()
+    // 按 pathname 精确拦截（勿用 '**/api/**' glob：会误拦 vite dev 的 /src/api/*.ts 模块加载，页面直接挂）
+    await page.route('**/*', (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/')) return route.abort()
+      return route.continue()
+    })
+    await page.goto(H('/login'))
+    await page.getByPlaceholder('用户名').fill(USER.username)
+    await page.getByPlaceholder('密码').fill(USER.password)
+    await page.getByRole('button', { name: '登录' }).click()
+    await page.getByText(/连接服务器失败|网络连接失败/).waitFor({ timeout: 8_000 })
+    check('断网时提示为中文', true)
+    check('断网无英文原生错误透出', (await page.getByText(/Failed to fetch|NetworkError/i).count()) === 0)
+    check('断网仍停留在登录页', page.url().includes('#/login'))
+    await page.screenshot({ path: `${SHOTS}/net-down.png` })
+  } catch (e) {
+    check('断网统一中文提示', false, String(e).split('\n')[0])
+  } finally {
+    await ctx.close()
+  }
+}
+
 // 用系统 Chrome（channel），免下载 190MB playwright chromium
 const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome' })
 await fullFlow(browser, { name: 'desktop', width: 1440, height: 900, mobile: false })
 await fullFlow(browser, { name: 'tablet', width: 768, height: 1024, mobile: false })
 await fullFlow(browser, { name: 'mobile', width: 390, height: 844, mobile: true })
 await mcpFlow(browser)
+await netDownFlow(browser)
 await browser.close()
 
 console.log(`\nRESULT: ${fail === 0 ? 'PASS' : 'FAIL'}  pass=${pass} fail=${fail}`)

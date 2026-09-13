@@ -139,7 +139,7 @@ onUnmounted(() => avatarUrls.forEach((u) => URL.revokeObjectURL(u)))
   margin-top: 12px; padding-bottom: 18px; }
 .go-add { height: 40px; padding: 0 22px; border: none; font-size: 14px;
   background: linear-gradient(150deg, #B07A1C, #8F5E10); }
-.fab-add { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
+.fab-add { position: fixed; right: 16px; bottom: calc(20px + var(--sab));
   display: flex; align-items: center; gap: 5px; padding: 12px 18px; border: none;
   border-radius: 999px; background: linear-gradient(150deg, #B07A1C, #8F5E10);
   color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;

@@ -219,6 +219,12 @@ body {
    仅作用于 App 形态页面（.app-page 系），管理端沿用上文石实红体系不变。
    ===================================================================== */
 :root {
+  /* 系统栏安全区（Android 15+ 强制 edge-to-edge，状态栏/手势条会压住页面）：
+     Capacitor 8 启动时注入 --safe-area-inset-*（Android WebView 的 env() 不可靠），
+     浏览器/iOS 回落 env()，再兜底 0px。统一别名 --sat/--sab 供各页面使用 */
+  --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+
   /* 深蓝主体系（图1/3/4 头区渐变） */
   --app-blue-deep: #1B2E6B;        /* 渐变起点（深藏蓝） */
   --app-blue: #2F5FC0;             /* 主蓝：激活态/主按钮 */
@@ -251,12 +257,12 @@ body {
 }
 
 /* App 页面骨架：手机全宽；平板/横屏 ≥600px 限宽居中（适配平板等安卓设备） */
-.app-page { min-height: 100%; padding: 0 14px calc(16px + env(safe-area-inset-bottom)); }
+.app-page { min-height: 100%; padding: 0 14px calc(16px + var(--sab)); }
 @media (min-width: 600px) { .app-page { max-width: 720px; margin: 0 auto; } }
 
 /* 渐变头区（图1/3/4 顶部）：垫虚化校园大图（不破坏效果的前提下丰富校园元素） */
 .app-hero {
-  position: relative; margin: 0 -14px; padding: calc(14px + env(safe-area-inset-top)) 20px 52px;
+  position: relative; margin: 0 -14px; padding: calc(14px + var(--sat)) 20px 52px;
   background: var(--app-gradient); color: #fff; overflow: hidden;
 }
 .app-hero::before {                 /* 虚化校园底图：低透明度融进渐变，保住文字对比度 */
@@ -278,7 +284,7 @@ body {
 
 /* hero 校徽水印（通知/我的等功能型 hero，无照片带时的校园元素）：右上角钢印式 */
 .app-hero.mark::after {
-  content: ''; position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 16px;
+  content: ''; position: absolute; top: calc(12px + var(--sat)); right: 16px;
   width: 52px; height: 52px; background: url('/badge.png') center/contain no-repeat;
   opacity: .34; pointer-events: none;
 }

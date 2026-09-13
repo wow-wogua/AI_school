@@ -38,8 +38,11 @@
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MotionConfig } from 'motion-v'
+import { showToast } from 'vant'
+import { App as CapApp } from '@capacitor/app'
 import { useAuthStore } from './stores/auth'
 import { useAiTasksStore } from './stores/aiTasks'
+import { isNative } from './api/nativeShare'
 import { checkForUpdate } from './utils/appUpdate'
 import AppTabbar from './components/AppTabbar.vue'
 
@@ -55,6 +58,18 @@ const layout = computed(() => (route.meta.layout as string | undefined) ?? 'bare
 function goBack() {
   if (window.history.length > 1) router.back()
   else router.push('/')
+}
+
+/* App 硬件返回键：业内惯例「主层级再按一次退出」——能回退先回退（hash 路由与
+   WebView 历史同栈），到栈底 2 秒内再按才退出，防误触直接杀掉 App */
+if (isNative) {
+  let lastBack = 0
+  CapApp.addListener('backButton', ({ canGoBack }) => {
+    if (canGoBack) { window.history.back(); return }
+    const now = Date.now()
+    if (now - lastBack < 2200) CapApp.exitApp()
+    else { lastBack = now; showToast('再按一次退出') }
+  })
 }
 
 /* AI 任务轮询随登录态启停（登录即恢复展示后台跑的任务，退出即停并清空）；
@@ -73,13 +88,13 @@ watch(() => auth.token, (t) => {
 /* App 壳：主滚动区 + 底部导航（固定悬浮，主区留出通行高度） */
 .app-shell { height: 100%; height: 100dvh; display: flex; flex-direction: column; background: var(--app-bg); }
 .app-main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(96px + env(safe-area-inset-bottom)); }  /* 64 tabbar + 32 中央+键凸出高度，免遮列表尾行 */
+  padding-bottom: calc(96px + var(--sab)); }  /* 64 tabbar + 32 中央+键凸出高度，免遮列表尾行 */
 
 /* sub 壳：深蓝渐变导航条（垫虚化校园底图，与 hero 同语言）+ 滚动主区 */
 .app-sub { height: 100%; height: 100dvh; display: flex; flex-direction: column; background: var(--app-bg); }
 .sub-nav {
   position: relative; display: flex; align-items: center; gap: 10px; flex: none;
-  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+  padding: calc(8px + var(--sat)) 14px 8px;
   background: var(--app-gradient); color: #fff; overflow: hidden;
   border-bottom: 1px solid rgba(201,138,45,.4);   /* 校门金一线 */
 }

@@ -156,7 +156,7 @@ onMounted(async () => {
   background: linear-gradient(150deg, #F97316, #EA580C); }
 
 /* 吸底拍照 */
-.fab-cam { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
+.fab-cam { position: fixed; right: 16px; bottom: calc(20px + var(--sab));
   display: flex; align-items: center; gap: 5px; padding: 12px 18px; border: none;
   border-radius: 999px; background: linear-gradient(150deg, #F97316, #EA580C);
   color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;

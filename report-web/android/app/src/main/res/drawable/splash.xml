@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动屏（pre-Android 12 走 Theme.SplashScreen 兼容库回落到此 background）：
+     品牌深蓝底 + 居中校徽。Android 12+ 由 windowSplashScreenBackground/系统图标渲染（见 styles.xml） -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splashBg" />
+    <item android:gravity="center" android:width="120dp" android:height="104dp">
+        <bitmap android:src="@drawable/splash_badge" android:gravity="fill" />
+    </item>
+</layer-list>

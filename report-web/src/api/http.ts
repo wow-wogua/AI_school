@@ -26,6 +26,13 @@ function httpError(message: string, status: number): Error & { status: number } 
   return e
 }
 
+/** 网络层失败统一转中文（断网/服务器不可达/网关返回非 JSON 时浏览器抛「Failed to fetch」
+    之类的英文原生错误，直接透出给用户很不专业）。status=0 供调用方识别网络层失败 */
+const NET_MSG = '网络连接失败，请检查网络后重试'
+function netError(): Error & { status: number } {
+  return httpError(NET_MSG, 0)
+}
+
 export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const auth = useAuthStore()
   const headers: Record<string, string> = {}
@@ -35,13 +42,23 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
     headers['Content-Type'] = 'application/json'
     body = JSON.stringify(init.json)
   }
-  const resp = await fetch(apiBase() + path, { ...init, headers, body })
+  let resp: Response
+  try {
+    resp = await fetch(apiBase() + path, { ...init, headers, body })
+  } catch {
+    throw netError()
+  }
   if (resp.status === 401) {
     auth.logout()
     router.push('/login')
     throw httpError('未登录或登录已过期', 401)
   }
-  const r = (await resp.json()) as ApiResp<T>
+  let r: ApiResp<T>
+  try {
+    r = (await resp.json()) as ApiResp<T>
+  } catch {
+    throw netError() // 502/504 网关错误页等非 JSON 响应
+  }
   // 首登待改密（本地标志被清但 token 仍带 mcp，如多标签页场景）：补设标志并引到改密页
   if (resp.status === 403 && r.message && r.message.includes('修改初始密码')) {
     auth.mustChangePwd = true
@@ -59,11 +76,16 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
 /** multipart 上传（浏览器自动带 boundary，勿手动设 Content-Type） */
 export async function apiForm<T>(path: string, form: FormData): Promise<T> {
   const auth = useAuthStore()
-  const resp = await fetch(apiBase() + path, {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + auth.token },
-    body: form,
-  })
+  let resp: Response
+  try {
+    resp = await fetch(apiBase() + path, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + auth.token },
+      body: form,
+    })
+  } catch {
+    throw netError()
+  }
   if (resp.status === 401) {
     auth.logout()
     router.push('/login')
@@ -80,7 +102,12 @@ export async function apiForm<T>(path: string, form: FormData): Promise<T> {
 /** 带 JWT 拉二进制（PDF 预览/下载用，iframe 带不了 Authorization 头） */
 export async function fetchBlob(path: string): Promise<Blob> {
   const auth = useAuthStore()
-  const resp = await fetch(apiBase() + path, { headers: { Authorization: 'Bearer ' + auth.token } })
+  let resp: Response
+  try {
+    resp = await fetch(apiBase() + path, { headers: { Authorization: 'Bearer ' + auth.token } })
+  } catch {
+    throw netError()
+  }
   if (resp.status === 401) {
     auth.logout()
     router.push('/login')

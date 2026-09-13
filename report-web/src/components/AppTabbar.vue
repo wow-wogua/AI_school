@@ -61,7 +61,7 @@ function onSelect(action: ActionSheetAction) {
   display: flex; align-items: stretch;
   background: rgba(255, 255, 255, .96); backdrop-filter: blur(12px);
   border-top: 1px solid var(--app-card-border);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: var(--sab);
 }
 /* 平板限宽居中（与 .app-page 同步 720px） */
 @media (min-width: 600px) {
