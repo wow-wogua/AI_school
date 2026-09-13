@@ -80,12 +80,29 @@ try {
   await page.waitForTimeout(1500)
   check('班级页下拉触发重拉', stuReload >= 1, `student 请求=${stuReload}（listener 在初载后注册，计数即刷新次数）`)
 
-  // 微光列表：下拉（无数据时 track 仍可拉——min-height 兜底）
+  // 微光列表：下拉（无数据时 track 仍可拉——min-height 兜底）+ 照片预览保存/分享
+  // route 注入一条假微光（本地库无微光数据），照片用 vite public 静态图（fetchBlob 可拉）
+  await page.route('**/api/moment/class**', (r) => r.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify([{ id: 99001, photoUrl: '/campus-bg.jpg', sceneTag: '课堂专注',
+      createTime: '2026-09-13 10:00:00', teacherName: '赵老师', note: 'e2e', studentIds: [1] }])
+  }))
   await page.goto(H('/moment'))
-  await page.getByText('班级').first().waitFor({ timeout: 10000 })
+  await page.locator('.moment-photo').first().waitFor({ timeout: 10000 })
   await pullDown(page)
   await page.waitForTimeout(1000)
   check('微光列表下拉不报错', true)
+
+  // 点开大图 → 保存/分享按钮（#cover slot）可见；点按钮不误关预览且触发下载（浏览器态=a[download]）
+  await page.locator('.moment-photo').first().click()
+  await page.locator('.van-image-preview').waitFor({ timeout: 5000 })
+  check('照片大图预览打开', await page.locator('.pv-save').isVisible())
+  const dl = page.waitForEvent('download', { timeout: 8000 }).catch(() => null)
+  await page.locator('.pv-save').click()
+  const file = await dl
+  check('点保存/分享触发下载', !!file, file ? file.suggestedFilename() : '无 download 事件')
+  check('点按钮后预览仍在（不误触退出大图）', await page.locator('.van-image-preview').isVisible())
+  await page.keyboard.press('Escape')
 
   console.log(`\nRESULT: ${fail === 0 ? 'PASS' : 'FAIL'}  pass=${pass} fail=${fail}`)
   process.exitCode = fail === 0 ? 0 : 1
