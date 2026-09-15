@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 定时数据保留：AI 已完成任务留 90 天、审计日志留 180 天（aischool.retention.* 可配） */
+/** 定时数据保留：AI 已完成任务与审计日志各留 365 天（aischool.retention.* 可配） */
 @Slf4j
 @Service
 @RequiredArgsConstructor

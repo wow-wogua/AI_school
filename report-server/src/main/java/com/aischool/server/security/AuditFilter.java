@@ -19,6 +19,10 @@ import java.nio.charset.StandardCharsets;
  */
 public class AuditFilter extends OncePerRequestFilter {
 
+    /** 登录接口回填身份的 request attribute 名（见 AuthController.login，认证完成时 SecurityContext 尚无用户） */
+    public static final String ATTR_USER_ID = "audit.userId";
+    public static final String ATTR_USERNAME = "audit.username";
+
     /** 请求体摘要最大长度 */
     private static final int BODY_LIMIT = 512;
 
@@ -47,12 +51,20 @@ public class AuditFilter extends OncePerRequestFilter {
         } finally {
             try {
                 AuditLog log = new AuditLog();
-                try {
-                    var user = AuthUtil.current();
-                    log.setUserId(user.userId());
-                    log.setUsername(user.username());
-                } catch (Exception ignore) {
-                    // 未登录（被 401 拒绝的请求也留痕，用户为空）
+                Object attrUserId = request.getAttribute(ATTR_USER_ID);
+                Object attrUsername = request.getAttribute(ATTR_USERNAME);
+                if (attrUserId instanceof Long uid && attrUsername instanceof String uname) {
+                    // 登录接口：控制器认证成功后回填的身份
+                    log.setUserId(uid);
+                    log.setUsername(uname);
+                } else {
+                    try {
+                        var user = AuthUtil.current();
+                        log.setUserId(user.userId());
+                        log.setUsername(user.username());
+                    } catch (Exception ignore) {
+                        // 未登录（被 401 拒绝的请求也留痕，用户为空）
+                    }
                 }
                 log.setMethod(request.getMethod());
                 log.setUri(uri.length() > 255 ? uri.substring(0, 255) : uri);

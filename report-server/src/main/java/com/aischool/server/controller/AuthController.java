@@ -1,8 +1,10 @@
 package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
+import com.aischool.server.security.AuditFilter;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.auth.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -43,8 +45,12 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ApiResponse<Map<String, Object>> login(@Validated @RequestBody LoginReq req) {
-        return ApiResponse.ok(authService.login(req.username, req.password));
+    public ApiResponse<Map<String, Object>> login(@Validated @RequestBody LoginReq req, HttpServletRequest request) {
+        Map<String, Object> result = authService.login(req.username, req.password);
+        // 认证完成时 SecurityContext 尚无用户，审计行身份会是空——成功后回填给审计过滤器
+        request.setAttribute(AuditFilter.ATTR_USER_ID, ((Number) ((Map<?, ?>) result.get("user")).get("id")).longValue());
+        request.setAttribute(AuditFilter.ATTR_USERNAME, req.username);
+        return ApiResponse.ok(result);
     }
 
     @GetMapping("/me")
