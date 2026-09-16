@@ -23,6 +23,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final ObjectMapper objectMapper;
+    private final com.aischool.server.service.OnlineTracker onlineTracker;
 
     /** 待改密期间放行的端点：改密本身 + 身份信息 + 重新登录 */
     private static final Set<String> MUST_CHANGE_PWD_ALLOW = Set.of(
@@ -46,6 +47,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 var auth = new UsernamePasswordAuthenticationToken(
                         user, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.role())));
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                onlineTracker.touch(user);
             }
         }
         chain.doFilter(request, response);
