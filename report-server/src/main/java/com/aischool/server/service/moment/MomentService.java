@@ -94,6 +94,7 @@ public class MomentService {
         m.setPhotoUrl(objectName);
         m.setSceneTag(sceneTag.trim());
         m.setNote(note == null ? null : note.trim());
+        m.setSource("TEACHER");
         momentMapper.insert(m);
         for (Long sid : studentIds) {
             MomentStudent ms = new MomentStudent();
@@ -104,7 +105,7 @@ public class MomentService {
         return Map.of("momentId", m.getId());
     }
 
-    /** 班级最近微光（班级页轮播；含关联学生姓名与记录教师） */
+    /** 班级最近微光（班级页轮播；含关联学生姓名与记录教师。只显教师随手拍——家长上传仅进孩子档案，方案A） */
     public List<Map<String, Object>> listByClass(UserPrincipal user, Long classId, int limit) {
         List<Long> visible = dataScope.visibleClassIds(user);
         if (visible != null && !visible.contains(classId)) {
@@ -112,6 +113,7 @@ public class MomentService {
         }
         List<Moment> moments = momentMapper.selectList(new LambdaQueryWrapper<Moment>()
                 .eq(Moment::getClassId, classId)
+                .eq(Moment::getSource, "TEACHER")
                 .orderByDesc(Moment::getCreateTime).orderByDesc(Moment::getId)
                 .last("LIMIT " + Math.min(limit, 50)));
         return assemble(moments);
@@ -177,7 +179,9 @@ public class MomentService {
                     "id", m.getId(),
                     "note", m.getNote() == null ? "" : m.getNote(),
                     "sceneTag", m.getSceneTag(),
+                    "source", m.getSource() == null ? "TEACHER" : m.getSource(),
                     "createTime", m.getCreateTime(),
+                    "teacherId", m.getTeacherId(),
                     "teacherName", teacherNames.getOrDefault(m.getTeacherId(), ""),
                     "students", students,
                     "photoUrl", "/api/moment/file/" + m.getId()));

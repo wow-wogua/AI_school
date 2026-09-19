@@ -5,23 +5,32 @@ import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.ContentItem;
 import com.aischool.server.entity.Evaluation;
+import com.aischool.server.entity.Moment;
+import com.aischool.server.entity.MomentStudent;
 import com.aischool.server.entity.ParentBinding;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.User;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.ContentItemMapper;
 import com.aischool.server.mapper.EvaluationMapper;
+import com.aischool.server.mapper.MomentMapper;
+import com.aischool.server.mapper.MomentStudentMapper;
 import com.aischool.server.mapper.ParentBindingMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.UserMapper;
+import com.aischool.server.service.moment.MomentService;
+import com.aischool.server.service.report.PdfStoreService;
 import com.aischool.server.security.AuthUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -43,6 +52,10 @@ public class ParentController {
     private final EvaluationMapper evaluationMapper;
     private final UserMapper userMapper;
     private final ContentItemMapper contentMapper;
+    private final MomentMapper momentMapper;
+    private final MomentStudentMapper momentStudentMapper;
+    private final MomentService momentService;
+    private final PdfStoreService pdfStore;
 
     private void checkParent() {
         if (!"PARENT".equals(AuthUtil.current().role())) {
@@ -182,6 +195,106 @@ public class ParentController {
             return content;
         }
         return content.substring(0, 80) + "…";
+    }
+
+    // ────────────────────────── 微光信箱（批2-3 方案A：仅进孩子成长档案） ──────────────────────────
+
+    /** 家长上传微光：进该孩子成长档案（家长+班主任可见），不进班级公开墙、不进 AI 报告素材、免审核 */
+    @PostMapping("/moment")
+    public ApiResponse<Map<String, Object>> createMoment(@RequestParam Long studentId,
+            @RequestParam(required = false) String note,
+            @RequestParam("photo") MultipartFile photo) {
+        checkParent();
+        requireBound(studentId);
+        Student s = studentMapper.selectById(studentId);
+        if (s == null || s.getClassId() == null) {
+            throw new BizException(404, "学生或所在班级不存在");
+        }
+        if (photo == null || photo.isEmpty()) {
+            throw new BizException(400, "请先拍照或选择照片");
+        }
+        if (photo.getSize() > 10L * 1024 * 1024) {
+            throw new BizException(400, "照片不能超过 10MB");
+        }
+        String original = photo.getOriginalFilename() == null ? "" : photo.getOriginalFilename();
+        String ext = original.contains(".")
+                ? original.substring(original.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT) : "";
+        if (!ext.equals("jpg") && !ext.equals("jpeg") && !ext.equals("png")) {
+            throw new BizException(400, "仅支持 jpg/jpeg/png 格式");
+        }
+        if (note != null && note.length() > 500) {
+            throw new BizException(400, "备注不能超过 500 字");
+        }
+        byte[] bytes;
+        try {
+            bytes = photo.getBytes();
+        } catch (Exception e) {
+            throw new BizException(400, "读取照片失败");
+        }
+        String objectName = "moment/" + s.getClassId() + "/" + java.util.UUID.randomUUID() + "." + ext;
+        pdfStore.upload(objectName, new java.io.ByteArrayInputStream(bytes), bytes.length,
+                photo.getContentType() == null ? "image/jpeg" : photo.getContentType());
+
+        Moment m = new Moment();
+        m.setTeacherId(AuthUtil.current().userId()); // 记录人=家长账号（assemble 以此取记录人姓名）
+        m.setClassId(s.getClassId());
+        m.setPhotoUrl(objectName);
+        m.setSceneTag("亲子分享");
+        m.setNote(note == null ? null : note.trim());
+        m.setSource("PARENT");
+        momentMapper.insert(m);
+        MomentStudent ms = new MomentStudent();
+        ms.setMomentId(m.getId());
+        ms.setStudentId(studentId);
+        momentStudentMapper.insert(ms);
+        return ApiResponse.ok(Map.of("momentId", m.getId()));
+    }
+
+    /** 孩子的微光流（教师随手拍+家长上传都在，孩子成长档案的一部分；仅绑定孩子可查） */
+    @GetMapping("/children/{studentId}/moments")
+    public ApiResponse<List<Map<String, Object>>> childMoments(@PathVariable Long studentId,
+            @RequestParam(defaultValue = "20") int limit) {
+        checkParent();
+        requireBound(studentId);
+        List<Long> momentIds = momentStudentMapper.selectList(new LambdaQueryWrapper<MomentStudent>()
+                        .eq(MomentStudent::getStudentId, studentId))
+                .stream().map(MomentStudent::getMomentId).toList();
+        if (momentIds.isEmpty()) {
+            return ApiResponse.ok(List.of());
+        }
+        List<Moment> moments = momentMapper.selectList(new LambdaQueryWrapper<Moment>()
+                .in(Moment::getId, momentIds)
+                .orderByDesc(Moment::getCreateTime).orderByDesc(Moment::getId)
+                .last("LIMIT " + Math.min(Math.max(limit, 1), 50)));
+        // assemble 返回 Map.of 不可变行，包可变副本以便补 own 标记
+        long me = AuthUtil.current().userId();
+        List<Map<String, Object>> rows = new java.util.ArrayList<>();
+        for (Map<String, Object> row : momentService.assemble(moments)) {
+            Map<String, Object> r = new java.util.LinkedHashMap<>(row);
+            // own=本人上传的家长微光（前端据此显示删除入口；删除权限仍由服务端校验）
+            r.put("own", "PARENT".equals(r.get("source"))
+                    && r.get("teacherId") instanceof Number n && n.longValue() == me);
+            rows.add(r);
+        }
+        return ApiResponse.ok(rows);
+    }
+
+    /** 删除微光：仅本人上传的（家长删自己的；教师上传的家长不可删） */
+    @DeleteMapping("/moment/{id}")
+    public ApiResponse<Void> deleteMoment(@PathVariable Long id) {
+        checkParent();
+        Moment m = momentMapper.selectById(id);
+        if (m == null) {
+            throw new BizException(404, "微光记录不存在");
+        }
+        if (!"PARENT".equals(m.getSource()) || !m.getTeacherId().equals(AuthUtil.current().userId())) {
+            throw new BizException(403, "仅可删除自己上传的微光");
+        }
+        momentMapper.deleteById(id);
+        momentStudentMapper.delete(new LambdaQueryWrapper<MomentStudent>()
+                .eq(MomentStudent::getMomentId, id));
+        pdfStore.delete(m.getPhotoUrl());
+        return ApiResponse.ok();
     }
 
     private void requireBound(Long studentId) {

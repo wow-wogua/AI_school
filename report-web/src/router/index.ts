@@ -49,6 +49,8 @@ const router = createRouter({
     { path: '/p/notices', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'NOTICE' }, meta: { layout: 'psub', title: '通知公告' } },
     { path: '/p/parenting', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'PARENTING' }, meta: { layout: 'psub', title: '育儿课堂' } },
     { path: '/p/content/:id', component: () => import('../views/parent/ContentDetailView.vue'), meta: { layout: 'psub', title: '内容详情' } },
+    // 家长微光信箱（批2-3 方案A）：拍照仅进孩子成长档案（家长+班主任可见）
+    { path: '/p/moments', component: () => import('../views/parent/ParentMomentView.vue'), meta: { layout: 'psub', title: '微光信箱' } },
     // 领导端（LEADER 分流）：全校只读驾驶舱；成绩明细复用 /scores（LEADER 只读）；
     // 教师使用情况（批2）：六类行为按师聚合，psub 壳（第一版 sub-nav 形态+C 令牌）
     { path: '/l/home', component: () => import('../views/leader/LeaderHomeView.vue'), meta: { layout: 'lhome' } },

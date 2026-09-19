@@ -262,6 +262,8 @@ public class AiDraftService {
         Term term = termMapper.selectById(termId);
         LambdaQueryWrapper<Moment> qw = new LambdaQueryWrapper<Moment>()
                 .in(Moment::getId, momentIds)
+                // 报告素材只取教师随手拍：家长上传仅进孩子档案（方案A，V13），批5 家长版报告再统一设计口径
+                .eq(Moment::getSource, "TEACHER")
                 .orderByDesc(Moment::getCreateTime)
                 .last("LIMIT 6");
         // 当前学期截到今天（演示/假期跨期数据仍可入册）；历史学期按学期区间

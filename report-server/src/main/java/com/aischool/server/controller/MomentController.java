@@ -8,14 +8,15 @@ import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.moment.MomentService;
 import com.aischool.server.service.report.PdfStoreService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -61,21 +62,20 @@ public class MomentController {
         return ApiResponse.ok();
     }
 
-    /** 照片预览（inline，同荣誉证书方式） */
+    /** 照片预览（inline）。流式+ETag+Cache-Control：家长端万人级拉图热路径，
+        命中缓存/304 后 MinIO 与本服务带宽近似归零（同 ContentController 模式） */
     @GetMapping("/file/{id}")
-    public ResponseEntity<byte[]> file(@PathVariable Long id) throws IOException {
+    public ResponseEntity<InputStreamResource> file(@PathVariable Long id) {
         Moment m = momentMapper.selectById(id);
         if (m == null || m.getPhotoUrl() == null) {
             throw new BizException(404, "照片不存在");
         }
-        byte[] bytes;
-        try (InputStream in = pdfStore.download(m.getPhotoUrl())) {
-            bytes = in.readAllBytes();
-        }
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(contentTypeOf(m.getPhotoUrl())));
-        headers.setContentLength(bytes.length);
-        return ResponseEntity.ok().headers(headers).body(bytes);
+        InputStream in = pdfStore.download(m.getPhotoUrl());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentTypeOf(m.getPhotoUrl())))
+                .eTag("\"" + m.getPhotoUrl() + "\"")
+                .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
+                .body(new InputStreamResource(in));
     }
 
     private String contentTypeOf(String objectName) {

@@ -86,10 +86,9 @@ const greeting = computed(() => {
 const avatarChar = computed(() => auth.realName?.charAt(0) || '家')
 
 /* 服务宫格（同教师端 HomeView 的 g-icon 彩色方底形态；to 为空=未开放置灰）。
-   通知公告/育儿课堂批2 点亮（管理端内容发布自助配置）；微光信箱批2/3 点亮（方案A）；
-   成长报告批5 家长版再开 */
+   微光信箱/通知公告/育儿课堂批2 已点亮；成长报告批5 家长版再开 */
 const grids = [
-  { name: '微光信箱', icon: 'photograph', to: '', bg: '#F97316' },
+  { name: '微光信箱', icon: 'photograph', to: '/p/moments', bg: '#F97316' },
   { name: '通知公告', icon: 'bell', to: '/p/notices', bg: '#F59E0B' },
   { name: '育儿课堂', icon: 'bookmark-o', to: '/p/parenting', bg: '#10B981' },
   { name: '成长报告', icon: 'description', to: '', bg: '#14B8A6' },

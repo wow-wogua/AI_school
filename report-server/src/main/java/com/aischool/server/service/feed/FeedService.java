@@ -100,10 +100,12 @@ public class FeedService {
                         "班主任寄语", c.getContent(), null, c.getUpdateTime()));
             }
         }
-        // 微光信箱：班级可见范围内的随手拍（照片走 /api/moment/file/{id}）
+        // 微光信箱：班级可见范围内的随手拍（照片走 /api/moment/file/{id}）；
+        // 只混排教师随手拍——家长上传仅进孩子档案，不进班级流（方案A，V13）
         List<Moment> moments = momentMapper.selectList(new LambdaQueryWrapper<Moment>()
                 // 空列表须转哨兵：MyBatis-Plus .in(空集合) 生成 IN () 非法 SQL（无班教师 500）
                 .in(visible != null, Moment::getClassId, visible == null || visible.isEmpty() ? List.of(-1L) : visible)
+                .eq(Moment::getSource, "TEACHER")
                 .orderByDesc(Moment::getCreateTime)
                 .last("LIMIT " + PER_TYPE_CAP));
         if (!moments.isEmpty()) {
