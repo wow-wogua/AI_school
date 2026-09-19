@@ -7,12 +7,15 @@ import com.aischool.server.entity.Subject;
 import com.aischool.server.entity.Teach;
 import com.aischool.server.entity.TeacherProfile;
 import com.aischool.server.entity.User;
+import com.aischool.server.entity.UserPermission;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.SubjectMapper;
 import com.aischool.server.mapper.TeachMapper;
 import com.aischool.server.mapper.TeacherProfileMapper;
 import com.aischool.server.mapper.UserMapper;
+import com.aischool.server.mapper.UserPermissionMapper;
 import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.aischool.server.service.excel.ExcelTeacherHelper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -55,18 +58,19 @@ public class AdminUserController {
     private final ClazzMapper clazzMapper;
     private final SubjectMapper subjectMapper;
     private final TeacherProfileMapper teacherProfileMapper;
+    private final UserPermissionMapper userPermissionMapper;
     private final ExcelTeacherHelper excelTeacher;
     private final PasswordEncoder passwordEncoder;
+    private final PermissionService permissionService;
 
     /** 批量导入的统一初始密码（导入后教师首登强制改密） */
     public static final String INITIAL_PASSWORD = "Shishi@2026";
 
-    private static final List<String> ROLES = List.of("ADMIN", "HEAD_TEACHER", "TEACHER");
+    /** 本控制器管理的角色（家长 PARENT 走 AdminParentController） */
+    private static final List<String> ROLES = List.of("ADMIN", "LEADER", "HEAD_TEACHER", "TEACHER");
 
     private void checkAdmin() {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可操作系统管理");
-        }
+        permissionService.checkAdminAccess("只有管理员可操作系统管理");
     }
 
     @Data
@@ -121,6 +125,7 @@ public class AdminUserController {
                                                      @RequestParam(defaultValue = "20") long size) {
         checkAdmin();
         var p = userMapper.selectPage(Page.of(page, Math.min(size, 100)), new LambdaQueryWrapper<User>()
+                .in(User::getRole, ROLES) // 家长账号不混入教师列表
                 .eq(role != null && !role.isBlank(), User::getRole, role)
                 .and(keyword != null && !keyword.isBlank(),
                         q -> q.like(User::getUsername, keyword).or().like(User::getRealName, keyword))
@@ -145,7 +150,7 @@ public class AdminUserController {
     public ApiResponse<Map<String, Object>> createUser(@Validated @RequestBody UserReq req) {
         checkAdmin();
         if (!ROLES.contains(req.getRole())) {
-            throw new BizException(400, "role 必须是 ADMIN/HEAD_TEACHER/TEACHER");
+            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER");
         }
         if (userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getUsername, req.getUsername())) > 0) {
             throw new BizException(400, "用户名已存在");
@@ -182,7 +187,8 @@ public class AdminUserController {
                 .collect(Collectors.toMap(Subject::getName, Subject::getId, (a, b) -> a));
         Map<String, Long> classIds = clazzMapper.selectList(null).stream()
                 .collect(Collectors.toMap(Clazz::getName, Clazz::getId, (a, b) -> a));
-        Map<String, String> roleMap = Map.of("管理员", "ADMIN", "班主任", "HEAD_TEACHER", "教师", "TEACHER");
+        Map<String, String> roleMap = Map.of("管理员", "ADMIN", "领导", "LEADER",
+                "班主任", "HEAD_TEACHER", "教师", "TEACHER");
         Set<String> seen = new HashSet<>();
         List<Map<String, Object>> errors = new java.util.ArrayList<>();
         int inserted = 0;
@@ -203,7 +209,7 @@ public class AdminUserController {
             } else if (r.realName().isBlank()) {
                 reason = "姓名为空";
             } else if (!roleMap.containsKey(r.role())) {
-                reason = "角色只能填 管理员/班主任/教师: " + (r.role().isBlank() ? "(空)" : r.role());
+                reason = "角色只能填 管理员/领导/班主任/教师: " + (r.role().isBlank() ? "(空)" : r.role());
             } else if (!r.gender().isBlank() && !"男".equals(r.gender()) && !"女".equals(r.gender())) {
                 reason = "性别只能填 男/女: " + r.gender();
             } else if (!r.subjectName().isBlank() && !subjectIds.containsKey(r.subjectName())) {
@@ -313,14 +319,69 @@ public class AdminUserController {
             throw new BizException(400, "不能修改自己的角色");
         }
         if (req.getRole() != null && !ROLES.contains(req.getRole())) {
-            throw new BizException(400, "role 必须是 ADMIN/HEAD_TEACHER/TEACHER");
+            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER");
         }
+        String newRole = req.getRole() != null ? req.getRole() : u.getRole();
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, id)
                 .set(User::getRealName, req.getRealName() != null ? req.getRealName() : u.getRealName())
-                .set(User::getRole, req.getRole() != null ? req.getRole() : u.getRole())
+                .set(User::getRole, newRole)
                 .set(User::getPhone, req.getPhone()));
+        // 角色变更清权限点，防 LEADER 改角后遗留管理员级权限
+        if (!newRole.equals(u.getRole())) {
+            userPermissionMapper.delete(new LambdaQueryWrapper<UserPermission>()
+                    .eq(UserPermission::getUserId, id));
+        }
         return ApiResponse.ok();
+    }
+
+    /** 权限点查询（批1 唯一码 ADMIN_ACCESS；TeacherTab 领导行「管理员级权限」开关回显） */
+    @GetMapping("/user/{id}/perms")
+    public ApiResponse<Map<String, Object>> userPerms(@PathVariable Long id) {
+        checkAdmin();
+        User u = userMapper.selectById(id);
+        if (u == null) {
+            throw new BizException(404, "账号不存在");
+        }
+        List<String> perms = userPermissionMapper.selectList(new LambdaQueryWrapper<UserPermission>()
+                        .eq(UserPermission::getUserId, id))
+                .stream().map(UserPermission::getPermCode).toList();
+        return ApiResponse.ok(Map.of("role", u.getRole(), "perms", perms));
+    }
+
+    /** 授予/收回管理员级权限（仅领导账号可授；ADMIN 天生全权无需开关） */
+    @PutMapping("/user/{id}/perm")
+    public ApiResponse<Void> grantPerm(@PathVariable Long id, @Validated @RequestBody PermReq req) {
+        checkAdmin();
+        User u = userMapper.selectById(id);
+        if (u == null) {
+            throw new BizException(404, "账号不存在");
+        }
+        if (!"LEADER".equals(u.getRole())) {
+            throw new BizException(400, "仅领导账号可授予管理员级权限");
+        }
+        if (Boolean.TRUE.equals(req.getGranted())) {
+            if (userPermissionMapper.selectCount(new LambdaQueryWrapper<UserPermission>()
+                    .eq(UserPermission::getUserId, id)
+                    .eq(UserPermission::getPermCode, PermissionService.PERM_ADMIN_ACCESS)) == 0) {
+                UserPermission p = new UserPermission();
+                p.setUserId(id);
+                p.setPermCode(PermissionService.PERM_ADMIN_ACCESS);
+                p.setGrantedBy(AuthUtil.current().userId());
+                userPermissionMapper.insert(p);
+            }
+        } else {
+            userPermissionMapper.delete(new LambdaQueryWrapper<UserPermission>()
+                    .eq(UserPermission::getUserId, id)
+                    .eq(UserPermission::getPermCode, PermissionService.PERM_ADMIN_ACCESS));
+        }
+        return ApiResponse.ok();
+    }
+
+    @Data
+    public static class PermReq {
+        @NotNull(message = "granted 不能为空")
+        private Boolean granted;
     }
 
     /** 重置密码（重置后该账号下次登录强制改密） */
@@ -371,6 +432,8 @@ public class AdminUserController {
             throw new BizException(400, "该教师仍是某班班主任，请先调整班级");
         }
         userMapper.deleteById(id);
+        userPermissionMapper.delete(new LambdaQueryWrapper<UserPermission>()
+                .eq(UserPermission::getUserId, id)); // 顺带清权限点
         return ApiResponse.ok();
     }
 

@@ -8,7 +8,7 @@ import com.aischool.server.entity.Indicator;
 import com.aischool.server.mapper.EvaluationMapper;
 import com.aischool.server.mapper.GridMapper;
 import com.aischool.server.mapper.IndicatorMapper;
-import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -36,12 +36,11 @@ public class AdminIndicatorController {
 
     private final GridMapper gridMapper;
     private final IndicatorMapper indicatorMapper;
+    private final PermissionService permissionService;
     private final EvaluationMapper evaluationMapper;
 
     private void checkAdmin() {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可操作系统管理");
-        }
+        permissionService.checkAdminAccess("只有管理员可操作系统管理");
     }
 
     /** 九维列表（只读，附各格指标数） */

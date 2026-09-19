@@ -6,6 +6,7 @@ import com.aischool.server.entity.AppRelease;
 import com.aischool.server.mapper.AppReleaseMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.aischool.server.service.report.PdfStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class AppVersionController {
     private final AppReleaseMapper releaseMapper;
     private final UserMapper userMapper;
     private final PdfStoreService pdfStore;
+    private final PermissionService permissionService;
 
     // ---------- 老师端（需登录） ----------
 
@@ -175,8 +177,6 @@ public class AppVersionController {
     }
 
     private void checkAdmin() {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可操作系统管理");
-        }
+        permissionService.checkAdminAccess("只有管理员可操作系统管理");
     }
 }

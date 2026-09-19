@@ -1,10 +1,9 @@
 package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
-import com.aischool.server.common.BizException;
 import com.aischool.server.entity.AuditLog;
 import com.aischool.server.mapper.AuditLogMapper;
-import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
@@ -23,15 +22,14 @@ import java.util.Map;
 public class AdminAuditController {
 
     private final AuditLogMapper auditLogMapper;
+    private final PermissionService permissionService;
 
     @GetMapping("/list")
     public ApiResponse<Map<String, Object>> list(@RequestParam(required = false) String username,
                                                  @RequestParam(required = false) String keyword,
                                                  @RequestParam(defaultValue = "1") long page,
                                                  @RequestParam(defaultValue = "20") long size) {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可查看审计日志");
-        }
+        permissionService.checkAdminAccess("只有管理员可查看审计日志");
         var p = auditLogMapper.selectPage(Page.of(page, Math.min(size, 100)), new LambdaQueryWrapper<AuditLog>()
                 .eq(username != null && !username.isBlank(), AuditLog::getUsername, username)
                 .and(keyword != null && !keyword.isBlank(),

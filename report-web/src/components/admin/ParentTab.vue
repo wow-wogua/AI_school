@@ -1,0 +1,289 @@
+<template>
+  <div>
+    <div class="toolbar">
+      <el-input v-model="keyword" placeholder="搜索账号/姓名/手机" clearable style="width: 200px"
+        @keyup.enter="load" @clear="load" />
+      <el-button type="primary" @click="openCreate">新建家长</el-button>
+      <el-button @click="genDialog = true">按班批量生成</el-button>
+      <el-button @click="doExport">导出</el-button>
+    </div>
+
+    <el-alert type="info" :closable="false" class="tip">
+      家长用手机号登录同一 App，登录后自动进入家长端。账号名默认=学生档案里的监护人手机号；
+      初始密码与教师机制相同（首登强制改密）。
+    </el-alert>
+
+    <div v-if="selected.length" class="batch-bar">
+      已选 {{ selected.length }} 项：
+      <el-button size="small" @click="batchStatus(1)">批量启用</el-button>
+      <el-button size="small" @click="batchStatus(0)">批量停用</el-button>
+      <el-button size="small" @click="batchReset">重置为初始密码</el-button>
+      <el-button size="small" type="danger" @click="batchRemove">批量删除</el-button>
+    </div>
+
+    <el-table :data="parents" size="small" @selection-change="(rows: any[]) => (selected = rows)">
+      <el-table-column type="selection" width="42" />
+      <el-table-column prop="username" label="账号(手机号)" width="130" />
+      <el-table-column prop="realName" label="姓名" width="100" />
+      <el-table-column prop="phone" label="手机" width="120">
+        <template #default="{ row }">{{ row.phone ?? '—' }}</template>
+      </el-table-column>
+      <el-table-column prop="children" label="绑定孩子" min-width="180" show-overflow-tooltip />
+      <el-table-column label="状态" width="76">
+        <template #default="{ row }">
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '停用' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="创建时间" width="170">
+        <template #default="{ row }">{{ fmtTime(row.createTime) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" min-width="250">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openBindings(row)">绑定管理</el-button>
+          <el-button link @click="resetPwd(row)">重置密码</el-button>
+          <el-button link :type="row.status === 1 ? 'warning' : 'success'" @click="toggleStatus(row)">
+            {{ row.status === 1 ? '停用' : '启用' }}
+          </el-button>
+          <el-button link type="danger" @click="removeOne(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 新建家长 -->
+    <el-dialog v-model="dialog" title="新建家长账号" width="460px">
+      <el-form label-width="90px">
+        <el-form-item label="账号">
+          <el-input v-model="form.username" placeholder="监护人手机号" />
+        </el-form-item>
+        <el-form-item label="初始密码">
+          <el-input v-model="form.password" show-password />
+        </el-form-item>
+        <el-form-item label="姓名">
+          <el-input v-model="form.realName" placeholder="如 张三妈妈" />
+        </el-form-item>
+        <el-form-item label="手机">
+          <el-input v-model="form.phone" />
+        </el-form-item>
+      </el-form>
+      <div class="dlg-tip">创建后可在列表「绑定管理」里绑定孩子（一号可绑多名学生）。</div>
+      <template #footer>
+        <el-button @click="dialog = false">取消</el-button>
+        <el-button type="primary" @click="save">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 按班批量生成 -->
+    <el-dialog v-model="genDialog" title="按班批量生成家长账号" width="520px">
+      <div class="dlg-tip" style="margin-bottom: 10px">
+        读取班内每位学生的「监护人手机号」生成家长账号并绑定。同一手机号多名学生自动合并为一号多孩；
+        已有账号的只补绑定；未填手机号的学生会列出。生成后初始密码统一为
+        <b>{{ initialPassword }}</b>（首登强制改密）。
+      </div>
+      <el-select v-model="genClassId" placeholder="选择班级" style="width: 100%">
+        <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
+      </el-select>
+      <el-alert v-if="genResult" :type="genResult.skipped ? 'warning' : 'success'" :closable="false" style="margin-top: 12px">
+        新建 {{ genResult.created }} 个账号，补绑定 {{ genResult.bound }} 条<template v-if="genResult.skipped">，跳过 {{ genResult.skipped }} 名学生：
+          <div v-for="e in genResult.errors" :key="e.student" style="font-size: 12px">{{ e.student }}：{{ e.reason }}</div>
+        </template>
+      </el-alert>
+      <template #footer>
+        <el-button @click="genDialog = false">关闭</el-button>
+        <el-button type="primary" :disabled="!genClassId" :loading="generating" @click="doGenerate">开始生成</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 绑定管理 -->
+    <el-dialog v-model="bindDialog" :title="`绑定管理 - ${viewing?.realName ?? ''}`" width="520px">
+      <el-table :data="bindings" size="small">
+        <el-table-column prop="studentName" label="学生" width="100" />
+        <el-table-column prop="className" label="班级" width="120">
+          <template #default="{ row }">{{ row.className ?? '—' }}</template>
+        </el-table-column>
+        <el-table-column prop="relation" label="关系" width="80" />
+        <el-table-column label="操作" width="80">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="unbind(row)">解绑</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="bind-add">
+        <el-select v-model="addClassId" placeholder="班级" style="width: 130px" @change="loadStudents">
+          <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
+        </el-select>
+        <el-select v-model="addStudentId" filterable placeholder="学生" style="width: 150px">
+          <el-option v-for="s in students" :key="s.id" :label="s.name" :value="s.id" />
+        </el-select>
+        <el-input v-model="addRelation" placeholder="关系(默认家长)" style="width: 120px" />
+        <el-button type="primary" :disabled="!addStudentId" @click="bind">绑定</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { api, fetchBlob } from '../../api/http'
+import { saveFile } from '../../api/nativeShare'
+
+const parents = ref<any[]>([])
+const classes = ref<{ id: number; name: string }[]>([])
+const selected = ref<any[]>([])
+const keyword = ref('')
+const initialPassword = 'Shishi@2026'
+
+const dialog = ref(false)
+const form = ref<any>({})
+
+const genDialog = ref(false)
+const genClassId = ref<number>()
+const genResult = ref<any>(null)
+const generating = ref(false)
+
+const bindDialog = ref(false)
+const viewing = ref<any>(null)
+const bindings = ref<any[]>([])
+const students = ref<any[]>([])
+const addClassId = ref<number>()
+const addStudentId = ref<number>()
+const addRelation = ref('')
+
+function fmtTime(t?: string) {
+  return t ? t.slice(0, 16).replace('T', ' ') : '—'
+}
+
+async function load() {
+  const qs = new URLSearchParams({ page: '1', size: '100' })
+  if (keyword.value) qs.set('keyword', keyword.value)
+  const d = await api<{ records: any[] }>(`/api/admin/parent/list?${qs}`)
+  parents.value = d.records
+}
+
+function openCreate() {
+  form.value = { password: initialPassword }
+  dialog.value = true
+}
+
+async function save() {
+  await api('/api/admin/parent/create', { method: 'POST', json: form.value })
+  ElMessage.success('已创建')
+  dialog.value = false
+  await load()
+}
+
+async function doGenerate() {
+  if (!genClassId.value) return
+  generating.value = true
+  try {
+    genResult.value = await api<any>('/api/admin/parent/generate', {
+      method: 'POST', json: { classId: genClassId.value },
+    })
+    await load()
+  } finally {
+    generating.value = false
+  }
+}
+
+async function openBindings(row: any) {
+  viewing.value = row
+  bindings.value = await api<any[]>(`/api/admin/parent/${row.id}/bindings`)
+  addClassId.value = undefined
+  addStudentId.value = undefined
+  addRelation.value = ''
+  bindDialog.value = true
+}
+
+async function loadStudents() {
+  addStudentId.value = undefined
+  if (!addClassId.value) { students.value = []; return }
+  const d = await api<{ records: any[] }>(
+    `/api/admin/student/list?classId=${addClassId.value}&status=${encodeURIComponent('在读')}&size=100`)
+  students.value = d.records
+}
+
+async function bind() {
+  if (!addStudentId.value) return
+  await api(`/api/admin/parent/${viewing.value.id}/binding`, {
+    method: 'POST',
+    json: { studentId: addStudentId.value, relation: addRelation.value || undefined },
+  })
+  ElMessage.success('已绑定')
+  addStudentId.value = undefined
+  bindings.value = await api<any[]>(`/api/admin/parent/${viewing.value.id}/bindings`)
+  await load()
+}
+
+async function unbind(row: any) {
+  await api(`/api/admin/parent/${viewing.value.id}/binding/${row.studentId}`, { method: 'DELETE' })
+  ElMessage.success('已解绑')
+  bindings.value = await api<any[]>(`/api/admin/parent/${viewing.value.id}/bindings`)
+  await load()
+}
+
+async function resetPwd(row: any) {
+  const { value } = await ElMessageBox.prompt(`为 ${row.realName} 设置新密码`, '重置密码', { inputValue: 'aischool123' })
+  await api(`/api/admin/parent/${row.id}/password`, { method: 'PUT', json: { password: value } })
+  ElMessage.success('密码已重置')
+}
+
+async function toggleStatus(row: any) {
+  await api(`/api/admin/parent/${row.id}/status`, { method: 'PUT', json: { status: row.status === 1 ? 0 : 1 } })
+  ElMessage.success(row.status === 1 ? '已停用' : '已启用')
+  await load()
+}
+
+async function removeOne(row: any) {
+  await ElMessageBox.confirm(`删除家长账号 ${row.realName}？其绑定关系一并删除。`, '确认')
+  await api(`/api/admin/parent/${row.id}`, { method: 'DELETE' })
+  ElMessage.success('已删除')
+  await load()
+}
+
+async function batchStatus(status: number) {
+  await ElMessageBox.confirm(`${status === 1 ? '启用' : '停用'}选中的 ${selected.value.length} 个账号？`, '确认')
+  await api('/api/admin/parent/batch/status', {
+    method: 'PUT', json: { ids: selected.value.map((r) => r.id), status },
+  })
+  ElMessage.success('已批量操作')
+  await load()
+}
+
+async function batchReset() {
+  await ElMessageBox.confirm(
+    `将选中的 ${selected.value.length} 个账号重置为初始密码 ${initialPassword}？`, '确认')
+  await api('/api/admin/parent/batch/reset-password', {
+    method: 'PUT', json: { ids: selected.value.map((r) => r.id) },
+  })
+  ElMessage.success(`已重置，初始密码 ${initialPassword}`)
+}
+
+async function batchRemove() {
+  await ElMessageBox.confirm(`删除选中的 ${selected.value.length} 个账号？绑定关系一并删除。`, '确认')
+  await api('/api/admin/parent/batch', {
+    method: 'DELETE', json: { ids: selected.value.map((r) => r.id) },
+  })
+  ElMessage.success('已删除')
+  await load()
+}
+
+async function doExport() {
+  const qs = keyword.value ? `?keyword=${encodeURIComponent(keyword.value)}` : ''
+  const blob = await fetchBlob(`/api/admin/parent/export${qs}`)
+  await saveFile(blob, '家长账号.xlsx')
+}
+
+onMounted(async () => {
+  await load()
+  classes.value = await api<{ id: number; name: string }[]>('/api/meta/my-classes')
+})
+</script>
+
+<style scoped>
+.tip { margin-bottom: 12px; }
+.batch-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  padding: 8px 12px; background: var(--el-color-primary-light-9); border-radius: 6px;
+  font-size: 13px; }
+.dlg-tip { font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.7; }
+.bind-add { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+</style>

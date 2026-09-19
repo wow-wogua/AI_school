@@ -1,8 +1,7 @@
 package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
-import com.aischool.server.common.BizException;
-import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.aischool.server.service.OnlineTracker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,12 +18,11 @@ import java.util.Map;
 public class AdminOnlineController {
 
     private final OnlineTracker onlineTracker;
+    private final PermissionService permissionService;
 
     @GetMapping
     public ApiResponse<Map<String, Object>> stats() {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可查看在线统计");
-        }
+        permissionService.checkAdminAccess("只有管理员可查看在线统计");
         var online = onlineTracker.online().stream().map(u -> {
             Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("userId", u.userId());

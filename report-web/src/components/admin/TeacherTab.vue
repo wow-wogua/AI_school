@@ -3,6 +3,7 @@
     <div class="toolbar">
       <el-select v-model="roleFilter" placeholder="角色" clearable style="width: 150px" @change="loadUsers">
         <el-option label="管理员" value="ADMIN" />
+        <el-option label="领导" value="LEADER" />
         <el-option label="班主任" value="HEAD_TEACHER" />
         <el-option label="任课教师" value="TEACHER" />
       </el-select>
@@ -15,6 +16,14 @@
       <el-table-column prop="realName" label="姓名" width="110" />
       <el-table-column label="角色" width="100">
         <template #default="{ row }">{{ roleName(row.role) }}</template>
+      </el-table-column>
+      <el-table-column label="管理权限" width="92">
+        <template #default="{ row }">
+          <el-tooltip v-if="row.role === 'LEADER'" content="开启后该领导可使用管理端全部功能（网页端操作）" placement="top">
+            <el-switch v-model="row.adminAccess" size="small" @change="(v: any) => toggleAdminAccess(row, v)" />
+          </el-tooltip>
+          <span v-else>—</span>
+        </template>
       </el-table-column>
       <el-table-column prop="employeeNo" label="工号" width="100">
         <template #default="{ row }">{{ row.employeeNo ?? '—' }}</template>
@@ -126,6 +135,7 @@
         <el-form-item label="角色">
           <el-select v-model="form.role" style="width: 100%">
             <el-option label="管理员" value="ADMIN" />
+            <el-option label="领导" value="LEADER" />
             <el-option label="班主任" value="HEAD_TEACHER" />
             <el-option label="任课教师" value="TEACHER" />
           </el-select>
@@ -159,7 +169,7 @@ const form = ref<any>({})
 const teach = ref<{ teacherId?: number; classId?: number; subjectId?: number }>({})
 
 function roleName(r: string) {
-  return { ADMIN: '管理员', HEAD_TEACHER: '班主任', TEACHER: '任课教师' }[r] ?? r
+  return { ADMIN: '管理员', LEADER: '领导', HEAD_TEACHER: '班主任', TEACHER: '任课教师' }[r] ?? r
 }
 
 async function loadUsers() {
@@ -174,6 +184,24 @@ async function loadUsers() {
     const byUser = new Map(pfs.map((p) => [p.userId, p]))
     users.value = users.value.map((u) => ({ ...u, ...(byUser.get(u.id) ?? {}) }))
   } catch { /* 档案接口失败仅少几列 */ }
+  // 领导行回显「管理员级权限」开关（ADMIN_ACCESS 权限点，批1）
+  await Promise.all(users.value.filter((u) => u.role === 'LEADER').map(async (u) => {
+    try {
+      const d = await api<{ perms: string[] }>(`/api/admin/user/${u.id}/perms`)
+      u.adminAccess = d.perms.includes('ADMIN_ACCESS')
+    } catch { u.adminAccess = false }
+  }))
+}
+
+/** 领导按人升级管理员级权限（角色改回非领导时后端自动清权限点） */
+async function toggleAdminAccess(row: any, granted: boolean) {
+  try {
+    await api(`/api/admin/user/${row.id}/perm`, { method: 'PUT', json: { granted } })
+    ElMessage.success(granted ? '已授予管理员级权限' : '已收回管理员级权限')
+  } catch (e) {
+    row.adminAccess = !granted // 失败回滚开关状态
+    throw e
+  }
 }
 
 const profileDlg = ref(false)

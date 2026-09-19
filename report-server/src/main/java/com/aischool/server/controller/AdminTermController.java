@@ -6,7 +6,7 @@ import com.aischool.server.entity.Exam;
 import com.aischool.server.entity.Term;
 import com.aischool.server.mapper.ExamMapper;
 import com.aischool.server.mapper.TermMapper;
-import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import jakarta.validation.constraints.NotBlank;
@@ -28,11 +28,10 @@ public class AdminTermController {
 
     private final TermMapper termMapper;
     private final ExamMapper examMapper;
+    private final PermissionService permissionService;
 
     private void checkAdmin() {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可操作系统管理");
-        }
+        permissionService.checkAdminAccess("只有管理员可操作系统管理");
     }
 
     @GetMapping("/term/list")

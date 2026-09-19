@@ -1,0 +1,84 @@
+<template>
+  <div class="app-page p-child">
+    <!-- 孩子信息卡（第一版卡片语言；psub 壳已有返回导航条，页面内不再叠 hero） -->
+    <div class="app-card tl tex-a kid-card">
+      <div class="avatar">{{ child?.name?.charAt(0) ?? '?' }}</div>
+      <div class="info">
+        <h1>{{ child?.name ?? '加载中…' }}<span v-if="child?.relation" class="app-chip rel">{{ child.relation }}</span></h1>
+        <p>{{ child?.className ?? '未分班' }}<template v-if="child?.studentNo"> · 学号 {{ child.studentNo }}</template></p>
+      </div>
+    </div>
+
+    <!-- 成长动态（feed 结构同教师端最近动态） -->
+    <div class="app-sec">成长动态</div>
+    <div class="app-card tex-c feed">
+      <van-skeleton v-if="loading" :row="6" class="feed-skeleton" />
+      <div v-else-if="!evaluations.length" class="feed-empty">还没有老师评价记录</div>
+      <article v-for="(e, i) in evaluations" :key="i" class="eval">
+        <div class="f-line1">
+          <span class="f-title">{{ e.title }}</span>
+          <b class="f-score">{{ e.score }}</b>
+        </div>
+        <p class="f-meta">{{ e.teacherName ?? '老师' }} · {{ fmtTime(e.evalTime) }}</p>
+        <p v-if="e.remark" class="f-remark">{{ e.remark }}</p>
+      </article>
+    </div>
+
+    <p class="app-foot">孩子的学期成长报告将在报告功能开放后提供</p>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { api } from '../../api/http'
+
+const route = useRoute()
+const child = ref<any>(null)
+const evaluations = ref<any[]>([])
+const loading = ref(true)
+
+function fmtTime(t?: string) {
+  if (!t) return ''
+  return t.slice(0, 16).replace('T', ' ')
+}
+
+onMounted(async () => {
+  const id = route.params.id
+  try {
+    // children 接口只回绑定孩子（后端 requireBound 双保险）
+    const list = await api<any[]>('/api/parent/children')
+    child.value = list.find((c) => String(c.studentId) === String(id)) ?? null
+    evaluations.value = await api<any[]>(`/api/parent/children/${id}/evaluations?limit=20`)
+  } finally {
+    loading.value = false
+  }
+})
+</script>
+
+<style scoped>
+/* C 风格页面（方案C 新中式）：结构复用第一版全局类，仅覆盖点缀色为 C 令牌 */
+.kid-card { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.avatar { flex: none; width: 54px; height: 54px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--shine-navy); color: var(--shine-gold); font-size: 22px; font-weight: 700; }
+.info h1 { margin: 0; font-size: 18px; font-weight: 700; color: var(--app-text-1); }
+.info .rel { margin-left: 8px; background: var(--shine-red-soft); color: var(--shine-red); }
+.info p { margin: 5px 0 0; font-size: 12px; color: var(--app-text-2); }
+
+.feed { padding: 4px 14px; }
+.feed-skeleton { padding: 14px 0; }
+.feed-empty { padding: 26px 0; text-align: center; color: var(--app-text-3); font-size: 13px; }
+.eval { padding: 12px 0; }
+.eval + .eval { border-top: 1px solid var(--app-card-border); }
+.f-line1 { display: flex; align-items: baseline; gap: 8px; }
+.f-title { flex: 1; font-size: 14px; font-weight: 600; color: var(--app-text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f-score { font-size: 13px; color: var(--shine-red); }
+.f-meta { margin: 5px 0 0; font-size: 11px; color: var(--app-text-3); }
+.f-remark { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--app-text-2);
+  background: var(--shine-bg); border-radius: 8px; padding: 8px 10px; }
+
+/* C 覆盖：区块竖条换 C 红（卡片/结构均第一版全局类） */
+.p-child .app-sec::before { background: var(--shine-red); }
+</style>

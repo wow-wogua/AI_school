@@ -17,8 +17,10 @@ import java.util.List;
 /**
  * 数据权限（角色隔离）：
  * - ADMIN：全校
+ * - LEADER（领导）：全校只读可见（写操作由各业务的 canEnter/checkClassOperable 拒绝）
  * - HEAD_TEACHER（班主任）：所带班级
  * - TEACHER（任课教师）：任课班级（t_teach）
+ * - PARENT（家长）：刻意不走本服务——落到 default 即 403，家长一律使用 /api/parent/* 白名单接口
  */
 @Service
 @RequiredArgsConstructor
@@ -31,7 +33,7 @@ public class DataScopeService {
     /** 当前用户可见的班级 id 列表；null 表示不受限（管理员） */
     public List<Long> visibleClassIds(UserPrincipal user) {
         return switch (user.role()) {
-            case "ADMIN" -> null;
+            case "ADMIN", "LEADER" -> null;
             case "HEAD_TEACHER" -> clazzMapper.selectList(new LambdaQueryWrapper<Clazz>()
                     .eq(Clazz::getHeadTeacherId, user.userId())).stream().map(Clazz::getId).toList();
             case "TEACHER" -> teachMapper.selectList(new LambdaQueryWrapper<Teach>()

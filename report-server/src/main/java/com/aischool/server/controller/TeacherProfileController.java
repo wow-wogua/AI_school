@@ -9,6 +9,7 @@ import com.aischool.server.mapper.SubjectMapper;
 import com.aischool.server.mapper.TeacherProfileMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.aischool.server.service.report.PdfStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.Data;
@@ -38,6 +39,7 @@ public class TeacherProfileController {
     private final UserMapper userMapper;
     private final SubjectMapper subjectMapper;
     private final PdfStoreService pdfStore;
+    private final PermissionService permissionService;
 
     /** 我的档案（账号信息 + 档案字段合并） */
     @GetMapping("/me")
@@ -70,9 +72,7 @@ public class TeacherProfileController {
     }
 
     private void requireAdmin() {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可操作");
-        }
+        permissionService.checkAdminAccess("只有管理员可操作");
     }
 
     private void requireUser(Long userId) {
@@ -170,9 +170,7 @@ public class TeacherProfileController {
     /** 全员档案（管理员；管理端教师管理扩展列） */
     @GetMapping("/admin/list")
     public ApiResponse<List<Map<String, Object>>> adminList() {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可查看全员档案");
-        }
+        permissionService.checkAdminAccess("只有管理员可查看全员档案");
         Map<Long, TeacherProfile> byUser = profileMapper.selectList(null).stream()
                 .collect(Collectors.toMap(TeacherProfile::getUserId, p -> p));
         Map<Long, String> subjectNames = subjectNames();

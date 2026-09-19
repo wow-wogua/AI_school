@@ -368,3 +368,22 @@ body {
 .el-table .hl-row > td.el-table__cell { background: #E6F0FF; }
 .el-table .hl-row > td.el-table__cell:first-child { box-shadow: inset 3px 0 0 #2F5FC0; }
 .app-sub:not(.admin) .toolbar { border-top: 3px solid #E3EBFA; }
+
+/* ---------------- 11. SHINE 家长/领导端（方案C 新中式学院融合） ----------------
+   批1 新增页面专用（/p/* /l/*）；教师端存量页不动，批6 统一切换。
+   唯一权威=local/shine_preview/tokens.md：红=操作/品牌、藏蓝=信息、金=细线点缀、宣纸暖白底 */
+:root {
+  --shine-red: #A8232B;                 /* 操作/品牌：主按钮、激活态 */
+  --shine-red-deep: #8C1D23;
+  --shine-red-soft: rgba(168, 35, 43, .08);
+  --shine-navy: #1F2A44;                /* 信息：头区底、标题 */
+  --shine-navy-soft: #3A4664;
+  --shine-gradient: linear-gradient(160deg, #141B2E 0%, #1F2A44 46%, #3A4664 100%);  /* C 藏蓝头区渐变（对位 --app-gradient） */
+  --shine-gold: #C9A227;                /* 细线/点缀 */
+  --shine-gold-soft: rgba(201, 162, 39, .35);
+  --shine-bg: #F7F5F0;                  /* 宣纸暖白 */
+  --shine-card: #FFFFFF;
+  --shine-text: #2A2F3E;
+  --shine-text-2: #6B7280;
+  --shine-line: #EAE5DA;
+}

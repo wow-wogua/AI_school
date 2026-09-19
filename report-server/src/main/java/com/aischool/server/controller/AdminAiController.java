@@ -1,9 +1,8 @@
 package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
-import com.aischool.server.common.BizException;
 import com.aischool.server.mapper.AiTaskMapper;
-import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,12 +20,11 @@ import java.util.Map;
 public class AdminAiController {
 
     private final AiTaskMapper taskMapper;
+    private final PermissionService permissionService;
 
     @GetMapping("/usage")
     public ApiResponse<Map<String, Object>> usage(@RequestParam(defaultValue = "30") int days) {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可查看 AI 用量");
-        }
+        permissionService.checkAdminAccess("只有管理员可查看 AI 用量");
         LocalDateTime since = LocalDateTime.now().minusDays(Math.min(Math.max(days, 1), 365));
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("byDay", taskMapper.usageByDay(since));

@@ -29,6 +29,46 @@
       </main>
     </div>
 
+    <!-- ptab 家长端一级页（PARENT）：C 风格底 + 两 Tab 导航 -->
+    <div v-else-if="layout === 'ptab'" class="app-shell shine-shell">
+      <main class="app-main">
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </main>
+      <ParentTabbar :tab="(route.meta.tab as any)" />
+    </div>
+
+    <!-- psub 家长二级页：C 风格「返回+标题」导航条（藏蓝底金线） -->
+    <div v-else-if="layout === 'psub'" class="app-sub shine-shell">
+      <header v-if="route.meta.title" class="shine-nav">
+        <button class="back" type="button" aria-label="返回" @click="goBack">
+          <van-icon name="arrow-left" />
+        </button>
+        <h1>{{ route.meta.title }}</h1>
+      </header>
+      <main class="sub-main">
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </main>
+    </div>
+
+    <!-- lhome 领导端（LEADER）：单页驾驶舱，页面自带头部（无 Tabbar） -->
+    <div v-else-if="layout === 'lhome'" class="app-sub shine-shell">
+      <main class="sub-main">
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </main>
+    </div>
+
     <!-- bare：登录页直接渲染 -->
     <router-view v-else />
   </MotionConfig>
@@ -45,6 +85,7 @@ import { useAiTasksStore } from './stores/aiTasks'
 import { isNative } from './api/nativeShare'
 import { checkForUpdate } from './utils/appUpdate'
 import AppTabbar from './components/AppTabbar.vue'
+import ParentTabbar from './components/ParentTabbar.vue'
 
 const auth = useAuthStore()
 const aiTasks = useAiTasksStore()
@@ -126,4 +167,28 @@ watch(() => auth.token, (t) => {
   --el-color-primary-light-9: #EAEFF9;
   --el-color-primary-dark-2: #264C9A;
 }
+
+/* 家长/领导端壳（批1 新增）：宣纸底 + C 风格导航条（第一版 sub-nav 形态：渐变+虚化校园底图+光斑，换 C 藏蓝/金） */
+.shine-shell { background: var(--shine-bg); }
+.shine-nav {
+  position: relative; display: flex; align-items: center; gap: 10px; flex: none;
+  padding: calc(8px + var(--sat)) 14px 8px;
+  background: var(--shine-gradient); color: #fff; overflow: hidden;
+  border-bottom: 1px solid var(--shine-gold);
+}
+.shine-nav::before {                 /* 虚化校园底图（同 .app-hero） */
+  content: ''; position: absolute; inset: -30px;
+  background: url('/campus-bg.jpg') center 42%/cover no-repeat;
+  opacity: .24; filter: blur(8px) saturate(1.15); pointer-events: none;
+}
+.shine-nav::after {                  /* 右上光斑（C 金） */
+  content: ''; position: absolute; top: -60px; right: -45px; width: 190px; height: 190px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(201,162,39,.28), rgba(201,162,39,0));
+}
+.shine-nav > * { position: relative; }
+.shine-nav .back { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  border: none; border-radius: 50%; background: rgba(255,255,255,.16); color: #fff;
+  font-size: 16px; cursor: pointer; }
+.shine-nav h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: 1px; }
 </style>

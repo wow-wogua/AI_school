@@ -16,6 +16,7 @@
     </div>
     <el-tabs v-model="tab">
       <el-tab-pane label="教师与任课" name="teacher"><TeacherTab /></el-tab-pane>
+      <el-tab-pane label="家长账号" name="parent"><ParentTab /></el-tab-pane>
       <el-tab-pane label="教师档案" name="teacherProfile"><TeacherProfileTab /></el-tab-pane>
       <el-tab-pane label="年级与班级" name="org"><OrgTab /></el-tab-pane>
       <el-tab-pane label="学生" name="student"><StudentTab /></el-tab-pane>
@@ -30,11 +31,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import { api } from '../api/http'
 import TeacherTab from '../components/admin/TeacherTab.vue'
+import ParentTab from '../components/admin/ParentTab.vue'
 import TeacherProfileTab from '../components/admin/TeacherProfileTab.vue'
 import OrgTab from '../components/admin/OrgTab.vue'
 import StudentTab from '../components/admin/StudentTab.vue'
@@ -45,8 +47,10 @@ import AuditTab from '../components/admin/AuditTab.vue'
 import AiUsageTab from '../components/admin/AiUsageTab.vue'
 import AppReleaseTab from '../components/admin/AppReleaseTab.vue'
 
-/* 支持 ?tab= 直达指定页签（首页快捷功能「教师档案」入口用） */
-const tab = ref((useRoute().query.tab as string) || 'teacher')
+/* 支持 ?tab= 直达指定页签（首页快捷功能「教师档案」入口用）；已打开时 query 变化也跟随 */
+const route = useRoute()
+const tab = ref((route.query.tab as string) || 'teacher')
+watch(() => route.query.tab, (t) => { if (typeof t === 'string' && t !== tab.value) tab.value = t })
 
 /* 在线统计条：30 秒轮询，失败静默（不影响管理端使用） */
 const online = reactive<{ onlineCount: number; dailyCount: number; users: any[] | null }>({

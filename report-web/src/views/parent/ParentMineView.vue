@@ -1,33 +1,29 @@
 <template>
-  <div class="app-page mine">
-    <!-- 头区：教师信息卡（教师档案阶段3接入编辑入口）；右上校徽水印 -->
+  <div class="app-page p-mine">
+    <!-- 头区（第一版结构：头像+姓名+角色 chip；右上校徽水印） -->
     <div class="app-hero hero mark">
       <div class="me">
-        <span class="ava">{{ avatarChar }}</span>
+        <span class="ava">{{ auth.realName?.charAt(0) || '家' }}</span>
         <div>
           <h1>{{ auth.realName }}</h1>
-          <p><span class="app-chip role-chip">{{ roleLabel }}</span></p>
+          <p><span class="app-chip role-chip">家长</span></p>
         </div>
       </div>
     </div>
 
     <div class="app-card overlap tl tex-f cells">
-      <van-cell title="教师档案" icon="contact" is-link :value="profileHint || '待完善'"
-        @click="$router.push('/profile')" />
-      <van-cell title="成长报告" icon="orders-o" is-link @click="$router.push('/reports')" />
-      <van-cell title="生成中心" icon="bell" is-link :value="running ? `${running} 进行中` : ''" @click="$router.push('/notice')" />
-      <van-cell v-if="auth.role === 'ADMIN'" title="系统管理" icon="setting-o" is-link @click="$router.push('/admin')" />
+      <van-cell title="修改密码" icon="lock" is-link @click="pwdOpen = true" />
+      <van-cell title="账号说明" icon="shield-o" is-link @click="tipOpen = true" />
     </div>
 
     <div class="app-card tex-e cells">
-      <van-cell title="修改密码" icon="lock" is-link @click="pwdOpen = true" />
       <van-cell title="检查更新" icon="upgrade" is-link :value="appVersion" @click="onCheckUpdate" />
       <van-cell title="服务器地址" icon="desktop-o" is-link :value="srvBase || '默认'" @click="srvOpen = true" />
       <van-cell title="关于" icon="info-o" is-link @click="aboutOpen = true" />
       <van-cell title="退出登录" icon="revoke" is-link class="logout" @click="logoutOpen = true" />
     </div>
 
-    <!-- 修改密码 -->
+    <!-- 修改密码（同教师端机制：改密换发新 token） -->
     <van-dialog v-model:show="pwdOpen" title="修改密码" show-cancel-button :before-close="onPwdClose">
       <div style="padding-top: 10px">
         <van-field v-model="pwd.old" type="password" label="旧密码" placeholder="当前密码" />
@@ -36,13 +32,18 @@
       </div>
     </van-dialog>
 
+    <!-- 账号说明 -->
+    <van-dialog v-model:show="tipOpen" title="账号说明" :show-confirm-button="false">
+      <p class="tip">家长账号由学校管理员发放，仅可查看绑定孩子的成长动态；如需变更绑定请联系学校管理员。</p>
+    </van-dialog>
+
     <!-- 服务器地址编辑 -->
     <van-dialog v-model:show="srvOpen" title="服务器地址" show-cancel-button @confirm="saveSrv">
       <div class="srv-tip">App 直连的学校服务器，如 http://192.168.1.10:8080；留空恢复默认</div>
       <van-field v-model="srvInput" placeholder="http://ip:端口" clearable />
     </van-dialog>
 
-    <!-- 关于 -->
+    <!-- 关于（同教师端） -->
     <van-dialog v-model:show="aboutOpen" title="关于" :show-confirm-button="false">
       <div class="about">
         <img src="/campus-pano.jpg" alt="石实实验学校" class="about-pano">
@@ -60,24 +61,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
 import { App as CapApp } from '@capacitor/app'
-import { useAuthStore } from '../stores/auth'
-import { useAiTasksStore } from '../stores/aiTasks'
-import { api, apiBase } from '../api/http'
-import { isNative } from '../api/nativeShare'
-import { checkForUpdate } from '../utils/appUpdate'
+import { useAuthStore } from '../../stores/auth'
+import { api, apiBase } from '../../api/http'
+import { isNative } from '../../api/nativeShare'
+import { checkForUpdate } from '../../utils/appUpdate'
 
 const auth = useAuthStore()
-const aiTasks = useAiTasksStore()
 const router = useRouter()
 
-const running = computed(() => aiTasks.runningCount)
-const avatarChar = computed(() => auth.realName?.charAt(0) || '师')
-const roleLabel = computed(() => ({ ADMIN: '管理员', LEADER: '领导', HEAD_TEACHER: '班主任', TEACHER: '任课教师', PARENT: '家长' }[auth.role] ?? auth.role))
-
+const tipOpen = ref(false)
 const srvOpen = ref(false)
 const srvBase = ref(apiBase())
 const srvInput = ref(apiBase())
@@ -109,8 +105,8 @@ async function onPwdClose(action: string) {
     return false
   }
 }
-const version = __APP_VERSION__
 
+const version = __APP_VERSION__
 /** App 内显示真实安装包版本（网页版回退 package.json 版本） */
 const appVersion = ref('')
 onMounted(async () => {
@@ -125,16 +121,6 @@ function onCheckUpdate() {
 }
 
 const logoutOpen = ref(false)
-
-/** 档案完善度提示（接口失败不阻塞页面） */
-const profileHint = ref('')
-onMounted(async () => {
-  try {
-    const d = await api<any>('/api/profile/me')
-    profileHint.value = d.hasProfile ? (d.employeeNo || d.subjectName || d.title || '已完善') : ''
-  } catch { /* 忽略 */ }
-})
-
 function logout() {
   auth.logout()
   router.push('/login')
@@ -142,10 +128,11 @@ function logout() {
 </script>
 
 <style scoped>
+/* C 风格页面（方案C 新中式）：结构复用第一版 MineView，仅覆盖头区渐变/点缀色为 C 令牌 */
 .hero { padding-bottom: 56px; }
 .me { display: flex; align-items: center; gap: 14px; }
 .ava { display: flex; align-items: center; justify-content: center; width: 58px; height: 58px;
-  border-radius: 50%; background: rgba(255,255,255,.92); color: var(--app-blue-deep);
+  border-radius: 50%; background: rgba(255,255,255,.92); color: var(--shine-navy);
   font-size: 22px; font-weight: 700; }
 .me h1 { margin: 0 0 6px; font-size: 20px; font-weight: 800; }
 .role-chip { background: rgba(255,255,255,.2); color: #fff; }
@@ -153,16 +140,20 @@ function logout() {
 .cells { margin-top: 12px; padding: 4px 0; }
 .cells.overlap { margin-top: -36px; }
 .cells :deep(.van-cell) { padding: 13px 16px; font-size: 15px; }
-.cells :deep(.van-cell .van-icon:not(.van-cell__right-icon)) { color: var(--app-blue); font-size: 17px; margin-right: 2px; }
+.cells :deep(.van-cell .van-icon:not(.van-cell__right-icon)) { color: var(--shine-navy-soft); font-size: 17px; margin-right: 2px; }
 .cells :deep(.logout) { color: #EF4444; }
 .cells :deep(.logout .van-cell__title) { color: #EF4444; }
 
+.tip { margin: 0; padding: 16px 20px 20px; font-size: 13px; line-height: 1.8; color: var(--app-text-2); }
 .srv-tip { padding: 12px 16px 0; font-size: 12px; color: var(--app-text-3); line-height: 1.5; }
 .about { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0 24px 24px; }
 .about-pano { width: 100%; height: 92px; object-fit: cover; border-radius: 12px; margin-bottom: 8px; }
 .about-badge { width: 46px; }
 .about b { font-size: 15px; color: var(--app-text-1); }
 .about p { margin: 0; font-size: 12px; color: var(--app-text-2); }
-.about .motto { color: var(--app-gold); letter-spacing: 1px; }
+.about .motto { color: var(--shine-gold); letter-spacing: 1px; }
 .about .ver { margin-top: 4px; color: var(--app-text-3); }
+
+/* C 覆盖：头区藏蓝渐变+金线收边（第一版 hero 结构不变，仅换配色令牌） */
+.p-mine .app-hero { background: var(--shine-gradient); border-bottom: 2px solid var(--shine-gold); }
 </style>

@@ -22,7 +22,7 @@ import com.aischool.server.mapper.HonorMapper;
 import com.aischool.server.mapper.ScoreMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.UserMapper;
-import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.aischool.server.service.excel.ExcelStudentHelper;
 import com.aischool.server.service.report.PdfStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -62,6 +62,7 @@ public class AdminOrgController {
 
     private final GradeMapper gradeMapper;
     private final ClazzMapper clazzMapper;
+    private final PermissionService permissionService;
     private final StudentMapper studentMapper;
     private final UserMapper userMapper;
     private final EvaluationMapper evaluationMapper;
@@ -74,9 +75,7 @@ public class AdminOrgController {
     private final ExcelStudentHelper excelStudent;
 
     private void checkAdmin() {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可操作系统管理");
-        }
+        permissionService.checkAdminAccess("只有管理员可操作系统管理");
     }
 
     // ───────────────── 年级 ─────────────────

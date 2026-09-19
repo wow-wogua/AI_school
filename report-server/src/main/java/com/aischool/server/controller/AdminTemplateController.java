@@ -4,7 +4,7 @@ import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.BizException;
 import com.aischool.server.entity.ReportTemplate;
 import com.aischool.server.mapper.ReportTemplateMapper;
-import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,14 +30,13 @@ public class AdminTemplateController {
 
     private static final String STATUS_ON = "启用";
     private static final String STATUS_DRAFT = "草稿";
+    private final PermissionService permissionService;
 
     private final ReportTemplateMapper templateMapper;
     private final ObjectMapper objectMapper;
 
     private void checkAdmin() {
-        if (!"ADMIN".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "只有管理员可操作系统管理");
-        }
+        permissionService.checkAdminAccess("只有管理员可操作系统管理");
     }
 
     @GetMapping("/template/list")

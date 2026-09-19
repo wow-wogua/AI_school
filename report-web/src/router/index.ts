@@ -41,6 +41,12 @@ const router = createRouter({
     { path: '/teacher-honor', component: () => import('../views/TeacherHonorView.vue'), meta: { layout: 'sub', title: '教师风采' } },
     { path: '/teacher-honor/new', component: () => import('../views/TeacherHonorCaptureView.vue'), meta: { layout: 'sub', title: '记录成就' } },
     { path: '/admin', component: () => import('../views/AdminView.vue'), meta: { layout: 'sub', title: '系统管理', admin: true } },
+    // 家长端（PARENT 分流，方案C 新中式风格 --shine-*）：孩子卡+评价动态；报告批5 家长版再开
+    { path: '/p/home', component: () => import('../views/parent/ParentHomeView.vue'), meta: { layout: 'ptab', tab: 'phome' } },
+    { path: '/p/child/:id', component: () => import('../views/parent/ParentChildView.vue'), meta: { layout: 'psub', title: '孩子成长' } },
+    { path: '/p/mine', component: () => import('../views/parent/ParentMineView.vue'), meta: { layout: 'ptab', tab: 'pmine' } },
+    // 领导端（LEADER 分流）：全校只读驾驶舱；成绩明细复用 /scores（LEADER 只读）
+    { path: '/l/home', component: () => import('../views/leader/LeaderHomeView.vue'), meta: { layout: 'lhome' } },
     // 原「批量任务」页（/）已并入通知页
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
@@ -53,6 +59,13 @@ router.beforeEach((to) => {
   if (auth.mustChangePwd && to.path !== '/change-password' && to.path !== '/login') {
     return '/change-password'
   }
+  // 角色分流（批1）：PARENT 锁 /p/*；LEADER 锁 /l/*（+ /scores 成绩只读复用）；教师/管理员走现状路由
+  const role = auth.role
+  const free = to.path === '/login' || to.path === '/change-password'
+  if (role === 'PARENT' && !free && !to.path.startsWith('/p/')) return '/p/home'
+  if (role === 'LEADER' && !free && !to.path.startsWith('/l/') && !to.path.startsWith('/scores')) return '/l/home'
+  if (role !== 'PARENT' && to.path.startsWith('/p/')) return '/'
+  if (role !== 'LEADER' && to.path.startsWith('/l/')) return '/'
 })
 
 export default router
