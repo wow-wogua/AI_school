@@ -33,6 +33,8 @@
           :class="{ off: !g.to }" @click="g.to ? $router.push(g.to) : showToast('该功能即将开放')">
           <span class="g-icon" :style="{ background: g.bg }"><van-icon :name="g.icon" /></span>
           <span>{{ g.name }}</span>
+          <i v-if="g.name === '待我审批' && ov.pendingApprovals > 0" class="g-badge">
+            {{ ov.pendingApprovals > 99 ? '99+' : ov.pendingApprovals }}</i>
           <i v-if="!g.to" class="g-tip">即将开放</i>
         </button>
       </div>
@@ -83,10 +85,12 @@ const aiTasks = computed(() => usage.value.reduce((s, r) => s + Number(r.tasks ?
 const aiTokens = computed(() => usage.value.reduce(
   (s, r) => s + Number(r.promptTokens ?? 0) + Number(r.completionTokens ?? 0), 0))
 
-/* 快捷宫格（同教师端 HomeView 的 g-icon 彩色方底形态；to 为空=未开放置灰） */
+/* 快捷宫格（同教师端 HomeView 的 g-icon 彩色方底形态；to 为空=未开放置灰）。
+   待我审批（批2-5）：管理员/领导账号双人审批，有数时图标角标 */
 const grids = [
   { name: '成绩查询', icon: 'bar-chart-o', to: '/scores', bg: '#2F5FC0' },
   { name: '教师使用情况', icon: 'friends-o', to: '/l/teachers', bg: '#0EA5E9' },
+  { name: '待我审批', icon: 'todo-list-o', to: '/l/approvals', bg: '#A8232B' },
   { name: '成绩汇总排名', icon: 'chart-trending-o', to: '', bg: '#8B5CF6' },
   { name: '修改密码', icon: 'lock', to: '/change-password', bg: '#6366F1' },
 ]
@@ -147,6 +151,9 @@ onMounted(loadAll)
 .g-tip { position: absolute; top: 4px; right: 6px; font-style: normal; font-size: 9px; line-height: 1;
   color: var(--shine-gold); background: #fff; border: 1px solid var(--shine-gold-soft);
   border-radius: 6px; padding: 2px 4px; }
+/* 待我审批角标（批2-5）：图标右上红底白字计数 */
+.g-badge { position: absolute; top: 2px; right: 2px; font-style: normal; font-size: 9px; line-height: 1;
+  color: #fff; background: var(--shine-red); border-radius: 8px; padding: 3px 5px; font-weight: 700; }
 
 .ai-note { margin: -4px 2px 0; font-size: 11px; color: var(--app-text-3); text-align: center; }
 

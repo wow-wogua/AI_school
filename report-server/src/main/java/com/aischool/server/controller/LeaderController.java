@@ -14,6 +14,7 @@ import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.OnlineTracker;
+import com.aischool.server.service.auth.RoleApprovalService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,6 +44,7 @@ public class LeaderController {
     private final ClazzMapper clazzMapper;
     private final EvaluationMapper evaluationMapper;
     private final OnlineTracker onlineTracker;
+    private final RoleApprovalService approvalService;
     private final AiTaskMapper taskMapper;
     private final LeaderUsageMapper usageMapper;
 
@@ -66,6 +68,8 @@ public class LeaderController {
                 .ge(Evaluation::getEvalTime, LocalDate.now().atStartOfDay())));
         data.put("onlineCount", onlineTracker.online().size());
         data.put("dailyActive", onlineTracker.dailyCount());
+        // 待我审批（批2-5）：管理员/领导账号双人审批，领导在 App 端处理
+        data.put("pendingApprovals", approvalService.pendingCount());
         return ApiResponse.ok(data);
     }
 

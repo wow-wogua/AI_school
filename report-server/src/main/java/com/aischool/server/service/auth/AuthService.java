@@ -34,6 +34,7 @@ public class AuthService {
     private final UserMapper userMapper;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final RoleApprovalService roleApprovalService;
 
     public Map<String, Object> login(String username, String password) {
         Long locked = lockUntil.get(username);
@@ -48,6 +49,10 @@ public class AuthService {
             throw new BizException(401, "用户名或密码错误");
         }
         if (user.getStatus() == null || user.getStatus() != 1) {
+            // 管理员/领导新号双人审批中（批2-5）：给出准确提示而非笼统「已停用」
+            if (roleApprovalService.hasPending(user.getId())) {
+                throw new BizException(403, "账号待审批，通过后即可使用");
+            }
             throw new BizException(403, "账号已停用");
         }
         loginFails.remove(username);

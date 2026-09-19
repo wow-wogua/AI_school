@@ -14,8 +14,11 @@
     <el-table :data="users" size="small">
       <el-table-column prop="username" label="登录名" width="120" />
       <el-table-column prop="realName" label="姓名" width="110" />
-      <el-table-column label="角色" width="100">
-        <template #default="{ row }">{{ roleName(row.role) }}</template>
+      <el-table-column label="角色" width="150">
+        <template #default="{ row }">
+          {{ roleName(row.role) }}
+          <el-tag v-if="row.pendingUpgradeTo" type="warning" size="small">升{{ roleName(row.pendingUpgradeTo) }}审批中</el-tag>
+        </template>
       </el-table-column>
       <el-table-column label="管理权限" width="92">
         <template #default="{ row }">
@@ -35,9 +38,10 @@
         <template #default="{ row }">{{ row.title ?? '—' }}</template>
       </el-table-column>
       <el-table-column prop="phone" label="手机" width="130" />
-      <el-table-column label="状态" width="80">
+      <el-table-column label="状态" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '停用' }}</el-tag>
+          <el-tag v-if="row.pendingCreate" type="warning" size="small">待审批</el-tag>
+          <el-tag v-else :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '停用' }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作" min-width="320">
@@ -113,6 +117,9 @@
         </template>
         <div style="font-size: 12px; margin-top: 4px">
           初始密码统一为 <b>{{ importResult.initialPassword }}</b>，请通知教师登录后在「我的-修改密码」自行更换。
+          <template v-if="importResult.pendingApprovals">
+            其中管理员/领导账号共 {{ importResult.pendingApprovals }} 个待审批，通过后方可登录。
+          </template>
         </div>
       </el-alert>
       <template #footer>
@@ -266,11 +273,13 @@ function openEdit(row: any) {
 
 async function saveUser() {
   if (editing.value) {
-    await api(`/api/admin/user/${editing.value.id}`, { method: 'PUT', json: form.value })
+    const d = await api<{ pendingApproval?: boolean }>(`/api/admin/user/${editing.value.id}`, { method: 'PUT', json: form.value })
+    // 升入管理员/领导走双人审批（批2-5）：角色暂不变，另一名管理员/领导通过后生效
+    ElMessage.success(d?.pendingApproval ? '已提交，待另一名管理员/领导审批后生效' : '已保存')
   } else {
-    await api('/api/admin/user', { method: 'POST', json: form.value })
+    const d = await api<{ pendingApproval?: boolean }>('/api/admin/user', { method: 'POST', json: form.value })
+    ElMessage.success(d?.pendingApproval ? '账号已创建，待另一名管理员/领导审批后启用' : '已保存')
   }
-  ElMessage.success('已保存')
   dialog.value = false
   await loadUsers()
 }

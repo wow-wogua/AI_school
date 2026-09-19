@@ -13,6 +13,7 @@
             <button v-for="t in g.items" :key="t.name" class="nv" type="button"
               :class="{ on: tab === t.name }" @click="tab = t.name">
               <el-icon><component :is="t.icon" /></el-icon>{{ t.label }}
+              <i v-if="t.name === 'roleRequest' && pendingCount > 0" class="badge">{{ pendingCount > 99 ? '99+' : pendingCount }}</i>
             </button>
           </template>
         </nav>
@@ -38,7 +39,7 @@
         </header>
         <main class="body">
           <div class="pt"><div class="mei"></div><h1>{{ current.label }}</h1></div>
-          <component :is="current.comp" />
+          <component :is="current.comp" @handled="loadPendingCount" />
         </main>
       </div>
     </template>
@@ -62,6 +63,7 @@
       <el-tabs v-model="tab">
         <el-tab-pane label="教师与任课" name="teacher"><TeacherTab /></el-tab-pane>
         <el-tab-pane label="家长账号" name="parent"><ParentTab /></el-tab-pane>
+        <el-tab-pane :label="`账号审批${pendingCount ? '(' + pendingCount + ')' : ''}`" name="roleRequest"><RoleRequestTab @handled="loadPendingCount" /></el-tab-pane>
         <el-tab-pane label="内容发布" name="content"><ContentTab /></el-tab-pane>
         <el-tab-pane label="教师档案" name="teacherProfile"><TeacherProfileTab /></el-tab-pane>
         <el-tab-pane label="年级与班级" name="org"><OrgTab /></el-tab-pane>
@@ -81,11 +83,12 @@
 import { computed, markRaw, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { Aim, Calendar, DataLine, Document, Iphone, Postcard, Promotion, School, Setting, Tickets, Upload, User, Avatar } from '@element-plus/icons-vue'
+import { Aim, Calendar, DataLine, Document, Iphone, Postcard, Promotion, School, Setting, Stamp, Tickets, Upload, User, Avatar } from '@element-plus/icons-vue'
 import { api } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import TeacherTab from '../components/admin/TeacherTab.vue'
 import ParentTab from '../components/admin/ParentTab.vue'
+import RoleRequestTab from '../components/admin/RoleRequestTab.vue'
 import ContentTab from '../components/admin/ContentTab.vue'
 import TeacherProfileTab from '../components/admin/TeacherProfileTab.vue'
 import OrgTab from '../components/admin/OrgTab.vue'
@@ -113,6 +116,7 @@ const onMq = (e: MediaQueryListEvent) => { desktop.value = e.matches }
 const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   teacher: { label: '教师与任课', comp: markRaw(TeacherTab), icon: User },
   parent: { label: '家长账号', comp: markRaw(ParentTab), icon: Iphone },
+  roleRequest: { label: '账号审批', comp: markRaw(RoleRequestTab), icon: Stamp },
   teacherProfile: { label: '教师档案', comp: markRaw(TeacherProfileTab), icon: Postcard },
   content: { label: '内容发布', comp: markRaw(ContentTab), icon: Promotion },
   appRelease: { label: '版本更新', comp: markRaw(AppReleaseTab), icon: Upload },
@@ -125,7 +129,7 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   aiUsage: { label: 'AI 用量', comp: markRaw(AiUsageTab), icon: DataLine },
 }
 const groups = [
-  { label: '账号与人员', items: ['teacher', 'parent', 'teacherProfile'] },
+  { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile'] },
   { label: '内容运营', items: ['content', 'appRelease'] },
   { label: '基础数据', items: ['org', 'student', 'term', 'indicator', 'template'] },
   { label: '系统运维', items: ['audit', 'aiUsage'] },
@@ -135,6 +139,15 @@ const current = computed(() => TABS[tab.value] ?? TABS.teacher)
 
 const roleLabel = computed(() =>
   auth.role === 'ADMIN' ? '管理员' : auth.role === 'LEADER' ? '领导' : '教师')
+
+/* 待审批徽标（批2-5）：与在线统计同轮询刷新；RoleRequestTab 处理完即时回调 */
+const pendingCount = ref(0)
+async function loadPendingCount() {
+  try {
+    const d = await api<{ pending: number }>('/api/role-request/count')
+    pendingCount.value = d.pending
+  } catch { /* 静默（非审批角色不显示） */ }
+}
 
 /* 在线统计：桌面顶栏 chips / 窄屏统计条共用；30 秒轮询，失败静默 */
 const online = reactive<{ onlineCount: number; dailyCount: number; users: any[] | null }>({
@@ -158,7 +171,8 @@ function ago(ms: number) {
 
 onMounted(() => {
   loadOnline()
-  onlineTimer = window.setInterval(loadOnline, 30_000)
+  loadPendingCount()
+  onlineTimer = window.setInterval(() => { loadOnline(); loadPendingCount() }, 30_000)
   mq.addEventListener('change', onMq)
 })
 onUnmounted(() => {
@@ -202,6 +216,8 @@ onUnmounted(() => {
 .nv.on { background: var(--shine-red-soft); color: var(--shine-red); }
 .nv.on::before { content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px;
   background: linear-gradient(180deg, var(--shine-red), var(--shine-gold)); border-radius: 0 3px 3px 0; }
+.badge { margin-left: auto; font-style: normal; font-size: 10px; font-weight: 700; line-height: 1;
+  color: #fff; background: var(--shine-red); border-radius: 8px; padding: 3px 6px; }
 .ft { padding: 14px 20px; border-top: 1px solid #EDEFF4; font-size: 10.5px; color: #8A93A6; letter-spacing: 1px; }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }

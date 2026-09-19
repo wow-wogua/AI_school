@@ -16,6 +16,8 @@ import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.mapper.UserPermissionMapper;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.auth.PermissionService;
+import com.aischool.server.service.auth.RoleApprovalService;
+import com.aischool.server.entity.RoleRequest;
 import com.aischool.server.service.excel.ExcelTeacherHelper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -62,6 +64,7 @@ public class AdminUserController {
     private final ExcelTeacherHelper excelTeacher;
     private final PasswordEncoder passwordEncoder;
     private final PermissionService permissionService;
+    private final RoleApprovalService approvalService;
 
     /** 批量导入的统一初始密码（导入后教师首登强制改密） */
     public static final String INITIAL_PASSWORD = "Shishi@2026";
@@ -140,6 +143,21 @@ public class AdminUserController {
             m.put("status", u.getStatus());
             return m;
         }).toList();
+        // 内嵌待审批标记（批2-5）：pendingCreate=新号待启用；pendingUpgradeTo=升级审批中的目标角色
+        Map<Long, RoleRequest> pendings = approvalService.pendingByUsers(
+                p.getRecords().stream().map(User::getId).toList());
+        for (int i = 0; i < records.size(); i++) {
+            User u = p.getRecords().get(i);
+            RoleRequest pr = pendings.get(u.getId());
+            if (pr == null) {
+                continue;
+            }
+            if (RoleRequest.TYPE_CREATE.equals(pr.getReqType())) {
+                records.get(i).put("pendingCreate", pr.getTargetRole());
+            } else {
+                records.get(i).put("pendingUpgradeTo", pr.getTargetRole());
+            }
+        }
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("total", p.getTotal());
         data.put("records", records);
@@ -161,9 +179,15 @@ public class AdminUserController {
         u.setRealName(req.getRealName());
         u.setRole(req.getRole());
         u.setPhone(req.getPhone());
-        u.setStatus(1);
+        // 管理员/领导走双人审批（批2-5）：建号即停用，另一名管理员/领导通过后才启用
+        boolean needsApproval = RoleApprovalService.needsApproval(req.getRole());
+        u.setStatus(needsApproval ? 0 : 1);
         u.setMustChangePwd(1); // 管理员设的密码非本人自设：首登强制改密
         userMapper.insert(u);
+        if (needsApproval) {
+            approvalService.submitCreate(u.getId(), req.getRole());
+            return ApiResponse.ok(Map.of("userId", u.getId(), "pendingApproval", true));
+        }
         return ApiResponse.ok(Map.of("userId", u.getId()));
     }
 
@@ -240,9 +264,14 @@ public class AdminUserController {
             u.setRealName(r.realName());
             u.setRole(roleMap.get(r.role()));
             u.setPhone(r.phone().isBlank() ? null : r.phone());
-            u.setStatus(1);
+            // 管理员/领导行同走双人审批（批2-5）：建号即停用，审批通过后才启用
+            boolean needsApproval = RoleApprovalService.needsApproval(roleMap.get(r.role()));
+            u.setStatus(needsApproval ? 0 : 1);
             u.setMustChangePwd(1); // 统一初始密码：首登强制改密
             userMapper.insert(u);
+            if (needsApproval) {
+                approvalService.submitCreate(u.getId(), roleMap.get(r.role()));
+            }
             boolean anyProfileField = !r.employeeNo().isBlank() || !r.gender().isBlank()
                     || !r.subjectName().isBlank() || !r.title().isBlank() || !r.duty().isBlank()
                     || years != null || hireDate != null || !r.intro().isBlank();
@@ -270,6 +299,7 @@ public class AdminUserController {
         data.put("failed", errors.size());
         data.put("errors", errors);
         data.put("initialPassword", INITIAL_PASSWORD);
+        data.put("pendingApprovals", approvalService.pendingCount()); // 含本次导入的管理员/领导号
         return ApiResponse.ok(data);
     }
 
@@ -308,7 +338,7 @@ public class AdminUserController {
     }
 
     @PutMapping("/user/{id}")
-    public ApiResponse<Void> updateUser(@PathVariable Long id, @RequestBody UserEditReq req) {
+    public ApiResponse<Map<String, Object>> updateUser(@PathVariable Long id, @RequestBody UserEditReq req) {
         checkAdmin();
         User u = userMapper.selectById(id);
         if (u == null) {
@@ -322,6 +352,20 @@ public class AdminUserController {
             throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER");
         }
         String newRole = req.getRole() != null ? req.getRole() : u.getRole();
+        // 教师原地升入 ADMIN/LEADER 走双人审批（批2-5）：本次不改角色，另一名管理员/领导通过后才生效。
+        // 已是 ADMIN/LEADER 互转（已过一次审批）与降级不触发。
+        boolean upgradeApproval = RoleApprovalService.needsApproval(newRole)
+                && !RoleApprovalService.needsApproval(u.getRole())
+                && !newRole.equals(u.getRole());
+        if (upgradeApproval) {
+            approvalService.submitUpgrade(id, u.getRole(), newRole);
+            // 其余字段（姓名/手机）照常生效；角色保持原值
+            userMapper.update(null, new LambdaUpdateWrapper<User>()
+                    .eq(User::getId, id)
+                    .set(User::getRealName, req.getRealName() != null ? req.getRealName() : u.getRealName())
+                    .set(User::getPhone, req.getPhone()));
+            return ApiResponse.ok(Map.of("pendingApproval", true));
+        }
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, id)
                 .set(User::getRealName, req.getRealName() != null ? req.getRealName() : u.getRealName())
@@ -332,7 +376,7 @@ public class AdminUserController {
             userPermissionMapper.delete(new LambdaQueryWrapper<UserPermission>()
                     .eq(UserPermission::getUserId, id));
         }
-        return ApiResponse.ok();
+        return ApiResponse.ok(Map.of("pendingApproval", false));
     }
 
     /** 权限点查询（批1 唯一码 ADMIN_ACCESS；TeacherTab 领导行「管理员级权限」开关回显） */
@@ -434,6 +478,7 @@ public class AdminUserController {
         userMapper.deleteById(id);
         userPermissionMapper.delete(new LambdaQueryWrapper<UserPermission>()
                 .eq(UserPermission::getUserId, id)); // 顺带清权限点
+        approvalService.withdrawByUser(id);          // 连带撤回待审批请求（批2-5）
         return ApiResponse.ok();
     }
 
