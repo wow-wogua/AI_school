@@ -12,9 +12,10 @@
       <AppTabbar :tab="(route.meta.tab as any)" />
     </div>
 
-    <!-- sub 二级/功能页：meta.title 有值挂「返回+标题」导航条；无值（学生详情）仅滚动容器 -->
+    <!-- sub 二级/功能页：meta.title 有值挂「返回+标题」导航条；无值（学生详情）仅滚动容器。
+         管理页桌面 ≥1024 切侧栏形态（AdminView 自带顶栏/导航），不渲染返回条 -->
     <div v-else-if="layout === 'sub'" class="app-sub" :class="{ admin: route.meta.admin }">
-      <header v-if="route.meta.title" class="sub-nav">
+      <header v-if="route.meta.title && !(route.meta.admin && desktop)" class="sub-nav">
         <button class="back" type="button" aria-label="返回" @click="goBack">
           <van-icon name="arrow-left" />
         </button>
@@ -75,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MotionConfig } from 'motion-v'
 import { showToast } from 'vant'
@@ -94,6 +95,13 @@ const route = useRoute()
 
 /** 布局形态由路由 meta 决定：tab/keepTab → Tab 壳；sub → 返回导航壳；bare → 登录页 */
 const layout = computed(() => (route.meta.layout as string | undefined) ?? 'bare')
+
+/* 桌面 ≥1024：管理页此形态切侧栏，隐藏移动返回条（断点与 AdminView/style.css 三档一致） */
+const desktop = ref(window.matchMedia('(min-width: 1024px)').matches)
+const mq = window.matchMedia('(min-width: 1024px)')
+const onMq = (e: MediaQueryListEvent) => { desktop.value = e.matches }
+onMounted(() => mq.addEventListener('change', onMq))
+onUnmounted(() => mq.removeEventListener('change', onMq))
 
 /** 导航条返回：有上一页则回退，否则（深链直入）回首页 */
 function goBack() {
