@@ -45,8 +45,14 @@ const router = createRouter({
     { path: '/p/home', component: () => import('../views/parent/ParentHomeView.vue'), meta: { layout: 'ptab', tab: 'phome' } },
     { path: '/p/child/:id', component: () => import('../views/parent/ParentChildView.vue'), meta: { layout: 'psub', title: '孩子成长' } },
     { path: '/p/mine', component: () => import('../views/parent/ParentMineView.vue'), meta: { layout: 'ptab', tab: 'pmine' } },
-    // 领导端（LEADER 分流）：全校只读驾驶舱；成绩明细复用 /scores（LEADER 只读）
+    // 内容（批2）：通知公告/育儿课堂共用列表页（props 区分），详情按 id
+    { path: '/p/notices', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'NOTICE' }, meta: { layout: 'psub', title: '通知公告' } },
+    { path: '/p/parenting', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'PARENTING' }, meta: { layout: 'psub', title: '育儿课堂' } },
+    { path: '/p/content/:id', component: () => import('../views/parent/ContentDetailView.vue'), meta: { layout: 'psub', title: '内容详情' } },
+    // 领导端（LEADER 分流）：全校只读驾驶舱；成绩明细复用 /scores（LEADER 只读）；
+    // 教师使用情况（批2）：六类行为按师聚合，psub 壳（第一版 sub-nav 形态+C 令牌）
     { path: '/l/home', component: () => import('../views/leader/LeaderHomeView.vue'), meta: { layout: 'lhome' } },
+    { path: '/l/teachers', component: () => import('../views/leader/LeaderTeachersView.vue'), meta: { layout: 'psub', title: '教师使用情况' } },
     // 原「批量任务」页（/）已并入通知页
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

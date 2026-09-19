@@ -17,6 +17,7 @@
     <el-tabs v-model="tab">
       <el-tab-pane label="教师与任课" name="teacher"><TeacherTab /></el-tab-pane>
       <el-tab-pane label="家长账号" name="parent"><ParentTab /></el-tab-pane>
+      <el-tab-pane label="内容发布" name="content"><ContentTab /></el-tab-pane>
       <el-tab-pane label="教师档案" name="teacherProfile"><TeacherProfileTab /></el-tab-pane>
       <el-tab-pane label="年级与班级" name="org"><OrgTab /></el-tab-pane>
       <el-tab-pane label="学生" name="student"><StudentTab /></el-tab-pane>
@@ -37,6 +38,7 @@ import { motion } from 'motion-v'
 import { api } from '../api/http'
 import TeacherTab from '../components/admin/TeacherTab.vue'
 import ParentTab from '../components/admin/ParentTab.vue'
+import ContentTab from '../components/admin/ContentTab.vue'
 import TeacherProfileTab from '../components/admin/TeacherProfileTab.vue'
 import OrgTab from '../components/admin/OrgTab.vue'
 import StudentTab from '../components/admin/StudentTab.vue'

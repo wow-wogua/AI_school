@@ -46,13 +46,12 @@
       <div class="stat"><b>{{ ov.dailyActive ?? 0 }}</b><span>24h 活跃</span></div>
     </div>
 
-    <!-- AI 使用情况摘要（教师使用情况批2 上线后并入宫格直达） -->
+    <!-- AI 使用情况摘要（按师明细在「教师使用情况」页） -->
     <div class="app-sec">AI 使用情况</div>
     <div class="app-card tex-e stats">
       <div class="stat"><b>{{ aiTasks }}</b><span>近 30 天生成（次）</span></div>
       <div class="stat"><b>{{ aiTokens }}</b><span>近 30 天 tokens</span></div>
     </div>
-    <p class="ai-note">明细趋势请在管理端网页「AI 用量」页签查看</p>
 
     <CampusSkyline />
     <p class="app-foot">石实实验学校 · 数智成长</p>
@@ -87,7 +86,7 @@ const aiTokens = computed(() => usage.value.reduce(
 /* 快捷宫格（同教师端 HomeView 的 g-icon 彩色方底形态；to 为空=未开放置灰） */
 const grids = [
   { name: '成绩查询', icon: 'bar-chart-o', to: '/scores', bg: '#2F5FC0' },
-  { name: '教师使用情况', icon: 'friends-o', to: '', bg: '#0EA5E9' },
+  { name: '教师使用情况', icon: 'friends-o', to: '/l/teachers', bg: '#0EA5E9' },
   { name: '成绩汇总排名', icon: 'chart-trending-o', to: '', bg: '#8B5CF6' },
   { name: '修改密码', icon: 'lock', to: '/change-password', bg: '#6366F1' },
 ]

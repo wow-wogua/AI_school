@@ -3,11 +3,13 @@ package com.aischool.server.controller;
 import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Clazz;
+import com.aischool.server.entity.ContentItem;
 import com.aischool.server.entity.Evaluation;
 import com.aischool.server.entity.ParentBinding;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.User;
 import com.aischool.server.mapper.ClazzMapper;
+import com.aischool.server.mapper.ContentItemMapper;
 import com.aischool.server.mapper.EvaluationMapper;
 import com.aischool.server.mapper.ParentBindingMapper;
 import com.aischool.server.mapper.StudentMapper;
@@ -40,6 +42,7 @@ public class ParentController {
     private final ClazzMapper clazzMapper;
     private final EvaluationMapper evaluationMapper;
     private final UserMapper userMapper;
+    private final ContentItemMapper contentMapper;
 
     private void checkParent() {
         if (!"PARENT".equals(AuthUtil.current().role())) {
@@ -100,6 +103,85 @@ public class ParentController {
             m.put("teacherName", e.getTeacherId() == null ? null : teacherNames.get(e.getTeacherId()));
             return m;
         }).toList());
+    }
+
+    // ────────────────────────── 内容：通知公告 / 育儿课堂（批2） ──────────────────────────
+
+    /** 已发布内容列表（全校 + 绑定孩子所在班级；按发布时间倒序，最多 50 条） */
+    @GetMapping("/contents")
+    public ApiResponse<List<Map<String, Object>>> contents(@RequestParam String type) {
+        checkParent();
+        if (!"NOTICE".equals(type) && !"PARENTING".equals(type)) {
+            throw new BizException(400, "type 须为 NOTICE 或 PARENTING");
+        }
+        List<Long> classIds = boundClassIds();
+        List<ContentItem> rows = contentMapper.selectList(new LambdaQueryWrapper<ContentItem>()
+                .eq(ContentItem::getType, type)
+                .eq(ContentItem::getStatus, 1)
+                .and(q -> q.eq(ContentItem::getScope, "ALL")
+                        .or().in(!classIds.isEmpty(), ContentItem::getClassId, classIds))
+                .orderByDesc(ContentItem::getPublishTime)
+                .orderByDesc(ContentItem::getId)
+                .last("LIMIT 50"));
+        Map<Long, String> classNames = classNamesOf(rows);
+        return ApiResponse.ok(rows.stream().map(it -> contentRow(it, classNames, false)).toList());
+    }
+
+    /** 内容详情（仅已发布且范围可见；列表卡片点进全文阅读） */
+    @GetMapping("/contents/{id}")
+    public ApiResponse<Map<String, Object>> contentDetail(@PathVariable Long id) {
+        checkParent();
+        ContentItem it = contentMapper.selectById(id);
+        if (it == null || it.getStatus() == null || it.getStatus() != 1) {
+            throw new BizException(404, "内容不存在或未发布");
+        }
+        if ("CLASS".equals(it.getScope())
+                && !boundClassIds().contains(it.getClassId())) {
+            throw new BizException(403, "该内容未对您开放");
+        }
+        Map<Long, String> classNames = classNamesOf(List.of(it));
+        return ApiResponse.ok(contentRow(it, classNames, true));
+    }
+
+    /** 绑定孩子所在班级（去重；无绑定=空列表） */
+    private List<Long> boundClassIds() {
+        List<ParentBinding> bindings = bindingMapper.selectList(new LambdaQueryWrapper<ParentBinding>()
+                .eq(ParentBinding::getParentUserId, AuthUtil.current().userId()));
+        List<Long> studentIds = bindings.stream().map(ParentBinding::getStudentId).toList();
+        if (studentIds.isEmpty()) {
+            return List.of();
+        }
+        return studentMapper.selectBatchIds(studentIds).stream()
+                .map(Student::getClassId).filter(c -> c != null).distinct().toList();
+    }
+
+    private Map<Long, String> classNamesOf(List<ContentItem> items) {
+        List<Long> ids = items.stream().map(ContentItem::getClassId)
+                .filter(c -> c != null).distinct().toList();
+        return ids.isEmpty() ? Map.of() : clazzMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(Clazz::getId, Clazz::getName));
+    }
+
+    private Map<String, Object> contentRow(ContentItem it, Map<Long, String> classNames, boolean full) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("id", it.getId());
+        m.put("type", it.getType());
+        m.put("title", it.getTitle());
+        m.put("coverUrl", it.getCoverUrl());
+        m.put("videoUrl", it.getVideoUrl());
+        m.put("content", full ? it.getContent() : brief(it.getContent()));
+        m.put("scope", it.getScope());
+        m.put("className", it.getClassId() == null ? null : classNames.get(it.getClassId()));
+        m.put("publishTime", it.getPublishTime() == null ? null : it.getPublishTime().toString());
+        return m;
+    }
+
+    /** 列表摘要：正文前 80 字（详情接口给全文） */
+    private String brief(String content) {
+        if (content == null || content.length() <= 80) {
+            return content;
+        }
+        return content.substring(0, 80) + "…";
     }
 
     private void requireBound(Long studentId) {

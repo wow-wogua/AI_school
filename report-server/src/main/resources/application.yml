@@ -9,6 +9,9 @@ spring:
     username: root
     password: aischool123
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      # 家长端万人级浏览（每请求 2-4 条索引查询）+ 教师/领导端聚合共享池；默认 10 峰值不够
+      maximum-pool-size: 20
   data:
     redis:
       host: localhost
