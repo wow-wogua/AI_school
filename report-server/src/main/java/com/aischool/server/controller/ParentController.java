@@ -56,6 +56,7 @@ public class ParentController {
     private final MomentStudentMapper momentStudentMapper;
     private final MomentService momentService;
     private final PdfStoreService pdfStore;
+    private final com.aischool.server.service.conduct.ParentWalletService parentWalletService;
 
     private void checkParent() {
         if (!"PARENT".equals(AuthUtil.current().role())) {
@@ -303,5 +304,13 @@ public class ParentController {
                 .eq(ParentBinding::getStudentId, studentId)) == 0) {
             throw new BizException(403, "该学生未绑定当前家长账号");
         }
+    }
+
+    /** 孩子双账本（批3）：操行分余额+等级、能量币余额、最近流水各 5 条 */
+    @GetMapping("/children/{studentId}/wallet")
+    public ApiResponse<Map<String, Object>> wallet(@PathVariable Long studentId) {
+        checkParent();
+        requireBound(studentId);
+        return ApiResponse.ok(parentWalletService.walletOf(studentId));
     }
 }

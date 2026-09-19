@@ -2,6 +2,7 @@ package com.aischool.server.service.eval;
 
 import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Clazz;
+import com.aischool.server.entity.ConductLog;
 import com.aischool.server.entity.Evaluation;
 import com.aischool.server.entity.Grid;
 import com.aischool.server.entity.Indicator;
@@ -23,6 +24,7 @@ import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.UserPrincipal;
 import com.aischool.server.service.auth.DataScopeService;
 import com.aischool.server.service.coin.CoinLedgerService;
+import com.aischool.server.service.conduct.ConductLedgerService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -64,6 +66,7 @@ public class EvaluationService {
     private final ClassGridAvgMapper classGridAvgMapper;
     private final GradeGridAvgMapper gradeGridAvgMapper;
     private final CoinLedgerService coinLedger;
+    private final ConductLedgerService conductLedger;
     private final DataScopeService dataScope;
 
     public Map<String, Object> evaluate(UserPrincipal user, Long studentId, Long indicatorId, String title,
@@ -114,8 +117,16 @@ public class EvaluationService {
         coinWeekMapper.upsertMineIncome(studentId, term.getId(), weekNo, score);
 
         // ⑤ 能量币流水 + 账户（module=格名-指标名 与种子模块并列，display_order=99 不进收入 TOP5）
+        //    批3：指标配了 coin_value 按配置入账，NULL=按 score 原值（行为同旧版）
+        BigDecimal coin = ind.getCoinValue() != null ? ind.getCoinValue() : score;
         coinLedger.income(studentId, evalTime.toLocalDate(), "评价", e.getId(),
-                grid.getName() + "-" + ind.getName(), score);
+                grid.getName() + "-" + ind.getName(), coin);
+
+        // ⑤' 操行分联动（批3）：指标配了 conduct_value 才入账，NULL=不联动（线上零变化）
+        if (ind.getConductValue() != null) {
+            conductLedger.apply(studentId, evalTime.toLocalDate(), ConductLog.SRC_EVALUATION, e.getId(),
+                    ind.getConductValue(), grid.getName() + "-" + ind.getName(), user.userId());
+        }
 
         // ⑥ 班/年级均值增量平移
         Clazz clazz = clazzMapper.selectById(student.getClassId());

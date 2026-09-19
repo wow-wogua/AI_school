@@ -18,4 +18,6 @@ public class Indicator {
     private String direction;
     private BigDecimal defaultScore;
     private String subjectScope;
+    private BigDecimal coinValue;     // 能量币联动值（NULL=按 score 原值，批3）
+    private BigDecimal conductValue;  // 操行分联动增减（NULL=不联动，批3）
 }

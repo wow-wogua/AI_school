@@ -4,21 +4,18 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** t_coin_expense */
+/** 操行分余额（t_conduct_account，每生每学期一行，批3） */
 @Data
-@TableName("t_coin_expense")
-public class CoinExpense {
-
+@TableName("t_conduct_account")
+public class ConductAccount {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long studentId;
     private Long termId;
-    private String item;
-    private BigDecimal coin;
-    private Long itemId;      // 关联 t_shop_item（手动录入为 NULL，批3）
-    private Long operatorId;  // 兑换录入教师（批3）
-    private LocalDateTime createTime;
+    private BigDecimal balance;
+    private LocalDateTime updateTime;
 }

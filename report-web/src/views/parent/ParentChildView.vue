@@ -9,6 +9,35 @@
       </div>
     </div>
 
+    <!-- 成长银行双账本（批3）：操行分 + 能量币 -->
+    <div class="app-sec">成长银行</div>
+    <div class="wallet">
+      <div class="app-card tex-e w-cell">
+        <p class="w-label">操行分 · <b :class="'g-' + wallet.conduct?.grade">{{ wallet.conduct?.grade ?? '—' }} 级</b></p>
+        <strong>{{ wallet.conduct?.balance ?? '—' }}</strong>
+        <span class="w-sub">基础 {{ wallet.conduct?.rule?.baseScore }} · A≥{{ wallet.conduct?.rule?.gradeAMin }} B≥{{ wallet.conduct?.rule?.gradeBMin }}</span>
+        <div v-if="(wallet.conduct?.logs ?? []).length" class="w-logs">
+          <p v-for="l in wallet.conduct.logs" :key="l.id">
+            <i>{{ l.sourceType }} · {{ fmtTime(l.createTime) }}</i>
+            <b>{{ l.reason }}</b>
+            <em :class="Number(l.delta) >= 0 ? 'pos' : 'neg'">{{ Number(l.delta) >= 0 ? '+' : '' }}{{ l.delta }}</em>
+          </p>
+        </div>
+      </div>
+      <div class="app-card tex-d w-cell">
+        <p class="w-label">能量币 · 可用</p>
+        <strong class="c-gold">{{ wallet.coin?.currentCoin ?? 0 }}</strong>
+        <span class="w-sub">累计获得 {{ wallet.coin?.totalCoin ?? 0 }}</span>
+        <div v-if="(wallet.coin?.expenses ?? []).length" class="w-logs">
+          <p v-for="e in wallet.coin.expenses" :key="e.id">
+            <i>兑换 · {{ fmtTime(e.createTime) }}</i>
+            <b>{{ e.item }}</b>
+            <em class="neg">-{{ e.coin }}</em>
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- 成长动态（feed 结构同教师端最近动态） -->
     <div class="app-sec">成长动态</div>
     <div class="app-card tex-c feed">
@@ -36,6 +65,7 @@ import { api } from '../../api/http'
 const route = useRoute()
 const child = ref<any>(null)
 const evaluations = ref<any[]>([])
+const wallet = ref<any>({})
 const loading = ref(true)
 
 function fmtTime(t?: string) {
@@ -50,6 +80,7 @@ onMounted(async () => {
     const list = await api<any[]>('/api/parent/children')
     child.value = list.find((c) => String(c.studentId) === String(id)) ?? null
     evaluations.value = await api<any[]>(`/api/parent/children/${id}/evaluations?limit=20`)
+    api<any>(`/api/parent/children/${id}/wallet`).then((d) => (wallet.value = d)).catch(() => {})
   } finally {
     loading.value = false
   }
@@ -81,4 +112,22 @@ onMounted(async () => {
 
 /* C 覆盖：区块竖条换 C 红（卡片/结构均第一版全局类） */
 .p-child .app-sec::before { background: var(--shine-red); }
+
+/* 双账本卡（批3）：左操行右能量币，窄于 480px 纵排 */
+.wallet { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .wallet { grid-template-columns: 1fr; } }
+.w-cell { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.w-label { margin: 0; font-size: 12px; color: var(--app-text-3); }
+.g-A { color: #0D9467; } .g-B { color: #2F5FC0; } .g-C { color: #B07A1C; } .g-D { color: var(--shine-red); }
+.w-cell strong { font-size: 28px; font-weight: 800; color: var(--app-text-1); line-height: 1.15; }
+.c-gold { color: #B07A1C; }
+.w-sub { font-size: 11px; color: var(--app-text-3); }
+.w-logs { margin-top: 8px; border-top: 1px dashed var(--app-card-border); padding-top: 6px; }
+.w-logs p { display: flex; align-items: center; gap: 6px; margin: 0; padding: 4px 0; font-size: 11px; }
+.w-logs i { flex: none; font-style: normal; color: var(--app-text-3); }
+.w-logs b { flex: 1; min-width: 0; font-weight: 500; color: var(--app-text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-logs em { flex: none; font-style: normal; font-weight: 700; }
+.w-logs em.pos { color: #0D9467; }
+.w-logs em.neg { color: var(--shine-red); }
 </style>

@@ -79,6 +79,7 @@ const entries = [
   { name: '寄语', icon: 'chat-o', to: '/comments', bg: '#F59E0B' },
   { name: '成长总结', icon: 'notes-o', to: '/summary', bg: '#8B5CF6' },
   { name: '综合素质', icon: 'gem-o', to: '/comprehensive', bg: '#0EA5E9' },
+  { name: '成长银行', icon: 'gold-coin-o', to: '/bank', bg: '#C9A227' },
   { name: '时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1' },
 ]
 

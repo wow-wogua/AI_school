@@ -25,6 +25,12 @@
       </el-table-column>
       <el-table-column prop="direction" label="方向" width="80" />
       <el-table-column prop="defaultScore" label="默认分" width="90" />
+      <el-table-column label="能量币联动" width="100">
+        <template #default="{ row }">{{ row.coinValue ?? '按分值' }}</template>
+      </el-table-column>
+      <el-table-column label="操行分联动" width="100">
+        <template #default="{ row }">{{ row.conductValue ?? '不联动' }}</template>
+      </el-table-column>
       <el-table-column prop="subjectScope" label="学科范围" width="110" />
       <el-table-column label="操作" width="130">
         <template #default="{ row }">
@@ -49,6 +55,14 @@
         </el-form-item>
         <el-form-item label="默认分">
           <el-input-number v-model="form.defaultScore" :step="1" controls-position="right" />
+        </el-form-item>
+        <el-form-item label="能量币联动">
+          <el-input-number v-model="form.coinValue" :step="1" :precision="2" controls-position="right" placeholder="留空=按分值" />
+          <span class="hint">留空=按评价分值入账（现状）</span>
+        </el-form-item>
+        <el-form-item label="操行分联动">
+          <el-input-number v-model="form.conductValue" :step="1" :precision="2" controls-position="right" placeholder="留空=不联动" />
+          <span class="hint">留空=不影响操行分；减分指标配负值</span>
         </el-form-item>
       </el-form>
       <template #footer>

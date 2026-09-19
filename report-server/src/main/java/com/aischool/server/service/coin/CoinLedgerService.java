@@ -47,7 +47,8 @@ public class CoinLedgerService {
         return term.getId();
     }
 
-    private Term resolveTerm(LocalDate date) {
+    /** 学期落点推导（批3 起操行分账本共用，保证与能量币口径一致） */
+    public Term resolveTerm(LocalDate date) {
         if (date != null) {
             Term hit = termMapper.selectOne(new LambdaQueryWrapper<Term>()
                     .le(Term::getStartDate, date).ge(Term::getEndDate, date)

@@ -2,14 +2,17 @@ package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.BizException;
+import com.aischool.server.entity.ConductRule;
 import com.aischool.server.entity.Evaluation;
 import com.aischool.server.entity.Grid;
 import com.aischool.server.entity.Indicator;
+import com.aischool.server.mapper.ConductRuleMapper;
 import com.aischool.server.mapper.EvaluationMapper;
 import com.aischool.server.mapper.GridMapper;
 import com.aischool.server.mapper.IndicatorMapper;
 import com.aischool.server.service.auth.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -36,6 +39,7 @@ public class AdminIndicatorController {
 
     private final GridMapper gridMapper;
     private final IndicatorMapper indicatorMapper;
+    private final ConductRuleMapper conductRuleMapper;
     private final PermissionService permissionService;
     private final EvaluationMapper evaluationMapper;
 
@@ -82,6 +86,8 @@ public class AdminIndicatorController {
         private String direction;
         private BigDecimal defaultScore;
         private String subjectScope;
+        private BigDecimal coinValue;     // NULL=能量币按 score 原值（默认）
+        private BigDecimal conductValue;  // NULL=不联动操行分（默认）
     }
 
     @PostMapping("/indicator")
@@ -119,6 +125,11 @@ public class AdminIndicatorController {
         }
         copy(req, i);
         indicatorMapper.updateById(i);
+        // 可空联动列须显式置 NULL（updateById 默认忽略 null 字段，清空配置会静默失效）
+        indicatorMapper.update(null, new LambdaUpdateWrapper<Indicator>()
+                .eq(Indicator::getId, id)
+                .set(Indicator::getCoinValue, req.getCoinValue())
+                .set(Indicator::getConductValue, req.getConductValue()));
         return ApiResponse.ok();
     }
 
@@ -142,5 +153,54 @@ public class AdminIndicatorController {
         i.setDirection(req.getDirection() == null || req.getDirection().isBlank() ? "+" : req.getDirection());
         i.setDefaultScore(req.getDefaultScore());
         i.setSubjectScope(req.getSubjectScope());
+        i.setCoinValue(req.getCoinValue());
+        i.setConductValue(req.getConductValue());
+    }
+
+    // ---- 操行分规则（批3）：全校一套单行，基础分+ABCD 阈值 ----
+
+    @GetMapping("/conduct/rule")
+    public ApiResponse<ConductRule> conductRule() {
+        checkAdmin();
+        return ApiResponse.ok(conductRuleMapper.selectOne(
+                new LambdaQueryWrapper<ConductRule>().last("LIMIT 1")));
+    }
+
+    @Data
+    public static class ConductRuleReq {
+        @NotNull(message = "baseScore 不能为空")
+        private BigDecimal baseScore;
+        @NotNull(message = "gradeAMin 不能为空")
+        private BigDecimal gradeAMin;
+        @NotNull(message = "gradeBMin 不能为空")
+        private BigDecimal gradeBMin;
+        @NotNull(message = "gradeCMin 不能为空")
+        private BigDecimal gradeCMin;
+    }
+
+    /** 改基础分只影响此后首笔初始化的新账户（既有余额不追溯重算） */
+    @PutMapping("/conduct/rule")
+    public ApiResponse<Void> updateConductRule(@Validated @RequestBody ConductRuleReq req) {
+        checkAdmin();
+        if (!(req.getGradeAMin().compareTo(req.getGradeBMin()) > 0
+                && req.getGradeBMin().compareTo(req.getGradeCMin()) > 0)) {
+            throw new BizException(400, "阈值必须满足 A线 > B线 > C线");
+        }
+        ConductRule rule = conductRuleMapper.selectOne(
+                new LambdaQueryWrapper<ConductRule>().last("LIMIT 1"));
+        boolean insert = rule == null;
+        if (insert) {
+            rule = new ConductRule();
+        }
+        rule.setBaseScore(req.getBaseScore());
+        rule.setGradeAMin(req.getGradeAMin());
+        rule.setGradeBMin(req.getGradeBMin());
+        rule.setGradeCMin(req.getGradeCMin());
+        if (insert) {
+            conductRuleMapper.insert(rule);
+        } else {
+            conductRuleMapper.updateById(rule);
+        }
+        return ApiResponse.ok();
     }
 }
