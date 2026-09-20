@@ -17,6 +17,8 @@ public class Report {
     private Long studentId;
     private Long termId;
     private String fileUrl;
+    /** 批5 家长版 PDF 对象名（去成绩板块；null=未生成/渲染失败，教师版不受影响） */
+    private String parentFileUrl;
     private Integer pageCount;
     private LocalDateTime genTime;
     private String status;

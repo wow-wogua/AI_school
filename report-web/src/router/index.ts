@@ -52,6 +52,8 @@ const router = createRouter({
     { path: '/p/content/:id', component: () => import('../views/parent/ContentDetailView.vue'), meta: { layout: 'psub', title: '内容详情' } },
     // 家长微光信箱（批2-3 方案A）：拍照仅进孩子成长档案（家长+班主任可见）
     { path: '/p/moments', component: () => import('../views/parent/ParentMomentView.vue'), meta: { layout: 'psub', title: '微光信箱' } },
+    // 成长报告（批5 家长版）：同任务双渲染的去成绩版 PDF，仅 parent_file_url 可达
+    { path: '/p/report', component: () => import('../views/parent/ParentReportView.vue'), meta: { layout: 'psub', title: '成长报告' } },
     // 领导端（LEADER 分流）：全校只读驾驶舱；成绩明细复用 /scores（LEADER 只读）；
     // 教师使用情况（批2）：六类行为按师聚合，psub 壳（第一版 sub-nav 形态+C 令牌）
     { path: '/l/home', component: () => import('../views/leader/LeaderHomeView.vue'), meta: { layout: 'lhome' } },

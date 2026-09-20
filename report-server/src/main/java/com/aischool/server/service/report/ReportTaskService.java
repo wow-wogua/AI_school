@@ -165,17 +165,23 @@ public class ReportTaskService {
             return;
         }
         int priority = "单生".equals(task.getScope()) ? RenderService.PRIORITY_SINGLE : RenderService.PRIORITY_BATCH;
-        // 逐项挂完成回调：成功→归档+计数；失败→记错+计数
+        // 逐项挂完成回调：成功→归档+计数；失败→记错+计数。
+        // 批5 家长版并行渲染：行状态以教师版为准，家长版失败仅 error 注记（不阻塞、不计失败）
         var callbacks = items.stream()
-                .map(item -> renderService.submit(priority, String.valueOf(taskId), item.getStudentId(), task.getTermId())
-                        .whenComplete((pdf, err) -> finalizeItem(taskId, item, pdf, err)))
+                .map(item -> {
+                    CompletableFuture<Path> parent = renderService.submit(priority, String.valueOf(taskId),
+                            item.getStudentId(), task.getTermId(), true);
+                    return renderService.submit(priority, String.valueOf(taskId), item.getStudentId(), task.getTermId(), false)
+                            .whenComplete((pdf, err) -> finalizeItem(taskId, item, pdf, err, parent));
+                })
                 .toList();
         CompletableFuture.allOf(callbacks.toArray(new CompletableFuture[0]))
                 .whenComplete((v, err) -> finalizeTask(taskId));
         log.info("任务 {} 已派发 {} 份（scope={}）", taskId, items.size(), task.getScope());
     }
 
-    private synchronized void finalizeItem(Long taskId, Report item, Path pdf, Throwable err) {
+    private synchronized void finalizeItem(Long taskId, Report item, Path pdf, Throwable err,
+                                           CompletableFuture<Path> parentFuture) {
         Report current = reportMapper.selectById(item.getId());
         if (current == null || "成功".equals(current.getStatus())) {
             return; // 重试后旧回调晚到，忽略
@@ -206,6 +212,39 @@ public class ReportTaskService {
         try {
             java.nio.file.Files.deleteIfExists(pdf);
             java.nio.file.Files.deleteIfExists(pdf.resolveSibling("report.html"));
+        } catch (Exception ignore) {
+        }
+        // 批5 家长版异步归档：教师版已成功后处理第二份产物
+        parentFuture.whenComplete((ppdf, perr) -> archiveParent(item.getId(), ppdf, perr));
+    }
+
+    /** 家长版归档（批5）：成功写 parent_file_url；失败仅 error 注记——行状态已是「成功」不动、不计失败 */
+    private void archiveParent(Long reportId, Path pdf, Throwable err) {
+        Report current = reportMapper.selectById(reportId);
+        if (current == null || !"成功".equals(current.getStatus())) {
+            return;
+        }
+        if (err != null) {
+            current.setError("家长版渲染失败: " + rootMessage(err));
+            reportMapper.updateById(current);
+            log.warn("报告 {} 家长版渲染失败: {}", reportId, current.getError());
+            return;
+        }
+        String objectName = "reports/" + current.getTermId() + "/" + current.getStudentId()
+                + "/" + current.getId() + "-parent.pdf";
+        try {
+            pdfStoreService.upload(objectName, pdf);
+        } catch (Exception e) {
+            current.setError("家长版归档失败: " + e.getMessage());
+            reportMapper.updateById(current);
+            return;
+        }
+        current.setParentFileUrl(objectName);
+        current.setError(null);
+        reportMapper.updateById(current);
+        try {
+            java.nio.file.Files.deleteIfExists(pdf);
+            java.nio.file.Files.deleteIfExists(pdf.resolveSibling("report-parent.html"));
         } catch (Exception ignore) {
         }
     }

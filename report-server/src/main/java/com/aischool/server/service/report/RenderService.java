@@ -67,12 +67,12 @@ public class RenderService {
         pool.shutdown();
     }
 
-    /** 提交一次渲染（聚合 JSON → 子进程渲染），返回产物 PDF 路径 */
-    public CompletableFuture<Path> submit(int priority, String batchKey, Long studentId, Long termId) {
+    /** 提交一次渲染（聚合 JSON → 子进程渲染），返回产物 PDF 路径；parent=家长版（批5 去成绩板块） */
+    public CompletableFuture<Path> submit(int priority, String batchKey, Long studentId, Long termId, boolean parent) {
         CompletableFuture<Path> future = new CompletableFuture<>();
         pool.execute(new PriorityTask(priority, () -> {
             try {
-                future.complete(render(batchKey, studentId, termId));
+                future.complete(render(batchKey, studentId, termId, parent));
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             }
@@ -80,20 +80,22 @@ public class RenderService {
         return future;
     }
 
-    private Path render(String batchKey, Long studentId, Long termId) throws Exception {
+    private Path render(String batchKey, Long studentId, Long termId, boolean parent) throws Exception {
+        String suffix = parent ? "-parent" : ""; // 同目录双版并行：文件名分流防互删
         Map<String, Object> data = dataBuilder.build(studentId, termId);
         Path dir = Paths.get(workDir, batchKey, String.valueOf(studentId));
         Files.createDirectories(dir);
-        Path json = dir.resolve("data.json");
-        Path pdf = dir.resolve("report.pdf");
-        Path logFile = dir.resolve("render.log");
+        Path json = dir.resolve("data" + suffix + ".json");
+        Path pdf = dir.resolve("report" + suffix + ".pdf");
+        Path logFile = dir.resolve("render" + suffix + ".log");
         Files.deleteIfExists(pdf);
         objectMapper.writerWithDefaultPrettyPrinter().writeValue(json.toFile(), data);
 
         Process process = new ProcessBuilder(javaExecutable(),
                         "-Dfile.encoding=UTF-8", "-Xmx512m", "-cp", rendererClasspath(),
                         "com.aischool.render.RenderPdf",
-                        json.toAbsolutePath().toString(), pdf.toAbsolutePath().toString())
+                        json.toAbsolutePath().toString(), pdf.toAbsolutePath().toString(),
+                        parent ? "parent" : "teacher")
                 .directory(new java.io.File(rendererHome))
                 .redirectErrorStream(true)
                 .start();

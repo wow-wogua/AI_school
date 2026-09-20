@@ -8,7 +8,9 @@ import com.aischool.server.entity.Evaluation;
 import com.aischool.server.entity.Moment;
 import com.aischool.server.entity.MomentStudent;
 import com.aischool.server.entity.ParentBinding;
+import com.aischool.server.entity.Report;
 import com.aischool.server.entity.Student;
+import com.aischool.server.entity.Term;
 import com.aischool.server.entity.User;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.ContentItemMapper;
@@ -16,7 +18,9 @@ import com.aischool.server.mapper.EvaluationMapper;
 import com.aischool.server.mapper.MomentMapper;
 import com.aischool.server.mapper.MomentStudentMapper;
 import com.aischool.server.mapper.ParentBindingMapper;
+import com.aischool.server.mapper.ReportMapper;
 import com.aischool.server.mapper.StudentMapper;
+import com.aischool.server.mapper.TermMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.service.moment.MomentService;
 import com.aischool.server.service.report.PdfStoreService;
@@ -31,7 +35,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -57,6 +68,8 @@ public class ParentController {
     private final MomentService momentService;
     private final PdfStoreService pdfStore;
     private final com.aischool.server.service.conduct.ParentWalletService parentWalletService;
+    private final ReportMapper reportMapper;
+    private final TermMapper termMapper;
 
     private void checkParent() {
         if (!"PARENT".equals(AuthUtil.current().role())) {
@@ -117,6 +130,60 @@ public class ParentController {
             m.put("teacherName", e.getTeacherId() == null ? null : teacherNames.get(e.getTeacherId()));
             return m;
         }).toList());
+    }
+
+    // ────────────────────────── 成长报告（批5 家长版：方案A 去成绩板块） ──────────────────────────
+
+    /** 孩子最新家长版报告元信息（data=null 表示尚未生成；只认 parent_file_url，教师版文件不可达） */
+    @GetMapping("/children/{studentId}/report")
+    public ApiResponse<Map<String, Object>> latestReport(@PathVariable Long studentId) {
+        checkParent();
+        requireBound(studentId);
+        Report report = latestParentReport(studentId);
+        if (report == null) {
+            return ApiResponse.ok(null);
+        }
+        Term term = termMapper.selectById(report.getTermId());
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("reportId", report.getId());
+        m.put("studentId", report.getStudentId());
+        m.put("termName", term == null ? null : term.getName());
+        m.put("genTime", report.getGenTime() == null ? null : report.getGenTime().toString());
+        return ApiResponse.ok(m);
+    }
+
+    /** 家长版报告 PDF（inline 预览 / attachment 下载；整体读入同步返回，同 ReportController 口径） */
+    @GetMapping("/children/{studentId}/report/file")
+    public ResponseEntity<byte[]> reportFile(@PathVariable Long studentId,
+            @RequestParam(defaultValue = "inline") String disposition) throws IOException {
+        checkParent();
+        requireBound(studentId);
+        Report report = latestParentReport(studentId);
+        if (report == null) {
+            throw new BizException(404, "报告尚未生成，请等待班主任生成后再查看");
+        }
+        byte[] bytes;
+        try (InputStream in = pdfStore.download(report.getParentFileUrl())) {
+            bytes = in.readAllBytes();
+        }
+        String fileName = "report-parent-" + studentId + "-" + report.getId() + ".pdf";
+        String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentLength(bytes.length);
+        headers.add(HttpHeaders.CONTENT_DISPOSITION,
+                ("download".equals(disposition) ? "attachment" : "inline") + "; filename*=UTF-8''" + encoded);
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    /** 该生最新的已归档家长版报告（家长版渲染失败时 parent_file_url 为空，不出现于此） */
+    private Report latestParentReport(Long studentId) {
+        return reportMapper.selectOne(new LambdaQueryWrapper<Report>()
+                .eq(Report::getStudentId, studentId)
+                .eq(Report::getStatus, "成功")
+                .isNotNull(Report::getParentFileUrl)
+                .orderByDesc(Report::getGenTime).orderByDesc(Report::getId)
+                .last("LIMIT 1"));
     }
 
     // ────────────────────────── 内容：通知公告 / 育儿课堂（批2） ──────────────────────────

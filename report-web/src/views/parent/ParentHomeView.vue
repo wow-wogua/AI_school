@@ -30,7 +30,7 @@
       </RouterLink>
     </div>
 
-    <!-- 校园服务宫格（同教师端快捷功能形态）：通知/育儿课堂批2 开放；成长报告批5 家长版（现版含成绩，方案A 家长不可见） -->
+    <!-- 校园服务宫格（同教师端快捷功能形态）：批2 通知/育儿课堂、批5 家长版成长报告（去成绩板块） -->
     <div class="app-sec">校园服务</div>
     <div class="app-card tex-b grid-card">
       <div class="grid">
@@ -86,12 +86,12 @@ const greeting = computed(() => {
 const avatarChar = computed(() => auth.realName?.charAt(0) || '家')
 
 /* 服务宫格（同教师端 HomeView 的 g-icon 彩色方底形态；to 为空=未开放置灰）。
-   微光信箱/通知公告/育儿课堂批2 已点亮；成长报告批5 家长版再开 */
+   微光信箱/通知公告/育儿课堂批2、成长报告批5 家长版（去成绩板块）已点亮 */
 const grids = [
   { name: '微光信箱', icon: 'photograph', to: '/p/moments', bg: '#F97316' },
   { name: '通知公告', icon: 'bell', to: '/p/notices', bg: '#F59E0B' },
   { name: '育儿课堂', icon: 'bookmark-o', to: '/p/parenting', bg: '#10B981' },
-  { name: '成长报告', icon: 'description', to: '', bg: '#14B8A6' },
+  { name: '成长报告', icon: 'description', to: '/p/report', bg: '#14B8A6' },
   { name: '修改密码', icon: 'lock', to: '/change-password', bg: '#6366F1' },
 ]
 

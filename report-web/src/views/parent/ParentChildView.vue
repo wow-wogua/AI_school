@@ -53,7 +53,7 @@
       </article>
     </div>
 
-    <p class="app-foot">孩子的学期成长报告将在报告功能开放后提供</p>
+    <p class="app-foot">学期成长报告请在首页「成长报告」中查看</p>
   </div>
 </template>
 

@@ -73,6 +73,7 @@ public class AiDraftService {
         return cfgCommentInstruction == null || cfgCommentInstruction.isBlank()
                 ? "请根据以下数据为该学生写本学期班主任寄语（150~300字）："
                 + "先肯定具体亮点，再中肯指出 1 个待改进点并给出期望，结尾鼓励。不要罗列全部数字，挑选关键事实。"
+                + "寄语将随成长报告面向家长展示，不要出现考试分数、名次等学业数字，用定性表述（如「表现突出」「稳中有进」）。"
                 : cfgCommentInstruction;
     }
 
@@ -123,6 +124,7 @@ public class AiDraftService {
 
     public Map<String, Object> commentDraft(Long studentId, Long termId) {
         Map<String, Object> facts = factsService.facts(studentId, termId);
+        sanitizeCommentFacts(facts); // 批5：寄语随家长版报告展示（方案A），学业数字不进提示词——没见过的数字写不出来
         injectMomentFacts(facts, studentId, termId);
         String draft;
         String source;
@@ -286,6 +288,17 @@ public class AiDraftService {
         }
     }
 
+    /**
+     * 批5 寄语脱敏：学业分数键整体移出 facts（LLM 与模板两条路都拿不到）。
+     * 综合素质积分/评价次数是操行体系数字（家长端钱包本就可见），保留。
+     */
+    private void sanitizeCommentFacts(Map<String, Object> facts) {
+        facts.remove("期末成绩");
+        facts.remove("总分");
+        facts.remove("班级总分最高");
+        facts.remove("年级总分最高");
+    }
+
     /** 模板用：微光条数与场景标签串（无微光返回 null） */
     private String momentBrief(Map<String, Object> facts) {
         Object raw = facts.get("微光时刻（教师随手拍下的闪光记录）");
@@ -315,12 +328,7 @@ public class AiDraftService {
     private String templateComment(Map<String, Object> facts) {
         StringBuilder sb = new StringBuilder();
         sb.append(facts.get("姓名")).append("同学：本学期你的综合表现可圈可点。");
-        sb.append("学业上，总分 ").append(facts.get("总分")).append(" 分");
-        Object classMax = facts.get("班级总分最高");
-        if (classMax != null) {
-            sb.append("（班级最高 ").append(classMax).append(" 分）");
-        }
-        sb.append("，其中").append(facts.getOrDefault("优势学科", "")).append("表现突出，值得保持；")
+        sb.append("学业上，").append(facts.getOrDefault("优势学科", "")).append("表现突出，值得保持；")
                 .append(facts.getOrDefault("待提升学科", "")).append("仍有提升空间，建议针对性补强。");
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> grids = (List<Map<String, Object>>) facts.get("综合素质表现");

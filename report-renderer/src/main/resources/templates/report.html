@@ -108,23 +108,24 @@
   <div class="abs" style="top:54.1pt;left:60.7pt;right:60.7pt;text-align:right;font-size:22.5pt;font-weight:bold;color:#F7C572;letter-spacing:10pt;margin-right:-10pt">目录</div>
   <div class="abs" style="top:81.1pt;left:60.7pt;right:60.7pt;text-align:right;font-size:22.5pt;color:#000;letter-spacing:3pt;margin-right:-3pt">CONTENTS</div>
   <div class="abs" style="top:157.5pt;left:83pt;right:60.7pt">
-    <div class="toc-row"><span>学校理念</span><span class="dots"></span><span>3</span></div>
-    <div class="toc-row"><span>学校风采</span><span class="dots"></span><span>4</span></div>
-    <div class="toc-row"><span>“扬长”育人体系</span><span class="dots"></span><span>5</span></div>
-    <div class="toc-row"><span>校长寄语</span><span class="dots"></span><span>6</span></div>
-    <div class="toc-row"><span>国家课程学业评价</span><span class="dots"></span><span>7</span></div>
-    <div class="toc-row"><span>我的平时成绩</span><span class="dots"></span><span>20</span></div>
-    <div class="toc-row"><span>学生个人综合素质成长</span><span class="dots"></span><span>21</span></div>
-    <div class="toc-row"><span>我的活动</span><span class="dots"></span><span>42</span></div>
-    <div class="toc-row"><span>成长银行</span><span class="dots"></span><span>44</span></div>
-    <div class="toc-row"><span>我的成长象征物</span><span class="dots"></span><span>48</span></div>
-    <div class="toc-row"><span>综合素质评定</span><span class="dots"></span><span>50</span></div>
-    <div class="toc-row"><span>学生改进方向</span><span class="dots"></span><span>51</span></div>
+    <!-- 页码 span.tp 由页尾 JS 按物理页回填（批5 家长版删成绩板块后页数重排）；三条成绩条目家长版不渲染 -->
+    <div class="toc-row" data-k="学校理念"><span>学校理念</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="学校风采"><span>学校风采</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="“扬长”育人体系"><span>“扬长”育人体系</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="校长寄语"><span>校长寄语</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="国家课程学业评价" th:unless="${parentEdition}"><span>国家课程学业评价</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="我的平时成绩" th:unless="${parentEdition}"><span>我的平时成绩</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="学生个人综合素质成长"><span>学生个人综合素质成长</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="我的活动"><span>我的活动</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="成长银行"><span>成长银行</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="我的成长象征物"><span>我的成长象征物</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="综合素质评定"><span>综合素质评定</span><span class="dots"></span><span class="tp"></span></div>
+    <div class="toc-row" data-k="学生改进方向" th:unless="${parentEdition}"><span>学生改进方向</span><span class="dots"></span><span class="tp"></span></div>
   </div>
 </div>
 
 <!-- ═══════════ p02 学校理念 ═══════════ -->
-<div class="page z-o nonum">
+<div class="page z-o nonum" data-toc="学校理念">
   <img class="abs" th:src="${imgIdeaBg}" style="top:0;left:0;width:595pt;height:842pt" alt=""/>
   <div class="abs" style="top:151pt;left:60.7pt;width:473.6pt">
     <div th:each="p : ${r.school.philosophy}" style="margin-bottom:24.2pt">
@@ -136,7 +137,7 @@
 </div>
 
 <!-- ═══════════ p03 学校风采 ═══════════ -->
-<div class="page z-o">
+<div class="page z-o" data-toc="学校风采">
   <div class="t16" style="top:97pt">学校风采</div>
   <img class="abs" th:src="${imgIconL}" style="top:100pt;left:229pt;width:13pt;height:15pt" alt=""/>
   <img class="abs" th:src="${imgIconR}" style="top:100pt;left:353pt;width:13pt;height:15pt" alt=""/>
@@ -147,7 +148,7 @@
 </div>
 
 <!-- ═══════════ p04 “扬长”育人体系 ═══════════ -->
-<div class="page z-o">
+<div class="page z-o" data-toc="“扬长”育人体系">
   <div class="t16" style="top:97pt">“扬长”育人体系</div>
   <img class="abs" th:src="${imgIconL}" style="top:100pt;left:205pt;width:13pt;height:15pt" alt=""/>
   <img class="abs" th:src="${imgIconR}" style="top:100pt;left:377pt;width:13pt;height:15pt" alt=""/>
@@ -157,12 +158,12 @@
 </div>
 
 <!-- ═══════════ p05 校长寄语（原版整页图，文字为学校级静态内容） ═══════════ -->
-<div class="page z-o" style="background:#FDF8EE">
+<div class="page z-o" data-toc="校长寄语" style="background:#FDF8EE">
   <img class="abs" th:src="${imgPrincipal}" style="top:0;left:0;width:595pt;height:842pt" alt=""/>
 </div>
 
-<!-- ═══════════ p06 隔页·国家课程学业评价（橙区奶油底） ═══════════ -->
-<div class="page z-o nohdr" style="background:linear-gradient(180deg,#FCF0DC 0%,#F8E1BC 100%)">
+<!-- ═══════════ p06 隔页·国家课程学业评价（橙区奶油底；家长版整板块不渲染） ═══════════ -->
+<div class="page z-o nohdr" data-toc="国家课程学业评价" th:unless="${parentEdition}" style="background:linear-gradient(180deg,#FCF0DC 0%,#F8E1BC 100%)">
   <img class="abs" th:src="${imgCornerTl}" style="top:0;left:0;width:417pt;height:336pt" alt=""/>
   <img class="abs" th:src="${imgCornerBr}" style="top:426pt;left:178pt;width:417pt;height:416pt" alt=""/>
   <div class="divider-title" style="color:#DC7717">国家课程学业评价</div>
@@ -173,8 +174,8 @@
   </div>
 </div>
 
-<!-- ═══════════ p07 学业综合（c7a 雷达 / c7b 三柱 / c7c 横向对比 / c7d 周折线） ═══════════ -->
-<div class="page z-o">
+<!-- ═══════════ p07 学业综合（c7a 雷达 / c7b 三柱 / c7c 横向对比 / c7d 周折线；家长版不渲染） ═══════════ -->
+<div class="page z-o" th:unless="${parentEdition}">
   <img class="abs" th:src="${imgCornerTr}" style="top:0;left:0;width:79pt;height:64pt" alt=""/>
   <img class="abs" th:src="${imgDeco}" style="top:600pt;left:499pt;width:54pt;height:38pt" alt=""/>
   <div class="abs" style="top:79.4pt;left:59.9pt;width:475.2pt;height:18pt;background:#FDF2E6;border-radius:9pt"></div>
@@ -196,8 +197,8 @@
   <div class="abs" style="top:693.9pt;left:60.7pt;width:474pt;height:36pt;background:#DEDEDE"></div>
   <div class="abs" style="top:706pt;left:73pt;font-size:9pt;color:#1A1A1A" th:text="${r.academic.toImprove}">道德与法治</div>
 </div>
-<!-- ═══════════ p08–18 学科页 ×11 ═══════════ -->
-<div class="page z-o" th:each="sp, sStat : ${r.subjectPages}">
+<!-- ═══════════ p08–18 学科页 ×11（家长版不渲染） ═══════════ -->
+<div class="page z-o" th:unless="${parentEdition}" th:each="sp, sStat : ${r.subjectPages}">
   <img class="abs" th:src="${imgCornerTr}" style="top:-2pt;left:531pt;width:64pt;height:80pt" alt=""/>
   <img class="abs" th:src="${imgDeco}" style="top:692pt;left:499pt;width:54pt;height:37pt" alt=""/>
   <div class="t18" th:style="'--chipw:' + (21.69 * ${#strings.length(sp.name)}) + 'pt'"><span th:text="${sp.name}">语文</span></div>
@@ -221,8 +222,8 @@
   </div>
 </div>
 
-<!-- ═══════════ p19 我的平时成绩（标题/表头样例为矢量轮廓 → 白名单） ═══════════ -->
-<div class="page z-o">
+<!-- ═══════════ p19 我的平时成绩（家长版不渲染） ═══════════ -->
+<div class="page z-o" data-toc="我的平时成绩" th:unless="${parentEdition}">
   <div class="t16" style="top:97pt">我的平时成绩</div>
   <div class="abs" style="top:152pt;left:60.7pt;width:473.6pt">
     <div style="font-size:12pt;font-weight:bold;color:#DC7717">学科平时成绩</div>
@@ -257,7 +258,7 @@
 </div>
 
 <!-- ═══════════ p20 隔页·学生个人综合素质成长（蓝区） ═══════════ -->
-<div class="page z-b nohdr" style="background:linear-gradient(180deg,#C9D4F0 0%,#A9B8E8 100%)">
+<div class="page z-b nohdr" data-toc="学生个人综合素质成长" style="background:linear-gradient(180deg,#C9D4F0 0%,#A9B8E8 100%)">
   <div class="divider-title" style="color:#181C83">学生个人综合素质成长</div>
   <div class="motif">
     <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#181C83"></span>
@@ -330,7 +331,7 @@
 </div>
 </div>
 <!-- ═══════════ p41 隔页·我的活动（橙区） ═══════════ -->
-<div class="page z-o nohdr" style="background:linear-gradient(180deg,#FCF0DC 0%,#F8E1BC 100%)">
+<div class="page z-o nohdr" data-toc="我的活动" style="background:linear-gradient(180deg,#FCF0DC 0%,#F8E1BC 100%)">
   <div class="divider-title" style="color:#DC7717">我的活动</div>
   <div class="motif">
     <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#DC7717"></span>
@@ -371,7 +372,7 @@
 </div>
 
 <!-- ═══════════ p43 隔页·成长银行（蓝区） ═══════════ -->
-<div class="page z-b nohdr" style="background:linear-gradient(180deg,#C9D4F0 0%,#A9B8E8 100%)">
+<div class="page z-b nohdr" data-toc="成长银行" style="background:linear-gradient(180deg,#C9D4F0 0%,#A9B8E8 100%)">
   <div class="divider-title" style="color:#181C83">成长银行</div>
   <div class="motif">
     <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#181C83"></span>
@@ -438,7 +439,7 @@
 </div>
 
 <!-- ═══════════ p47 隔页·我的成长象征物（绿区） ═══════════ -->
-<div class="page z-g nohdr" style="background:linear-gradient(180deg,#D5EEE0 0%,#BCE3CF 100%)">
+<div class="page z-g nohdr" data-toc="我的成长象征物" style="background:linear-gradient(180deg,#D5EEE0 0%,#BCE3CF 100%)">
   <div class="divider-title" style="color:#168C51">我的成长象征物</div>
   <div class="motif">
     <span style="display:inline-block;width:9pt;height:9pt;border-radius:50%;background:#168C51"></span>
@@ -470,7 +471,7 @@
 </div>
 
 <!-- ═══════════ p49 综合素质评定（标题/维度名样例为矢量轮廓 → 白名单） ═══════════ -->
-<div class="page z-o">
+<div class="page z-o" data-toc="综合素质评定">
   <div class="t16" style="top:97pt">综合素质评定</div>
   <div class="abs" style="top:179.5pt;left:60.6pt;width:474.3pt;height:30.2pt;background:#FAF2E7"></div>
   <div class="abs" style="top:188pt;left:0;width:100%;text-align:center">
@@ -489,8 +490,8 @@
        th:text="${r.headTeacherComment}">班主任寄语</div>
 </div>
 
-<!-- ═══════════ p50 学生改进方向（规则引擎实时聚合：学业差距+九维弱项；p49 综评后、掠影/封底前） ═══════════ -->
-<div class="page z-o">
+<!-- ═══════════ p50 学生改进方向（家长版不渲染） ═══════════ -->
+<div class="page z-o" data-toc="学生改进方向" th:unless="${parentEdition}">
   <div class="t16" style="top:97pt">学生改进方向</div>
   <div class="abs" style="top:152pt;left:60.7pt;width:473.6pt">
     <div style="font-size:12pt;font-weight:bold;color:#DC7717">学业提升空间（与班级最高分差距）</div>
@@ -611,6 +612,16 @@ document.querySelectorAll('.page').forEach((pg, i) => {
       pg.appendChild(s);
     });
   }
+});
+
+/* ── 目录页码回填（批5：家长版删成绩板块后页数重排；教师版数值与原硬编码一致） ── */
+const tocPages = {};
+document.querySelectorAll('.page').forEach((pg, i) => {
+  if (pg.dataset.toc) tocPages[pg.dataset.toc] = i + 1;
+});
+document.querySelectorAll('.toc-row').forEach(row => {
+  const cell = row.querySelector('.tp');
+  if (cell) cell.textContent = tocPages[row.dataset.k] ?? '';
 });
 
 try {
