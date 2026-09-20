@@ -189,14 +189,17 @@ public class ScoreService {
         return data;
     }
 
-    /** 成绩导出（权限同查看 listScores）：当前表格 → xlsx（学号/姓名/成绩/班级排名/年级排名） */
+    /** 成绩导出（权限同查看 listScores）：当前表格 → xlsx。教师侧仅三列（排名列连字样都不出现）；ADMIN/LEADER 五列含排名 */
     public Exported exportScores(UserPrincipal user, Long examId, Long subjectId, Long classId) {
         Map<String, Object> data = listScores(user, examId, subjectId, classId); // 内含数据域校验
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> rows = (List<Map<String, Object>>) data.get("rows");
+        boolean teacherSide = Boolean.TRUE.equals(data.get("teacherSide"));
         List<Object[]> table = new ArrayList<>();
         for (Map<String, Object> r : rows) {
-            table.add(new Object[]{r.get("studentNo"), r.get("name"), r.get("score"), r.get("classRank"), r.get("gradeRank")});
+            table.add(teacherSide
+                    ? new Object[]{r.get("studentNo"), r.get("name"), r.get("score")}
+                    : new Object[]{r.get("studentNo"), r.get("name"), r.get("score"), r.get("classRank"), r.get("gradeRank")});
         }
         Exam exam = examMapper.selectById(examId);
         Subject subject = subjectMapper.selectById(subjectId);
@@ -204,7 +207,9 @@ public class ScoreService {
         String name = "成绩_" + (exam != null ? exam.getName() : examId) + "_"
                 + (subject != null ? subject.getName() : subjectId) + "_"
                 + (clazz != null ? clazz.getName() : classId) + ".xlsx";
-        return new Exported(name, excel.export("成绩", new String[]{"学号", "姓名", "成绩", "班级排名", "年级排名"}, table));
+        return new Exported(name, excel.export("成绩", teacherSide
+                ? new String[]{"学号", "姓名", "成绩"}
+                : new String[]{"学号", "姓名", "成绩", "班级排名", "年级排名"}, table));
     }
 
     // ───────────────── 录入 / 导入 ─────────────────

@@ -22,7 +22,7 @@
     <el-card v-if="rows.length">
       <template #header>
         {{ teacherSide
-          ? `成绩单（满分 ${fullScore ?? '未设置'}）· 仅显示您本人录入的成绩，他人录入不可见；名次不开放教师端`
+          ? `成绩单（满分 ${fullScore ?? '未设置'}）· 仅显示您本人录入的成绩，他人录入不可见`
           : `成绩单（满分 ${fullScore ?? '未设置'}，保存后自动计算班级/年级排名；空白 = 未录入，清空分数后保存即删除）` }}
       </template>
       <el-table :data="rows" size="small" max-height="560" :row-class-name="rowClass">

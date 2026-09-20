@@ -76,9 +76,7 @@ public class RuleFactsService {
                     row.put("班级最高", es.getClassMax() == null ? null : es.getClassMax().doubleValue());
                     row.put("年级最高", es.getGradeMax() == null ? null : es.getGradeMax().doubleValue());
                 }
-                if (sc.getClassRank() != null) {
-                    row.put("班级排名", sc.getClassRank());
-                }
+                // 排名不进 AI 事实（教师触发的寄语/报告不得出现排名字样，敏感口径）
                 subjectRows.add(row);
             }
             subjectRows.sort((a, b) -> Double.compare((Double) b.get("得分"), (Double) a.get("得分")));
