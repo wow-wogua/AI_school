@@ -4,7 +4,8 @@
       :transition="{ type: 'spring', stiffness: 400, damping: 32 }"><el-icon><TrendCharts /></el-icon>成绩管理</motion.h2>
     <div class="toolbar">
       <el-select v-model="examId" placeholder="考试" style="min-width: 200px" @change="onExamChange">
-        <el-option v-for="e in exams" :key="e.id" :label="`${e.name}（${e.termName}）`" :value="e.id" />
+        <el-option v-for="e in exams" :key="e.id"
+          :label="`${e.name}（${e.termName}）${e.entryOpen === false ? ' · 录入已关闭' : ''}`" :value="e.id" />
       </el-select>
       <el-select v-model="classId" placeholder="班级" style="min-width: 140px" @change="loadSubjects">
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
@@ -20,7 +21,9 @@
 
     <el-card v-if="rows.length">
       <template #header>
-        成绩单（满分 {{ fullScore ?? '未设置' }}，保存后自动计算班级/年级排名；空白 = 未录入，清空分数后保存即删除）
+        {{ teacherSide
+          ? `成绩单（满分 ${fullScore ?? '未设置'}）· 仅显示您本人录入的成绩，他人录入不可见；名次不开放教师端`
+          : `成绩单（满分 ${fullScore ?? '未设置'}，保存后自动计算班级/年级排名；空白 = 未录入，清空分数后保存即删除）` }}
       </template>
       <el-table :data="rows" size="small" max-height="560" :row-class-name="rowClass">
         <el-table-column prop="studentNo" label="学号" min-width="110" align="center" />
@@ -32,10 +35,10 @@
             <span v-else>{{ row.score ?? '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="班级名次" min-width="100" align="center">
+        <el-table-column v-if="!teacherSide" label="班级名次" min-width="100" align="center">
           <template #default="{ row }">{{ row.classRank ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="年级名次" min-width="100" align="center">
+        <el-table-column v-if="!teacherSide" label="年级名次" min-width="100" align="center">
           <template #default="{ row }">{{ row.gradeRank ?? '—' }}</template>
         </el-table-column>
       </el-table>
@@ -44,6 +47,8 @@
         <el-tag v-if="!editable" size="small" type="info">只读（本班班主任/该学科任课教师可编辑）</el-tag>
       </div>
     </el-card>
+    <el-empty v-else-if="loaded && examId && classId && !subjects.length"
+      description="该考试无您可操作的科目（或录入窗口已关闭）" />
     <el-empty v-else-if="loaded" description="选择考试/班级/学科后加载成绩单" />
 
     <el-dialog v-model="examDialog" title="新建考试" width="560px">
@@ -97,8 +102,12 @@ import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../api/http'
 import { saveFile } from '../api/nativeShare'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
+/* 批4 方案A：教师侧（班主任同口径）仅见自己录入、名次列不开放 */
+const teacherSide = computed(() => auth.role === 'TEACHER' || auth.role === 'HEAD_TEACHER')
 const hlStudentId = ref<number>(Number(route.query.studentId) || 0)   // 从学生详情进来：高亮该生行
 
 function rowClass({ row }: { row: any }) {

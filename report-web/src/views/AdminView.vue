@@ -69,6 +69,7 @@
         <el-tab-pane label="年级与班级" name="org"><OrgTab /></el-tab-pane>
         <el-tab-pane label="学生" name="student"><StudentTab /></el-tab-pane>
         <el-tab-pane label="学期" name="term"><TermTab /></el-tab-pane>
+        <el-tab-pane label="考试管理" name="exam"><ExamTab /></el-tab-pane>
         <el-tab-pane label="育人指标" name="indicator"><IndicatorTab /></el-tab-pane>
         <el-tab-pane label="成长银行" name="shop"><ShopTab /></el-tab-pane>
         <el-tab-pane label="报告模板" name="template"><TemplateTab /></el-tab-pane>
@@ -84,7 +85,7 @@
 import { computed, markRaw, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { Aim, Calendar, Coin, DataLine, Document, Iphone, Postcard, Promotion, School, Setting, Stamp, Tickets, Upload, User, Avatar } from '@element-plus/icons-vue'
+import { Aim, Calendar, Coin, DataLine, Document, Iphone, Postcard, Promotion, School, Setting, Stamp, Tickets, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
 import { api } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import TeacherTab from '../components/admin/TeacherTab.vue'
@@ -95,6 +96,7 @@ import TeacherProfileTab from '../components/admin/TeacherProfileTab.vue'
 import OrgTab from '../components/admin/OrgTab.vue'
 import StudentTab from '../components/admin/StudentTab.vue'
 import TermTab from '../components/admin/TermTab.vue'
+import ExamTab from '../components/admin/ExamTab.vue'
 import IndicatorTab from '../components/admin/IndicatorTab.vue'
 import ShopTab from '../components/admin/ShopTab.vue'
 import TemplateTab from '../components/admin/TemplateTab.vue'
@@ -125,6 +127,7 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   org: { label: '年级与班级', comp: markRaw(OrgTab), icon: School },
   student: { label: '学生', comp: markRaw(StudentTab), icon: Avatar },
   term: { label: '学期', comp: markRaw(TermTab), icon: Calendar },
+  exam: { label: '考试管理', comp: markRaw(ExamTab), icon: TrendCharts },
   indicator: { label: '育人指标', comp: markRaw(IndicatorTab), icon: Aim },
   shop: { label: '成长银行', comp: markRaw(ShopTab), icon: Coin },
   template: { label: '报告模板', comp: markRaw(TemplateTab), icon: Document },
@@ -134,7 +137,7 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
 const groups = [
   { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile'] },
   { label: '内容运营', items: ['content', 'appRelease'] },
-  { label: '基础数据', items: ['org', 'student', 'term', 'indicator', 'shop', 'template'] },
+  { label: '基础数据', items: ['org', 'student', 'term', 'exam', 'indicator', 'shop', 'template'] },
   { label: '系统运维', items: ['audit', 'aiUsage'] },
 ].map((g) => ({ ...g, items: g.items.map((k) => ({ name: k, ...TABS[k] })) }))
 

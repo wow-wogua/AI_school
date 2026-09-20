@@ -41,6 +41,8 @@ import java.util.stream.Collectors;
 /**
  * 成绩管理：考试（含科目满分）→ 按任课关系录入 → 全体竞争排名（同分同名次）→ 回填单科/总分最高分。
  * 排名纯 Java 内存计算，零自定义 SQL；报告契约不读排名列，重算零契约风险。
+ * 批4 方案A 录入窗口：t_exam.entry_open 开=教师可录、可见自己录入的；关=教师全不可见。
+ * 教师侧（TEACHER/HEAD_TEACHER 同口径）仅见 created_by=自己 的分数、排名列一律不可见；ADMIN/LEADER 全量。
  */
 @Service
 @RequiredArgsConstructor
@@ -116,6 +118,7 @@ public class ScoreService {
             m.put("examDate", e.getExamDate());
             m.put("classMaxTotal", e.getClassMaxTotal());
             m.put("gradeMaxTotal", e.getGradeMaxTotal());
+            m.put("entryOpen", examOpen(e));
             m.put("subjectCount", subjectCounts.getOrDefault(e.getId(), 0L));
             return m;
         }).toList();
@@ -123,10 +126,13 @@ public class ScoreService {
 
     // ───────────────── 录入上下文 ─────────────────
 
-    /** 某班在某考试下可操作的科目（任课教师只见所教科目；管理员全量） */
+    /** 某班在某考试下可操作的科目（批4：教师侧只列自己可操作的科目，录入关闭时为空；ADMIN/LEADER 全量） */
     public List<Map<String, Object>> subjectContext(UserPrincipal user, Long examId, Long classId) {
         checkClassVisible(user, classId);
-        requireExam(examId);
+        Exam exam = requireExam(examId);
+        if (isTeacherSide(user) && !examOpen(exam)) {
+            return List.of(); // 录入窗口已关：教师无可操作科目（前端空态提示）
+        }
         Map<Long, String> subjectNames = subjectMapper.selectList(null).stream()
                 .collect(Collectors.toMap(Subject::getId, Subject::getName));
         return examSubjectMapper.selectList(new LambdaQueryWrapper<ExamSubject>()
@@ -140,13 +146,24 @@ public class ScoreService {
                     m.put("gradeMax", es.getGradeMax());
                     m.put("editable", canEnter(user, classId, es.getSubjectId()));
                     return m;
-                }).toList();
+                })
+                .filter(m -> !isTeacherSide(user) || (Boolean) m.get("editable"))
+                .toList();
     }
 
-    /** 某班某科成绩单（名册 + 分数/排名；缺分为 null） */
+    /** 某班某科成绩单（名册 + 分数/排名；缺分为 null）。批4 教师口径：仅见自己录入的分数、排名不可见 */
     public Map<String, Object> listScores(UserPrincipal user, Long examId, Long subjectId, Long classId) {
         checkClassVisible(user, classId);
         ExamSubject es = requireExamSubject(examId, subjectId);
+        boolean teacherSide = isTeacherSide(user);
+        if (teacherSide) {
+            if (!examOpen(requireExam(examId))) {
+                throw new BizException(403, "该考试录入已关闭，成绩不可见");
+            }
+            if (!canEnter(user, classId, subjectId)) {
+                throw new BizException(403, "仅可查看自己任教学科的成绩单");
+            }
+        }
         List<Student> roster = roster(classId);
         Map<Long, Score> scores = scoreMapper.selectList(new LambdaQueryWrapper<Score>()
                         .eq(Score::getExamId, examId).eq(Score::getSubjectId, subjectId))
@@ -157,13 +174,16 @@ public class ScoreService {
             m.put("studentId", st.getId());
             m.put("studentNo", st.getStudentNo());
             m.put("name", st.getName());
-            m.put("score", sc == null ? null : sc.getScore());
-            m.put("classRank", sc == null ? null : sc.getClassRank());
-            m.put("gradeRank", sc == null ? null : sc.getGradeRank());
+            // 教师侧只显示自己录入的分数（他人录入=不可见），排名列一律抹掉（方案A 汇总/排名不可见）
+            boolean own = sc != null && (!teacherSide || user.userId().equals(sc.getCreatedBy()));
+            m.put("score", own ? sc.getScore() : null);
+            m.put("classRank", !teacherSide && sc != null ? sc.getClassRank() : null);
+            m.put("gradeRank", !teacherSide && sc != null ? sc.getGradeRank() : null);
             return m;
         }).toList();
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("fullScore", es.getFullScore());
+        data.put("teacherSide", teacherSide);
         data.put("editable", canEnter(user, classId, subjectId));
         data.put("rows", rows);
         return data;
@@ -189,11 +209,14 @@ public class ScoreService {
 
     // ───────────────── 录入 / 导入 ─────────────────
 
-    /** 批量录入：rows 中 score=null 表示清除该生该科成绩 */
+    /** 批量录入：rows 中 score=null 表示清除该生该科成绩（批4：教师侧录入窗口关闭时 403） */
     public Map<String, Object> entry(UserPrincipal user, Long examId, Long subjectId, Long classId,
                                      List<RowReq> rows) {
         checkEnterable(user, classId, subjectId);
         ExamSubject es = requireExamSubject(examId, subjectId);
+        if (isTeacherSide(user) && !examOpen(requireExam(examId))) {
+            throw new BizException(403, "该考试录入已关闭");
+        }
         Map<Long, Student> roster = roster(classId).stream()
                 .collect(Collectors.toMap(Student::getId, Function.identity()));
         Map<Long, Score> existing = scoreMapper.selectList(new LambdaQueryWrapper<Score>()
@@ -353,15 +376,15 @@ public class ScoreService {
 
     // ───────────────── 权限与查询小件 ─────────────────
 
-    /** 成绩录入：管理员 / 本班班主任（全学科）/ 该班该科任课教师 / 档案任教学科命中（2026-08-30 校方拍板放宽） */
+    /** 成绩录入：管理员 / 领导（批4 全校放开，对称批3.5 教师化口径）/ 本班班主任（全学科）/ 该班该科任课教师 / 档案任教学科命中（2026-08-30 校方拍板放宽） */
     private void checkEnterable(UserPrincipal user, Long classId, Long subjectId) {
         if (!canEnter(user, classId, subjectId)) {
-            throw new BizException(403, "只有管理员、本班班主任或该学科任课教师可录入成绩");
+            throw new BizException(403, "只有管理员、领导、本班班主任或该学科任课教师可录入成绩");
         }
     }
 
     private boolean canEnter(UserPrincipal user, Long classId, Long subjectId) {
-        if ("ADMIN".equals(user.role())) {
+        if ("ADMIN".equals(user.role()) || "LEADER".equals(user.role())) {
             return true;
         }
         // 班主任：本班全部学科
@@ -389,6 +412,153 @@ public class ScoreService {
         if (visible != null && !visible.contains(classId)) {
             throw new BizException(403, "无权访问该班级（数据权限隔离）");
         }
+    }
+
+    // ───────────────── 批4：录入窗口 + 全校汇总 ─────────────────
+
+    /** 教师侧口径（方案A 同口径）：班主任与任课教师都只可见/可录自己录入的 */
+    private static boolean isTeacherSide(UserPrincipal user) {
+        return "TEACHER".equals(user.role()) || "HEAD_TEACHER".equals(user.role());
+    }
+
+    /** 考试录入窗口是否开放（旧数据无值=开） */
+    private static boolean examOpen(Exam exam) {
+        return exam == null || exam.getEntryOpen() == null || exam.getEntryOpen() == 1;
+    }
+
+    /** 开关录入窗口（管理端考试页签；ADMIN/有 ADMIN_ACCESS 的领导） */
+    public void setEntryOpen(Long examId, boolean open) {
+        Exam exam = requireExam(examId);
+        exam.setEntryOpen(open ? 1 : 0);
+        examMapper.updateById(exam);
+    }
+
+    /**
+     * 全校成绩汇总（批4 领导端/管理端）：subjectId 空=总分模式（每生全部科目得分之和），否则单科模式。
+     * 年级排名同分同名次；各班统计=参考人数（有分）/平均分/最高分。rows 分页（防几千学生全量下发）。
+     */
+    public Map<String, Object> scoreSummary(Long examId, Long subjectId, int page, int size) {
+        Exam exam = requireExam(examId);
+        List<ExamSubject> subjects = examSubjectMapper.selectList(new LambdaQueryWrapper<ExamSubject>()
+                .eq(ExamSubject::getExamId, examId).orderByAsc(ExamSubject::getSubjectId));
+        boolean bySubject = subjectId != null;
+        if (bySubject && subjects.stream().noneMatch(s -> s.getSubjectId().equals(subjectId))) {
+            throw new BizException(404, "该考试未设置此科目");
+        }
+        Map<Long, Student> students = studentMapper.selectList(null).stream()
+                .collect(Collectors.toMap(Student::getId, Function.identity(), (a, b) -> a));
+        Map<Long, Clazz> clazzMap = clazzMapper.selectList(null).stream()
+                .collect(Collectors.toMap(Clazz::getId, Function.identity(), (a, b) -> a));
+        Map<Long, String> subjectNames = subjectMapper.selectList(null).stream()
+                .collect(Collectors.toMap(Subject::getId, Subject::getName));
+        Map<Long, BigDecimal> totals = new LinkedHashMap<>();
+        for (Score s : scoreMapper.selectList(new LambdaQueryWrapper<Score>().eq(Score::getExamId, examId))) {
+            if (bySubject) {
+                if (s.getSubjectId().equals(subjectId)) {
+                    totals.put(s.getStudentId(), s.getScore());
+                }
+            } else {
+                totals.merge(s.getStudentId(), s.getScore(), BigDecimal::add);
+            }
+        }
+        // 全体竞争排名（同分同名次），按分数降序、学号升序稳定排序
+        List<Map.Entry<Long, BigDecimal>> sorted = totals.entrySet().stream()
+                .sorted(Map.Entry.<Long, BigDecimal>comparingByValue().reversed()
+                        .thenComparing(Map.Entry::getKey))
+                .toList();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int rank = 0;
+        BigDecimal prev = null;
+        for (int i = 0; i < sorted.size(); i++) {
+            Map.Entry<Long, BigDecimal> e = sorted.get(i);
+            if (prev == null || e.getValue().compareTo(prev) != 0) {
+                rank = i + 1;
+                prev = e.getValue();
+            }
+            Student st = students.get(e.getKey());
+            if (st == null) {
+                continue;
+            }
+            Clazz cz = st.getClassId() == null ? null : clazzMap.get(st.getClassId());
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("studentId", st.getId());
+            m.put("studentNo", st.getStudentNo());
+            m.put("name", st.getName());
+            m.put("className", cz == null ? "—" : cz.getName());
+            m.put("score", e.getValue());
+            m.put("gradeRank", rank);
+            rows.add(m);
+        }
+        // 各班统计：参考人数（有分）/平均分/最高分（按排名序稳定取最高）
+        Map<Long, List<Map<String, Object>>> byClass = new LinkedHashMap<>();
+        for (Map<String, Object> r : rows) {
+            Student st = students.get(r.get("studentId"));
+            if (st != null && st.getClassId() != null) {
+                byClass.computeIfAbsent(st.getClassId(), k -> new ArrayList<>()).add(r);
+            }
+        }
+        List<Map<String, Object>> classStats = byClass.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(en -> {
+                    List<BigDecimal> vals = en.getValue().stream().map(r -> (BigDecimal) r.get("score")).toList();
+                    Clazz cz = clazzMap.get(en.getKey());
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("classId", en.getKey());
+                    m.put("className", cz == null ? String.valueOf(en.getKey()) : cz.getName());
+                    m.put("count", vals.size());
+                    m.put("avg", vals.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                            .divide(BigDecimal.valueOf(vals.size()), 1, java.math.RoundingMode.HALF_UP));
+                    m.put("max", vals.stream().max(Comparator.naturalOrder()).orElse(null));
+                    return m;
+                }).toList();
+        // 分页
+        int from = Math.max(0, (page - 1) * size);
+        int to = Math.min(rows.size(), from + size);
+        Map<String, Object> data = new LinkedHashMap<>();
+        Map<String, Object> examInfo = new LinkedHashMap<>();
+        examInfo.put("id", exam.getId());
+        examInfo.put("name", exam.getName());
+        examInfo.put("termName", termName(exam.getTermId()));
+        examInfo.put("examDate", exam.getExamDate());
+        examInfo.put("entryOpen", examOpen(exam));
+        data.put("exam", examInfo);
+        data.put("mode", bySubject ? "subject" : "total");
+        data.put("subjectId", subjectId);
+        data.put("subjectName", bySubject ? subjectNames.get(subjectId) : null);
+        data.put("subjects", subjects.stream().map(s -> Map.of(
+                "subjectId", s.getSubjectId(), "name", subjectNames.getOrDefault(s.getSubjectId(), String.valueOf(s.getSubjectId())),
+                "fullScore", s.getFullScore())).toList());
+        data.put("fullScore", bySubject
+                ? subjects.stream().filter(s -> s.getSubjectId().equals(subjectId)).findFirst().map(ExamSubject::getFullScore).orElse(null)
+                : subjects.stream().map(ExamSubject::getFullScore).filter(java.util.Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add));
+        data.put("total", rows.size());
+        data.put("classStats", classStats);
+        data.put("rows", from >= rows.size() ? List.of() : rows.subList(from, to));
+        return data;
+    }
+
+    /** 全校汇总导出（权限同查看）：全量年级排名 → xlsx */
+    public Exported exportSummary(Long examId, Long subjectId) {
+        Map<String, Object> data = scoreSummary(examId, subjectId, 1, Integer.MAX_VALUE);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> rows = (List<Map<String, Object>>) data.get("rows");
+        List<Object[]> table = new ArrayList<>();
+        for (Map<String, Object> r : rows) {
+            table.add(new Object[]{r.get("studentNo"), r.get("name"), r.get("className"),
+                    r.get("score"), r.get("gradeRank")});
+        }
+        Exam exam = examMapper.selectById(examId);
+        String subjectName = (String) data.get("subjectName");
+        String name = "成绩汇总_" + (exam != null ? exam.getName() : examId)
+                + (subjectName != null ? "_" + subjectName : "_总分") + ".xlsx";
+        return new Exported(name, excel.export("成绩汇总",
+                new String[]{"学号", "姓名", "班级", subjectName != null ? "成绩" : "总分", "年级名次"}, table));
+    }
+
+    private String termName(Long termId) {
+        Term t = termMapper.selectById(termId);
+        return t == null ? null : t.getName();
     }
 
     private List<Student> roster(Long classId) {

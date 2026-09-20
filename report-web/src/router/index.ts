@@ -56,6 +56,8 @@ const router = createRouter({
     // 教师使用情况（批2）：六类行为按师聚合，psub 壳（第一版 sub-nav 形态+C 令牌）
     { path: '/l/home', component: () => import('../views/leader/LeaderHomeView.vue'), meta: { layout: 'lhome' } },
     { path: '/l/teachers', component: () => import('../views/leader/LeaderTeachersView.vue'), meta: { layout: 'psub', title: '教师使用情况' } },
+    // 全校成绩汇总（批4）：总分/单科排名+各班统计+导出（方案A 领导全可见）
+    { path: '/l/scores', component: () => import('../views/leader/LeaderScoreSummaryView.vue'), meta: { layout: 'psub', title: '成绩汇总排名' } },
     // 账号审批（批2-5）：管理员/领导账号双人审批，领导 App 端入口
     { path: '/l/approvals', component: () => import('../views/leader/LeaderApprovalsView.vue'), meta: { layout: 'psub', title: '待我审批' } },
     // 原「批量任务」页（/）已并入通知页

@@ -3,6 +3,7 @@ package com.aischool.server.controller;
 import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.Exported;
 import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.auth.PermissionService;
 import com.aischool.server.service.score.ScoreService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -29,6 +30,7 @@ import java.util.Map;
 public class ScoreController {
 
     private final ScoreService scoreService;
+    private final PermissionService permissionService;
 
     @Data
     public static class ExamReq {
@@ -61,10 +63,23 @@ public class ScoreController {
         return ApiResponse.ok(Map.of("examId", id));
     }
 
-    /** 考试列表（任意登录） */
+    /** 考试列表（任意登录；批4 附 entryOpen 窗口状态） */
     @GetMapping("/exam/list")
     public ApiResponse<List<Map<String, Object>>> examList() {
         return ApiResponse.ok(scoreService.examList());
+    }
+
+    /** 开关录入窗口（批4 管理端考试页签；管理员或有 ADMIN_ACCESS 的领导） */
+    @PutMapping("/exam/{id}/entry-open")
+    public ApiResponse<Void> setEntryOpen(@PathVariable Long id, @RequestBody EntryOpenReq req) {
+        permissionService.checkAdminAccess("只有管理员可开关成绩录入窗口");
+        scoreService.setEntryOpen(id, Boolean.TRUE.equals(req.getOpen()));
+        return ApiResponse.ok(null);
+    }
+
+    @Data
+    public static class EntryOpenReq {
+        private Boolean open;
     }
 
     /** 某班在某考试下的可操作科目（任课教师只见所教科目） */

@@ -98,7 +98,7 @@ const grids = [
   { name: '成绩查询', icon: 'bar-chart-o', to: '/scores', bg: '#2F5FC0' },
   { name: '教师使用情况', icon: 'friends-o', to: '/l/teachers', bg: '#0EA5E9' },
   { name: '待我审批', icon: 'todo-list-o', to: '/l/approvals', bg: '#A8232B' },
-  { name: '成绩汇总排名', icon: 'chart-trending-o', to: '', bg: '#8B5CF6' },
+  { name: '成绩汇总排名', icon: 'chart-trending-o', to: '/l/scores', bg: '#8B5CF6' },
   { name: '修改密码', icon: 'lock', to: '/change-password', bg: '#6366F1' },
 ]
 

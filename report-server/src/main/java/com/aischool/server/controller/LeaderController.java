@@ -2,6 +2,7 @@ package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.BizException;
+import com.aischool.server.common.Exported;
 import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.Evaluation;
 import com.aischool.server.entity.Student;
@@ -15,12 +16,19 @@ import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.OnlineTracker;
 import com.aischool.server.service.auth.RoleApprovalService;
+import com.aischool.server.service.score.ScoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,6 +55,7 @@ public class LeaderController {
     private final RoleApprovalService approvalService;
     private final AiTaskMapper taskMapper;
     private final LeaderUsageMapper usageMapper;
+    private final ScoreService scoreService;
 
     private void checkLeader() {
         if (!"LEADER".equals(AuthUtil.current().role())) {
@@ -133,6 +142,35 @@ public class LeaderController {
         data.put("days", days);
         data.put("rows", rows);
         return ApiResponse.ok(data);
+    }
+
+    /**
+     * 全校成绩汇总（批4）：subjectId 空=总分模式，否则单科模式；rows 分页（默认 100）。
+     * 领导全量可见（方案A）；导出同口径全量。
+     */
+    @GetMapping("/score-summary")
+    public ApiResponse<Map<String, Object>> scoreSummary(@RequestParam Long examId,
+                                                         @RequestParam(required = false) Long subjectId,
+                                                         @RequestParam(defaultValue = "1") int page,
+                                                         @RequestParam(defaultValue = "100") int size) {
+        checkLeader();
+        return ApiResponse.ok(scoreService.scoreSummary(examId, subjectId,
+                Math.max(1, page), Math.min(Math.max(1, size), 200)));
+    }
+
+    /** 全校汇总导出 xlsx（权限同查看） */
+    @GetMapping("/score-summary/export")
+    public ResponseEntity<byte[]> scoreSummaryExport(@RequestParam Long examId,
+                                                     @RequestParam(required = false) Long subjectId) {
+        checkLeader();
+        Exported f = scoreService.exportSummary(examId, subjectId);
+        String filename = URLEncoder.encode(f.filename(), StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .contentLength(f.content().length)
+                .body(f.content());
     }
 
     /** 计数字段合并（rows 里 userId 不在教师集的跳过，如离职/家长误入） */

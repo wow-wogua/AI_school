@@ -19,4 +19,5 @@ public class Exam {
     private LocalDate examDate;
     private BigDecimal classMaxTotal;
     private BigDecimal gradeMaxTotal;
+    private Integer entryOpen;
 }
