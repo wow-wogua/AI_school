@@ -133,7 +133,7 @@ watch(cur, async (t) => {
   }
 }, { immediate: true })
 
-const palette = ['#2F5FC0', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
+const palette = ['#A8232B', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
 function avaColor(name?: string) {
   if (!name) return palette[0]
   let h = 0
@@ -201,7 +201,7 @@ onMounted(init)
 
 .act { padding: 14px 16px 0; }
 .act .van-button { height: 44px; font-size: 16px; font-weight: 600; border: none;
-  background: linear-gradient(150deg, #1E3A8A, #2F5FC0); }
+  background: linear-gradient(150deg, #8C1D23, #A8232B); }
 .act .van-button .van-icon { font-size: 17px; margin-right: 4px; }
 .run-tip { margin: 10px 2px 0; font-size: 12px; color: var(--app-text-3); text-align: center; }
 
@@ -226,6 +226,6 @@ onMounted(init)
 .ava { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px;
   border-radius: 50%; color: #fff; font-size: 15px; font-weight: 600; flex: none; }
 .stu-row .name { flex: 1; font-size: 15px; color: var(--app-text-1); }
-.stu-row .run { background: #EAF0FE; color: var(--app-blue); }
+.stu-row .run { background: rgba(168,35,43,.08); color: var(--app-blue); }
 .stu-none { padding: 30px 0; text-align: center; font-size: 13px; color: var(--app-text-3); }
 </style>

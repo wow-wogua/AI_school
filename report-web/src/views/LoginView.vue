@@ -112,7 +112,7 @@ async function doLogin() {
 .login-logo { width: 52px; height: auto; }
 .login-head h1 {
   margin: 10px 0 4px; font-size: 24px; font-weight: 800; letter-spacing: 4px;
-  background: linear-gradient(150deg, #1E3A8A, #2F5FC0);
+  background: linear-gradient(150deg, #A8232B, #C9A227);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .login-head p { margin: 0; font-size: 12px; color: var(--app-text-2); letter-spacing: 1px; }
@@ -123,7 +123,7 @@ async function doLogin() {
 :deep(.fields .van-field) { padding: 12px 14px; font-size: 15px; }
 :deep(.fields .van-field .van-icon) { color: var(--app-blue); font-size: 18px; }
 .login-btn { height: 44px; font-size: 16px; font-weight: 600;
-  background: linear-gradient(150deg, #1E3A8A, #2F5FC0); border: none; }
+  background: linear-gradient(150deg, #8C1D23, #A8232B); border: none; }
 .login-btn .van-button__text { letter-spacing: 6px; text-indent: 6px; }  /* 字距用 CSS，可访问名保持「登录」 */
 
 .srv-toggle { display: flex; align-items: center; gap: 6px; justify-content: center;

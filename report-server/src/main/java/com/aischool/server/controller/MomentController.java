@@ -7,11 +7,14 @@ import com.aischool.server.mapper.MomentMapper;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.moment.MomentService;
 import com.aischool.server.service.report.PdfStoreService;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,6 +42,24 @@ public class MomentController {
                                                    @RequestParam(required = false) String note,
                                                    @RequestParam("photo") MultipartFile photo) {
         return ApiResponse.ok(momentService.create(AuthUtil.current(), classId, studentIds, sceneTag, note, photo));
+    }
+
+    /** 场景标签字典（批6 漏项H：教师端下拉用，家长 403） */
+    @GetMapping("/tags")
+    public ApiResponse<List<Map<String, Object>>> tags() {
+        return ApiResponse.ok(momentService.listTags(AuthUtil.current()));
+    }
+
+    /** 教师自建标签（批6 漏项H） */
+    @PostMapping("/tags")
+    public ApiResponse<Map<String, Object>> createTag(@Validated @RequestBody TagReq req) {
+        return ApiResponse.ok(momentService.createTag(AuthUtil.current(), req.getName()));
+    }
+
+    @Data
+    public static class TagReq {
+        @NotBlank(message = "name 不能为空")
+        private String name;
     }
 
     /** 班级最近微光（班级页「本周微光」轮播） */

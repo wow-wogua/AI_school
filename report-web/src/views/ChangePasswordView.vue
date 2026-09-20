@@ -93,7 +93,7 @@ function doLogout() {
 .login-logo { width: 52px; height: auto; }
 .login-head h1 {
   margin: 10px 0 4px; font-size: 21px; font-weight: 800; letter-spacing: 2px;
-  background: linear-gradient(150deg, #1E3A8A, #2F5FC0);
+  background: linear-gradient(150deg, #1F2A44, #3A4664);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .login-head p { margin: 0; font-size: 12px; color: var(--app-text-2); line-height: 18px; padding: 0 8px; }
@@ -103,7 +103,7 @@ function doLogout() {
 :deep(.fields .van-field) { padding: 12px 14px; font-size: 15px; }
 :deep(.fields .van-field .van-icon) { color: var(--app-blue); font-size: 18px; }
 .login-btn { height: 44px; font-size: 16px; font-weight: 600;
-  background: linear-gradient(150deg, #1E3A8A, #2F5FC0); border: none; }
+  background: linear-gradient(150deg, #8C1D23, #A8232B); border: none; }
 
 .srv-toggle { display: flex; align-items: center; gap: 6px; justify-content: center;
   width: 100%; margin-top: 16px; padding: 6px; background: none; border: none;

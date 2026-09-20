@@ -119,7 +119,7 @@ async function loadMoments() {
 }
 
 /** 头像底色：按姓名散列到一组柔和深浅蓝/暖色 */
-const palette = ['#2F5FC0', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
+const palette = ['#A8232B', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
 function avaColor(name: string) {
   let h = 0
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 997

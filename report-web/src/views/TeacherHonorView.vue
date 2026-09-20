@@ -66,7 +66,7 @@ let avatarUrls: string[] = []
 const filtered = computed(() =>
   teacherId.value == null ? honors.value : honors.value.filter((h) => h.teacherId === teacherId.value))
 
-const palette = ['#2F5FC0', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
+const palette = ['#A8232B', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
 function avaColor(name?: string) {
   if (!name) return palette[0]
   let h = 0

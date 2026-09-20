@@ -28,8 +28,16 @@
       <div class="app-sec" style="margin: 0 0 10px">TA的闪光时刻<span class="mo-cnt">{{ moments.length }}</span></div>
       <div class="mo-grid">
         <div v-for="m in moments" :key="m.id" class="mo-item">
-          <MomentPhoto :url="m.photoUrl" @tap="previewMoments" />
-          <span class="mo-tag">{{ m.sceneTag }}</span>
+          <template v-if="m.photoUrl">
+            <MomentPhoto :url="m.photoUrl" @tap="previewMoments" />
+            <span class="mo-tag">{{ m.sceneTag }}</span>
+          </template>
+          <!-- 加分同步微光（无照片）：文字卡 -->
+          <div v-else class="mo-text">
+            <span class="mo-sync">加分 +</span>
+            <span class="mo-tag sync">{{ m.sceneTag }}</span>
+            <p class="mo-note">{{ m.note }}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -60,7 +68,7 @@ interface Stu { name?: string; gender?: string; studentNo?: string; classId?: nu
 const stu = ref<Stu>({})
 const className = ref('')
 const termId = ref<number>()
-const moments = ref<{ id: number; photoUrl: string; sceneTag: string }[]>([])
+const moments = ref<{ id: number; photoUrl: string | null; sceneTag: string; note?: string; source?: string }[]>([])
 const photoPreview = ref<InstanceType<typeof PhotoPreview>>()
 
 /** 闪光时刻全屏预览：收集整墙已加载照片，可左右滑动，当前张定位 */
@@ -93,7 +101,7 @@ function go(g: (typeof entries)[number]) {
   }
 }
 
-const palette = ['#2F5FC0', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
+const palette = ['#A8232B', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
 function avaColor(name?: string) {
   if (!name) return palette[0]
   let h = 0
@@ -142,13 +150,23 @@ onMounted(async () => {
 .mo-tag { position: absolute; left: 4px; bottom: 4px; padding: 1px 7px;
   border-radius: 999px; background: rgba(13,22,50,.55); color: #fff;
   font-size: 10px; backdrop-filter: blur(4px); }
+/* 加分同步微光（无照片文字卡） */
+.mo-text { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px;
+  width: 100%; height: 100%; padding: 8px;
+  background: linear-gradient(150deg, #1F2A44 0%, #3A4664 100%); }
+.mo-sync { align-self: flex-start; padding: 1px 7px; border-radius: 999px;
+  background: var(--shine-gold-soft, rgba(201,162,39,.35)); color: var(--shine-gold, #C9A227);
+  font-size: 10px; font-weight: 600; }
+.mo-tag.sync { position: static; align-self: flex-start; }
+.mo-note { margin: 0; font-size: 11px; line-height: 1.5; color: rgba(255,255,255,.92);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 .info { margin-top: 12px; padding: 14px 4px 12px; }
 .info :deep(.van-cell) { font-size: 14px; }
-.card-tag { margin-left: 8px; padding: 1px 8px; border: 1px solid #D9E1F0; border-radius: 4px;
+.card-tag { margin-left: 8px; padding: 1px 8px; border: 1px solid #E3DCCB; border-radius: 4px;
   font-size: 10px; font-weight: 500; color: var(--app-text-3); letter-spacing: 2px; }
 .barcode { display: flex; align-items: center; justify-content: center; gap: 3px; height: 26px;
   margin-top: 8px; }
-.barcode i { width: 2px; height: 100%; background: #2F5FC0; border-radius: 1px; }
+.barcode i { width: 2px; height: 100%; background: #1F2A44; border-radius: 1px; }
 .barcode i:nth-child(2n) { width: 1px; }
 </style>
