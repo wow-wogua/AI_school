@@ -52,7 +52,8 @@ import { api } from '../api/http'
 import MomentPhoto from '../components/MomentPhoto.vue'
 import PhotoPreview from '../components/PhotoPreview.vue'
 
-const SCENE_TAGS = ['课堂专注', '作业优秀', '劳动实践', '艺术风采', '运动健将', '助人为乐', '文明礼仪', '进步之星']
+/** 场景标签字典（后端 t_moment_tag，含教师自建） */
+const sceneTags = ref<string[]>([])
 
 interface Stu { id: number; name: string }
 interface MomentItem {
@@ -71,7 +72,7 @@ const clsOpen = ref(false)
 const refreshing = ref(false)
 const photoPreview = ref<InstanceType<typeof PhotoPreview>>()
 
-const tags = computed(() => SCENE_TAGS.filter((t) => moments.value.some((m) => m.sceneTag === t)))
+const tags = computed(() => sceneTags.value.filter((t) => moments.value.some((m) => m.sceneTag === t)))
 const curClassName = computed(() => classes.value.find((c) => c.id === classId.value)?.name)
 const clsColumns = computed(() => classes.value.map((c) => ({ text: c.name, value: c.id })))
 const filtered = computed(() => (tag.value ? moments.value.filter((m) => m.sceneTag === tag.value) : moments.value))
@@ -127,6 +128,9 @@ function goCam() {
 }
 
 onMounted(async () => {
+  api<{ id: number; name: string }[]>('/api/moment/tags')
+    .then((ts) => { sceneTags.value = ts.map((t) => t.name) })
+    .catch(() => { /* 标签加载失败不阻塞列表 */ })
   classes.value = await api<{ id: number; name: string }[]>('/api/meta/my-classes')
   const fromQuery = Number(route.query.classId)
   classId.value = classes.value.find((c) => c.id === fromQuery)?.id ?? classes.value[0]?.id

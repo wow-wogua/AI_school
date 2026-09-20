@@ -36,7 +36,8 @@
     <div v-for="m in rows" :key="m.id" class="app-card item" :class="tex(m.id)">
       <img v-if="photoCache[m.id]" class="photo" :src="photoCache[m.id]" alt="" @click="preview(m)">
       <div class="i-meta">
-        <span class="app-chip tag" :class="m.source === 'PARENT' ? 'mine' : 'tch'">{{ m.sceneTag }}</span>
+        <span class="app-chip tag" :class="m.source === 'PARENT' ? 'mine' : (m.source === 'EVAL_SYNC' ? 'sync' : 'tch')">
+          {{ m.source === 'EVAL_SYNC' ? '加分 · ' + m.sceneTag : m.sceneTag }}</span>
         <span class="by">{{ m.teacherName }}</span>
         <span class="time">{{ fmtTime(m.createTime) }}</span>
         <button v-if="m.own" class="del" type="button" @click="remove(m)">删除</button>
@@ -217,6 +218,7 @@ onMounted(async () => {
 .tag { flex: none; }
 .tag.mine { color: var(--shine-red); background: #fff; border: 1px solid var(--shine-red-soft); }
 .tag.tch { color: var(--shine-navy); background: #fff; border: 1px solid var(--shine-line); }
+.tag.sync { color: var(--shine-navy); background: var(--shine-gold-soft); border: 1px solid transparent; font-weight: 600; }
 .by { font-size: 12px; color: var(--app-text-2); }
 .time { font-size: 11px; color: var(--app-text-3); }
 .del { margin-left: auto; border: none; background: none; font-size: 12px;

@@ -133,7 +133,7 @@ onMounted(load)
 .c-foot { display: flex; align-items: center; justify-content: space-between;
   font-size: 11px; color: var(--app-text-3); }
 .empty { padding: 10px 0 0; }
-.c-eval { background: #EAF0FE; color: #2F5FC0; }
+.c-eval { background: rgba(168,35,43,.08); color: #A8232B; }
 .c-honor { background: #FBF3DF; color: #B07A1C; }
 .c-comment { background: #E8F6EF; color: #0D9467; }
 .c-act { background: #F3EAFE; color: #7C4DD8; }

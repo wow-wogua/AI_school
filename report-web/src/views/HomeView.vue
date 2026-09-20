@@ -152,7 +152,7 @@ onMounted(loadAll)
   box-shadow: 0 2px 6px rgba(10,22,60,.25); }   /* 压在光斑上时保住边缘清晰 */
 .hero-btn .van-icon { font-size: 19px; }
 .hero-btn .dot { position: absolute; top: 6px; right: 7px; width: 8px; height: 8px; border-radius: 50%;
-  background: #F87171; border: 2px solid #1E3A8A; }
+  background: #F87171; border: 2px solid rgba(255,255,255,.55); }
 .avatar { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px;
   border-radius: 50%; background: rgba(255,255,255,.92); color: var(--app-blue-deep);
   font-weight: 700; text-decoration: none; box-shadow: 0 2px 6px rgba(10,22,60,.25); }
@@ -190,7 +190,7 @@ onMounted(loadAll)
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .f-line3 { display: flex; align-items: center; gap: 10px; }
 .f-from { font-size: 11px; color: var(--app-text-3); }
-.c-eval { background: #EAF0FE; color: #2F5FC0; }
+.c-eval { background: rgba(168,35,43,.08); color: #A8232B; }
 .c-honor { background: #FBF3DF; color: #B07A1C; }
 .c-comment { background: #E8F6EF; color: #0D9467; }
 .c-act { background: #F3EAFE; color: #7C4DD8; }

@@ -27,12 +27,20 @@
         </button>
       </div>
 
-      <!-- ② 场景标签 -->
+      <!-- ② 场景标签（字典来自后端，可自建） -->
       <div class="app-card sec">
         <div class="app-sec" style="margin: 0 0 10px">场景标签</div>
         <div class="tags">
-          <button v-for="t in SCENE_TAGS" :key="t" class="tag" :class="{ on: sceneTag === t }"
+          <button v-for="t in sceneTags" :key="t" class="tag" :class="{ on: sceneTag === t }"
             type="button" @click="sceneTag = t">{{ t }}</button>
+          <button class="tag add" :class="{ editing: tagAdding }" type="button" @click="startAddTag">
+            <template v-if="!tagAdding"><van-icon name="plus" /> 新建</template>
+            <template v-else>
+              <input ref="tagInput" v-model="newTag" class="tag-input" maxlength="32"
+                placeholder="标签名（≤32字）" @keyup.enter="confirmAddTag" @click.stop>
+              <van-icon name="success" @click.stop="confirmAddTag" />
+            </template>
+          </button>
         </div>
       </div>
 
@@ -80,15 +88,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { Capacitor } from '@capacitor/core'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import { api, apiForm } from '../api/http'
 
-/** 场景标签（与后端 t_moment.scene_tag 约定一致） */
-const SCENE_TAGS = ['课堂专注', '作业优秀', '劳动实践', '艺术风采', '运动健将', '助人为乐', '文明礼仪', '进步之星']
+/** 场景标签字典（后端 t_moment_tag，教师可自建） */
+const sceneTags = ref<string[]>([])
+const tagAdding = ref(false)
+const newTag = ref('')
+const tagInput = ref<HTMLInputElement>()
 
 const route = useRoute()
 const photoFile = ref<File>()
@@ -203,14 +214,37 @@ function reset() {
   picked.value = new Set()
 }
 
-const palette = ['#2F5FC0', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
+const palette = ['#A8232B', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
 function avaColor(name: string) {
   let h = 0
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 997
   return palette[h % palette.length]
 }
 
+async function loadTags() {
+  sceneTags.value = (await api<{ id: number; name: string }[]>('/api/moment/tags')).map((t) => t.name)
+}
+
+function startAddTag() {
+  tagAdding.value = true
+  newTag.value = ''
+  nextTick(() => tagInput.value?.focus())
+}
+
+async function confirmAddTag() {
+  const name = newTag.value.trim()
+  if (!name) { tagAdding.value = false; return }
+  try {
+    await api('/api/moment/tags', { method: 'POST', json: { name } })
+    await loadTags()
+    sceneTag.value = name          // 建好即选中
+    tagAdding.value = false
+    showToast('标签已创建')
+  } catch { /* 后端 message 已由 http 层透出 */ }
+}
+
 onMounted(async () => {
+  loadTags()
   classes.value = await api<{ id: number; name: string }[]>('/api/meta/my-classes')
   const fromQuery = Number(route.query.classId)
   classId.value = classes.value.find((c) => c.id === fromQuery)?.id ?? classes.value[0]?.id
@@ -226,7 +260,7 @@ onMounted(async () => {
 .preview { width: 100%; max-height: 340px; object-fit: cover; display: block; }
 .empty-photo { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 0; }
 .cam { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px;
-  border-radius: 50%; background: linear-gradient(150deg, #1E3A8A, #2F5FC0);
+  border-radius: 50%; background: linear-gradient(150deg, #8C1D23, #A8232B);
   color: #fff; font-size: 26px; box-shadow: 0 6px 16px rgba(30,58,138,.3); }
 .empty-photo p { margin: 0; font-size: 14px; color: var(--app-text-2); }
 .empty-photo .tip { font-size: 12px; color: var(--app-text-3); }
@@ -241,7 +275,10 @@ onMounted(async () => {
 .tag { padding: 7px 16px; border: 1px solid var(--app-card-border); border-radius: 999px;
   background: #fff; color: var(--app-text-2); font-size: 13px; cursor: pointer;
   -webkit-tap-highlight-color: transparent; }
-.tag.on { border-color: var(--app-blue); background: #EAF0FE; color: var(--app-blue); font-weight: 600; }
+.tag.on { border-color: var(--app-blue); background: rgba(168,35,43,.08); color: var(--app-blue); font-weight: 600; }
+.tag.add { display: inline-flex; align-items: center; gap: 4px; color: var(--app-text-2); border-style: dashed; }
+.tag.add.editing { padding: 0 10px 0 12px; }
+.tag-input { width: 110px; border: none; outline: none; background: transparent; font-size: 13px; padding: 0; }
 
 /* 学生多选宫格 */
 .stu-grid { display: flex; flex-wrap: wrap; gap: 10px 8px; }
@@ -252,7 +289,7 @@ onMounted(async () => {
   border-radius: 50%; color: #fff; font-size: 12px; font-weight: 600; }
 .stu .name { font-size: 13px; color: var(--app-text-1); }
 .stu .check { display: none; font-size: 14px; color: var(--app-blue); }
-.stu.on { border-color: var(--app-blue); background: #EAF0FE; }
+.stu.on { border-color: var(--app-blue); background: rgba(168,35,43,.08); }
 .stu.on .check { display: block; }
 .stu-none { padding: 14px 0 6px; font-size: 13px; color: var(--app-text-3); }
 .stu-search { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 7px 12px;
@@ -266,7 +303,7 @@ onMounted(async () => {
   padding: 14px 0 calc(8px + var(--sab));
   background: linear-gradient(180deg, rgba(244,246,251,0), #F4F6FB 42%); }
 .submit { height: 46px; font-size: 16px; font-weight: 600; border: none;
-  background: linear-gradient(150deg, #1E3A8A, #2F5FC0); }
+  background: linear-gradient(150deg, #8C1D23, #A8232B); }
 .submit-tip { margin: 8px 0 0; text-align: center; font-size: 11px; color: var(--app-text-3); }
 
 /* 成功激励卡 */

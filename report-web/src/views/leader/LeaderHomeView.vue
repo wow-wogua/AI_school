@@ -95,7 +95,7 @@ const aiTokens = computed(() => usage.value.reduce(
 /* 快捷宫格（同教师端 HomeView 的 g-icon 彩色方底形态；to 为空=未开放置灰）。
    待我审批（批2-5）：管理员/领导账号双人审批，有数时图标角标 */
 const grids = [
-  { name: '成绩查询', icon: 'bar-chart-o', to: '/scores', bg: '#2F5FC0' },
+  { name: '成绩查询', icon: 'bar-chart-o', to: '/scores', bg: '#A8232B' },
   { name: '教师使用情况', icon: 'friends-o', to: '/l/teachers', bg: '#0EA5E9' },
   { name: '待我审批', icon: 'todo-list-o', to: '/l/approvals', bg: '#A8232B' },
   { name: '成绩汇总排名', icon: 'chart-trending-o', to: '/l/scores', bg: '#8B5CF6' },

@@ -12,6 +12,7 @@
       <el-select v-model="termId" placeholder="学期" style="min-width: 160px" @change="loadHistory">
         <el-option v-for="t in terms" :key="t.id" :label="t.name" :value="t.id" />
       </el-select>
+      <el-button v-if="classId && termId" @click="exportXlsx">导出本班学期评价</el-button>
     </div>
 
     <el-card v-if="studentId">
@@ -68,9 +69,18 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
 import { ElMessage } from 'element-plus'
-import { api } from '../api/http'
+import { api, fetchBlob } from '../api/http'
+import { saveFile } from '../api/nativeShare'
 
 const route = useRoute()
+
+/** 班级×学期评价导出（漏项C2） */
+async function exportXlsx() {
+  const blob = await fetchBlob(`/api/evaluation/export?classId=${classId.value}&termId=${termId.value}`)
+  const cls = classes.value.find((c: any) => c.id === classId.value)?.name ?? ''
+  const tm = terms.value.find((t: any) => t.id === termId.value)?.name ?? ''
+  await saveFile(blob, `日常评价_${cls}_${tm}.xlsx`)
+}
 
 const classes = ref<{ id: number; name: string }[]>([])
 const terms = ref<any[]>([])

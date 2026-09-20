@@ -77,8 +77,8 @@ function onSelect(action: ActionSheetAction) {
 .fab-tab { position: relative; }
 .fab { display: flex; align-items: center; justify-content: center;
   width: 52px; height: 52px; margin-top: -26px; border-radius: 50%;
-  background: linear-gradient(150deg, #1E3A8A, #2F5FC0);
-  color: #fff; box-shadow: 0 6px 16px rgba(30, 58, 138, .35); }
+  background: linear-gradient(150deg, #8C1D23, #A8232B);
+  color: #fff; box-shadow: 0 6px 16px rgba(140, 29, 35, .35); }
 .fab .van-icon { font-size: 24px; font-weight: 700; }
 .fab-label { margin-top: 3px; }
 /* 通知角标 */

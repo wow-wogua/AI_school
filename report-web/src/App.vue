@@ -152,10 +152,10 @@ watch(() => auth.token, (t) => {
   background: url('/campus-bg.jpg') center 42%/cover no-repeat;
   opacity: .24; filter: blur(8px) saturate(1.15); pointer-events: none;
 }
-.sub-nav::after {                  /* 右上光斑（同 hero 装饰语言） */
+.sub-nav::after {                  /* 右上光斑（同 hero 装饰语言）；C 金光斑 */
   content: ''; position: absolute; top: -60px; right: -45px; width: 190px; height: 190px;
   border-radius: 50%; pointer-events: none;
-  background: radial-gradient(closest-side, rgba(91,133,232,.38), rgba(91,133,232,0));
+  background: radial-gradient(closest-side, rgba(201,162,39,.30), rgba(201,162,39,0));
 }
 .sub-nav > * { position: relative; }
 .sub-nav .back { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
@@ -164,16 +164,16 @@ watch(() => auth.token, (t) => {
 .sub-nav h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: 1px; }
 .sub-main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
-/* 功能页过渡期仍用 Element Plus 组件：除管理页外，EP 主色临时对齐 App 深蓝
+/* 功能页过渡期仍用 Element Plus 组件：除管理页外，EP 主色批6 起对齐 C 操作红
    （管理端保留石实红体系，见 style.css §1） */
 .app-sub:not(.admin) {
-  --el-color-primary: #2F5FC0;
-  --el-color-primary-light-3: #6D8FD3;
-  --el-color-primary-light-5: #97AFE0;
-  --el-color-primary-light-7: #C2CFEC;
-  --el-color-primary-light-8: #D5DFF2;
-  --el-color-primary-light-9: #EAEFF9;
-  --el-color-primary-dark-2: #264C9A;
+  --el-color-primary: #A8232B;
+  --el-color-primary-light-3: #C2656B;
+  --el-color-primary-light-5: #D39195;
+  --el-color-primary-light-7: #E5BEC0;
+  --el-color-primary-light-8: #EED4D6;
+  --el-color-primary-light-9: #F6EBEC;
+  --el-color-primary-dark-2: #8C1D23;
 }
 
 /* 家长/领导端壳（批1 新增）：宣纸底 + C 风格导航条（第一版 sub-nav 形态：渐变+虚化校园底图+光斑，换 C 藏蓝/金） */

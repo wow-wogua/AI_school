@@ -45,7 +45,7 @@
         <div class="t-body">
           <p class="t-title">任务 #{{ t.taskId }} · {{ t.status }}</p>
           <van-progress v-if="t.taskId === curBatchId" :percentage="pct(t)" :show-pivot="true"
-            :color="t.status === '失败' || t.status === '部分失败' ? '#EF4444' : '#2F5FC0'" />
+            :color="t.status === '失败' || t.status === '部分失败' ? '#EF4444' : '#A8232B'" />
           <p class="t-sub" v-if="t.taskId === curBatchId">总数 {{ t.total }} · 完成 {{ t.done }} · 失败 {{ t.failed }}</p>
           <p class="t-sub" v-else>总数 {{ t.total }} · 完成 {{ t.done }}</p>
         </div>
@@ -132,7 +132,7 @@ onUnmounted(() => window.clearInterval(timer))
 .task + .task { border-top: 1px solid var(--app-card-border); }
 .task:active { opacity: .75; }
 .t-icon { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
-  border-radius: 50%; flex: none; background: #EAF0FE; color: var(--app-blue); }
+  border-radius: 50%; flex: none; background: rgba(168,35,43,.08); color: var(--app-blue); }
 .t-icon.ok { background: #E8F6EF; color: #0D9467; }
 .t-icon.fail { background: #FDECEC; color: #EF4444; }
 .t-icon.spin .van-icon { animation: spin 1.2s linear infinite; }

@@ -118,7 +118,7 @@ onMounted(async () => {
 @media (max-width: 480px) { .wallet { grid-template-columns: 1fr; } }
 .w-cell { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
 .w-label { margin: 0; font-size: 12px; color: var(--app-text-3); }
-.g-A { color: #0D9467; } .g-B { color: #2F5FC0; } .g-C { color: #B07A1C; } .g-D { color: var(--shine-red); }
+.g-A { color: #0D9467; } .g-B { color: #3A4664; } .g-C { color: #B07A1C; } .g-D { color: var(--shine-red); }
 .w-cell strong { font-size: 28px; font-weight: 800; color: var(--app-text-1); line-height: 1.15; }
 .c-gold { color: #B07A1C; }
 .w-sub { font-size: 11px; color: var(--app-text-3); }

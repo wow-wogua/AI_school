@@ -22,7 +22,7 @@
     <circle cx="298" cy="28" r="10" fill="#DCE9DE" />
     <rect x="297" y="34" width="2.5" height="6" rx="1" fill="#C7D3E8" />
     <!-- 地平虚线 -->
-    <line x1="22" y1="40" x2="318" y2="40" stroke="#D9E1F0" stroke-width="1" stroke-dasharray="5 5" />
+    <line x1="22" y1="40" x2="318" y2="40" stroke="#E3DCCB" stroke-width="1" stroke-dasharray="5 5" />
   </svg>
 </template>
 

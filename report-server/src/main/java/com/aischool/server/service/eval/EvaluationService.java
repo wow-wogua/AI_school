@@ -1,6 +1,7 @@
 package com.aischool.server.service.eval;
 
 import com.aischool.server.common.BizException;
+import com.aischool.server.common.Exported;
 import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.ConductLog;
 import com.aischool.server.entity.Evaluation;
@@ -24,6 +25,8 @@ import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.UserPrincipal;
 import com.aischool.server.service.auth.DataScopeService;
 import com.aischool.server.service.coin.CoinLedgerService;
+import com.aischool.server.service.excel.ExcelScoreHelper;
+import com.aischool.server.service.moment.MomentService;
 import com.aischool.server.service.conduct.ConductLedgerService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -68,9 +72,13 @@ public class EvaluationService {
     private final CoinLedgerService coinLedger;
     private final ConductLedgerService conductLedger;
     private final DataScopeService dataScope;
+    private final DutyService dutyService;
+    private final MomentService momentService;
+    private final ExcelScoreHelper excel;
 
     public Map<String, Object> evaluate(UserPrincipal user, Long studentId, Long indicatorId, String title,
                                         BigDecimal score, String remark, LocalDateTime evalTime) {
+        dutyService.checkCanEvaluate(user.role(), user.userId());
         Student student = dataScope.checkStudentAccess(user, studentId);
         Indicator ind = indicatorMapper.selectById(indicatorId);
         if (ind == null || ind.getName() == null || ind.getName().isBlank()) {
@@ -143,6 +151,16 @@ public class EvaluationService {
             }
         }
 
+        // ⑦ 加分单向同步微光（批6 漏项D）：正向评价自动生成无照片微光进学生档案/家长孩子流；
+        //     减分不同步、微光侧无分数不反向影响评价（scene_tag 用指标名，超 32 字回落九维名）
+        if (score.signum() > 0 && student.getClassId() != null) {
+            String sceneTag = ind.getName() != null && ind.getName().length() <= 32
+                    ? ind.getName() : grid.getName();
+            String note = title.trim() + " +" + score.stripTrailingZeros().toPlainString()
+                    + (remark == null || remark.isBlank() ? "" : "：" + remark.trim());
+            momentService.createSynced(user, student.getClassId(), studentId, sceneTag, note);
+        }
+
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("evaluationId", e.getId());
         data.put("termId", term.getId());
@@ -183,6 +201,59 @@ public class EvaluationService {
             m.put("teacherName", teacherNames.get(ev.getTeacherId()));
             return m;
         }).toList();
+    }
+
+    /** 班级×学期评价导出 xlsx（批6 漏项C2；权限同查看：visibleClassIds 含该班，ADMIN/LEADER 全量） */
+    public Exported export(UserPrincipal user, Long classId, Long termId) {
+        List<Long> visible = dataScope.visibleClassIds(user);
+        if (visible != null && !visible.contains(classId)) {
+            throw new BizException(403, "无该班级数据权限");
+        }
+        Term term = termMapper.selectById(termId);
+        if (term == null) {
+            throw new BizException(404, "学期不存在");
+        }
+        Clazz clazz = clazzMapper.selectById(classId);
+        List<Student> students = studentMapper.selectList(new LambdaQueryWrapper<Student>()
+                .eq(Student::getClassId, classId));
+        Map<Long, Student> stuById = students.stream()
+                .collect(Collectors.toMap(Student::getId, Function.identity()));
+        Map<Long, Indicator> indicators = indicatorMapper.selectList(null).stream()
+                .collect(Collectors.toMap(Indicator::getId, Function.identity()));
+        Map<Long, String> gridNames = gridMapper.selectList(null).stream()
+                .collect(Collectors.toMap(Grid::getId, Grid::getName));
+        Map<Long, String> teacherNames = userMapper.selectList(new LambdaQueryWrapper<User>()
+                        .in(User::getRole, "ADMIN", "HEAD_TEACHER", "TEACHER", "LEADER")).stream()
+                .collect(Collectors.toMap(User::getId, User::getRealName));
+
+        List<Object[]> table = new java.util.ArrayList<>();
+        if (!stuById.isEmpty()) {
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            List<Evaluation> evals = evaluationMapper.selectList(new LambdaQueryWrapper<Evaluation>()
+                    .in(Evaluation::getStudentId, stuById.keySet())
+                    .ge(Evaluation::getEvalTime, term.getStartDate().atStartOfDay())
+                    .le(Evaluation::getEvalTime, term.getEndDate().atStartOfDay())
+                    .orderByAsc(Evaluation::getEvalTime)
+                    .orderByAsc(Evaluation::getId));
+            for (Evaluation ev : evals) {
+                Student s = stuById.get(ev.getStudentId());
+                Indicator ind = indicators.get(ev.getIndicatorId());
+                table.add(new Object[]{
+                        s == null ? "" : s.getStudentNo(),
+                        s == null ? "" : s.getName(),
+                        ev.getEvalTime() == null ? "" : ev.getEvalTime().format(fmt),
+                        ind == null ? "" : gridNames.getOrDefault(ind.getGridId(), ""),
+                        ind == null ? "" : ind.getName(),
+                        ev.getTitle(),
+                        ev.getScore(),
+                        ev.getRemark() == null ? "" : ev.getRemark(),
+                        teacherNames.getOrDefault(ev.getTeacherId(), "")});
+            }
+        }
+        String name = "日常评价_" + (clazz != null ? clazz.getName() : classId)
+                + "_" + term.getName() + ".xlsx";
+        return new Exported(name, excel.export("日常评价",
+                new String[]{"学号", "姓名", "时间", "九维", "指标", "标题", "分值", "备注", "评价人"}, table));
     }
 
     // ───────────────── 内部：与 ReportDataBuilder 同构的口径 ─────────────────

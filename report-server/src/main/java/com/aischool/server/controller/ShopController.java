@@ -82,6 +82,14 @@ public class ShopController {
         if (item == null || item.getStatus() == null || item.getStatus() != 1) {
             throw new BizException(404, "商品不存在或已下架");
         }
+        // 兑换频控（原始需求「一月一次，兑换学校文创」）：自然月内已有任一商品兑换记录即拒
+        Long monthRedeemed = coinExpenseMapper.selectCount(new LambdaQueryWrapper<CoinExpense>()
+                .eq(CoinExpense::getStudentId, req.getStudentId())
+                .isNotNull(CoinExpense::getItemId)
+                .ge(CoinExpense::getCreateTime, LocalDate.now().withDayOfMonth(1).atStartOfDay()));
+        if (monthRedeemed != null && monthRedeemed > 0) {
+            throw new BizException(400, "该学生本月已兑换过（每人每月限兑一次），下月 1 日再来");
+        }
         if (item.getStock() != null && item.getStock() >= 0) {
             if (item.getStock() <= 0 || shopItemMapper.deductStock(item.getId()) == 0) {
                 throw new BizException(400, "商品库存不足");

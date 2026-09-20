@@ -234,7 +234,7 @@ async function loadItems() {
   items.value = await api<any[]>('/api/shop/items').catch(() => [])
 }
 
-const palette = ['#2F5FC0', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
+const palette = ['#A8232B', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
 function avaColor(name?: string) {
   if (!name) return palette[0]
   let h = 0
@@ -263,7 +263,7 @@ onMounted(async () => {
 .w-cell { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
 .w-label { margin: 0; font-size: 12px; color: var(--app-text-3); }
 .w-label b { font-size: 12px; }
-.g-A { color: #0D9467; } .g-B { color: #2F5FC0; } .g-C { color: #B07A1C; } .g-D { color: var(--shine-red); }
+.g-A { color: #0D9467; } .g-B { color: #3A4664; } .g-C { color: #B07A1C; } .g-D { color: var(--shine-red); }
 .w-cell strong { font-size: 30px; font-weight: 800; color: var(--app-text-1); line-height: 1.15; }
 .c-gold { color: #B07A1C; }
 .w-sub { font-size: 11px; color: var(--app-text-3); }

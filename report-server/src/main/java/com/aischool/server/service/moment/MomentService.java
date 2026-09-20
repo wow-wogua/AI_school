@@ -3,10 +3,12 @@ package com.aischool.server.service.moment;
 import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Moment;
 import com.aischool.server.entity.MomentStudent;
+import com.aischool.server.entity.MomentTag;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.User;
 import com.aischool.server.mapper.MomentMapper;
 import com.aischool.server.mapper.MomentStudentMapper;
+import com.aischool.server.mapper.MomentTagMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.UserPrincipal;
@@ -39,6 +41,7 @@ public class MomentService {
 
     private final MomentMapper momentMapper;
     private final MomentStudentMapper momentStudentMapper;
+    private final MomentTagMapper momentTagMapper;
     private final StudentMapper studentMapper;
     private final UserMapper userMapper;
     private final DataScopeService dataScope;
@@ -105,6 +108,63 @@ public class MomentService {
         return Map.of("momentId", m.getId());
     }
 
+    /** 加分同步微光（批6 漏项D）：正向评价自动生成的无照片微光（source=EVAL_SYNC）。
+        仅进学生档案/家长孩子流（消费侧按 source 过滤班级墙与照片渲染），删除入口同随手拍 */
+    public void createSynced(UserPrincipal user, Long classId, Long studentId, String sceneTag, String note) {
+        Moment m = new Moment();
+        m.setTeacherId(user.userId());
+        m.setClassId(classId);
+        m.setPhotoUrl(null);
+        m.setSceneTag(sceneTag);
+        m.setNote(note != null && note.length() > 500 ? note.substring(0, 500) : note);
+        m.setSource("EVAL_SYNC");
+        momentMapper.insert(m);
+        MomentStudent ms = new MomentStudent();
+        ms.setMomentId(m.getId());
+        ms.setStudentId(studentId);
+        momentStudentMapper.insert(ms);
+    }
+
+    /** 场景标签字典（批6 漏项H）：种子+教师自建，按 sort 排序 */
+    public List<Map<String, Object>> listTags(UserPrincipal user) {
+        rejectParent(user);
+        return momentTagMapper.selectList(new LambdaQueryWrapper<MomentTag>()
+                        .orderByAsc(MomentTag::getSort).orderByAsc(MomentTag::getId))
+                .stream().map(t -> Map.<String, Object>of("id", t.getId(), "name", t.getName())).toList();
+    }
+
+    /** 教师自建标签（≤32 字，重名拒绝） */
+    public Map<String, Object> createTag(UserPrincipal user, String name) {
+        rejectParent(user);
+        if (name == null || name.isBlank()) {
+            throw new BizException(400, "标签名不能为空");
+        }
+        String n = name.trim();
+        if (n.length() > 32) {
+            throw new BizException(400, "标签名不能超过 32 字");
+        }
+        if (momentTagMapper.selectCount(new LambdaQueryWrapper<MomentTag>()
+                .eq(MomentTag::getName, n)) > 0) {
+            throw new BizException(400, "标签已存在");
+        }
+        MomentTag t = new MomentTag();
+        t.setName(n);
+        t.setSort(99);                       // 自建标签排种子之后
+        t.setCreateUserId(user.userId());
+        try {
+            momentTagMapper.insert(t);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            throw new BizException(400, "标签已存在");
+        }
+        return Map.of("id", t.getId(), "name", t.getName());
+    }
+
+    private void rejectParent(UserPrincipal user) {
+        if ("PARENT".equals(user.role())) {
+            throw new BizException(403, "仅教师可访问");
+        }
+    }
+
     /** 班级最近微光（班级页轮播；含关联学生姓名与记录教师。只显教师随手拍——家长上传仅进孩子档案，方案A） */
     public List<Map<String, Object>> listByClass(UserPrincipal user, Long classId, int limit) {
         List<Long> visible = dataScope.visibleClassIds(user);
@@ -148,7 +208,9 @@ public class MomentService {
         momentMapper.deleteById(id);
         momentStudentMapper.delete(new LambdaQueryWrapper<MomentStudent>()
                 .eq(MomentStudent::getMomentId, id));
-        pdfStore.delete(m.getPhotoUrl());
+        if (m.getPhotoUrl() != null) {   // EVAL_SYNC（加分同步）无照片对象可删
+            pdfStore.delete(m.getPhotoUrl());
+        }
     }
 
     /** 批量组装视图：students[{id,name}] + teacherName + 可直接访问的 photoUrl */
@@ -175,16 +237,18 @@ public class MomentService {
                     .filter(s -> s != null)
                     .map(s -> Map.<String, Object>of("id", s.getId(), "name", s.getName()))
                     .toList();
-            out.add(Map.of(
-                    "id", m.getId(),
-                    "note", m.getNote() == null ? "" : m.getNote(),
-                    "sceneTag", m.getSceneTag(),
-                    "source", m.getSource() == null ? "TEACHER" : m.getSource(),
-                    "createTime", m.getCreateTime(),
-                    "teacherId", m.getTeacherId(),
-                    "teacherName", teacherNames.getOrDefault(m.getTeacherId(), ""),
-                    "students", students,
-                    "photoUrl", "/api/moment/file/" + m.getId()));
+            // EVAL_SYNC（加分同步）无照片：photoUrl 下发 null，前端渲染文字卡
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("id", m.getId());
+            row.put("note", m.getNote() == null ? "" : m.getNote());
+            row.put("sceneTag", m.getSceneTag());
+            row.put("source", m.getSource() == null ? "TEACHER" : m.getSource());
+            row.put("createTime", m.getCreateTime());
+            row.put("teacherId", m.getTeacherId());
+            row.put("teacherName", teacherNames.getOrDefault(m.getTeacherId(), ""));
+            row.put("students", students);
+            row.put("photoUrl", m.getPhotoUrl() == null ? null : "/api/moment/file/" + m.getId());
+            out.add(row);
         }
         return out;
     }
