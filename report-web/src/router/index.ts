@@ -70,11 +70,11 @@ router.beforeEach((to) => {
   if (auth.mustChangePwd && to.path !== '/change-password' && to.path !== '/login') {
     return '/change-password'
   }
-  // 角色分流（批1）：PARENT 锁 /p/*；LEADER 锁 /l/*（+ /scores 成绩只读复用）；教师/管理员走现状路由
+  // 角色分流：PARENT 锁 /p/*；教师/管理员/领导走现状路由——批3.5 领导教师化：
+  // 领导不再锁 /l/*，教师功能全量可用（首页宫格进领导驾驶舱），/l/* 仅领导可进
   const role = auth.role
   const free = to.path === '/login' || to.path === '/change-password'
   if (role === 'PARENT' && !free && !to.path.startsWith('/p/')) return '/p/home'
-  if (role === 'LEADER' && !free && !to.path.startsWith('/l/') && !to.path.startsWith('/scores')) return '/l/home'
   if (role !== 'PARENT' && to.path.startsWith('/p/')) return '/'
   if (role !== 'LEADER' && to.path.startsWith('/l/')) return '/'
 })

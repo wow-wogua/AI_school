@@ -11,6 +11,10 @@
           <p class="sub">全校数据 · 只读总览</p>
         </div>
         <div class="hero-actions">
+          <!-- 批3.5：驾驶舱降为教师首页下级页，加返回（无历史时兜底回首页） -->
+          <button class="hero-btn" type="button" aria-label="返回" @click="hasHistory ? $router.back() : $router.replace('/')">
+            <van-icon name="arrow-left" />
+          </button>
           <button class="hero-btn" type="button" aria-label="退出登录" @click="onLogout">
             <van-icon name="revoke" />
           </button>
@@ -82,6 +86,9 @@ const greeting = computed(() => {
 
 /* 近 30 天任务次数与 tokens 总量（byDay: day/tasks/promptTokens/completionTokens） */
 const aiTasks = computed(() => usage.value.reduce((s, r) => s + Number(r.tasks ?? 0), 0))
+
+/** 直达/刷新进入（无历史）时返回按钮兜底回教师首页 */
+const hasHistory = computed(() => window.history.state?.back != null)
 const aiTokens = computed(() => usage.value.reduce(
   (s, r) => s + Number(r.promptTokens ?? 0) + Number(r.completionTokens ?? 0), 0))
 

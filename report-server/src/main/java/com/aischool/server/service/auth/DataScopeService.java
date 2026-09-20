@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * 数据权限（角色隔离）：
  * - ADMIN：全校
- * - LEADER（领导）：全校只读可见（写操作由各业务的 canEnter/checkClassOperable 拒绝）
+ * - LEADER（领导）：全校可见；教师侧功能与 ADMIN 同口径放行（批3.5 领导教师化），成绩录入除外（批4）
  * - HEAD_TEACHER（班主任）：所带班级
  * - TEACHER（任课教师）：任课班级（t_teach）
  * - PARENT（家长）：刻意不走本服务——落到 default 即 403，家长一律使用 /api/parent/* 白名单接口
@@ -55,9 +55,9 @@ public class DataScopeService {
         return student;
     }
 
-    /** 校验当前用户可对指定班级发起操作（生成报告：管理员或该班班主任） */
+    /** 校验当前用户可对指定班级发起操作（管理员/领导全校放行，或该班班主任；综合素质/荣誉/微光/报告等写路径统一收口于此） */
     public void checkClassOperable(UserPrincipal user, Long classId) {
-        if ("ADMIN".equals(user.role())) {
+        if ("ADMIN".equals(user.role()) || "LEADER".equals(user.role())) {
             return;
         }
         if ("HEAD_TEACHER".equals(user.role())) {

@@ -224,7 +224,7 @@ public class ReportController {
     }
 
     private void checkTaskReadable(com.aischool.server.security.UserPrincipal user, ReportTask task) {
-        if ("ADMIN".equals(user.role())) {
+        if ("ADMIN".equals(user.role()) || "LEADER".equals(user.role())) {
             return;
         }
         if ("单生".equals(task.getScope())) {

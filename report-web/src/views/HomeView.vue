@@ -95,8 +95,10 @@ const greeting = computed(() => {
 const avatarChar = computed(() => auth.realName?.charAt(0) || '师')
 
 /* 宫格配色（图1/图4）：每格一色的实心圆角方底 + 白图标；
-   教师档案全员可见——老师进自己的档案页，管理员进全校总览页签 */
+   教师档案全员可见——老师进自己的档案页，管理员进全校总览页签；
+   批3.5 领导教师化：领导=教师功能全量，首位加「领导驾驶舱」入口 */
 const grids = computed(() => [
+  ...(auth.role === 'LEADER' ? [{ name: '领导驾驶舱', icon: 'chart-trending-o', to: '/l/home', bg: '#1F2A44' }] : []),
   { name: '微光信箱', icon: 'photograph', to: '/moment/new', bg: '#F97316' },
   { name: '成绩管理', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' },
   { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
