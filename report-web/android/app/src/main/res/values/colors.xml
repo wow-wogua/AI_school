@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 启动屏底色（Android 12+ 单色背景）：取品牌渐变中段，与图标渐变连贯 -->
-    <color name="splashBg">#1E3A8A</color>
+    <!-- 启动屏底色（Android 12+ 单色背景）：C 系藏蓝渐变中段，与图标渐变连贯（拍板 A2） -->
+    <color name="splashBg">#1F2A44</color>
 </resources>
