@@ -73,7 +73,7 @@
       </div>
     </template>
 
-    <p class="app-foot">石实实验学校 · 数智成长</p>
+    <p class="app-foot">石实实验学校 · 石实SHINE</p>
 
     <!-- 班级/学生双列选择（cascade 树：班级→该班学生） -->
     <van-popup v-model:show="showPicker" position="bottom" round>

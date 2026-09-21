@@ -45,7 +45,7 @@
       <p v-if="m.note" class="note">{{ m.note }}</p>
     </div>
 
-    <p class="app-foot">石实实验学校 · 数智成长</p>
+    <p class="app-foot">石实实验学校 · 石实SHINE</p>
     </van-pull-refresh>
 
     <!-- 浏览器形态的文件选择（App 形态走系统相机/相册） -->

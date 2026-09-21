@@ -23,7 +23,7 @@
       </div>
     </div>
 
-    <p class="app-foot">石实实验学校 · 数智成长</p>
+    <p class="app-foot">石实实验学校 · 石实SHINE</p>
     </van-pull-refresh>
   </div>
 </template>

@@ -15,6 +15,7 @@
       <van-cell title="教师档案" icon="contact" is-link :value="profileHint || '待完善'"
         @click="$router.push('/profile')" />
       <van-cell title="成长报告" icon="orders-o" is-link @click="$router.push('/reports')" />
+      <van-cell title="德育规范" icon="bookmark-o" is-link value="量化考核标准" @click="$router.push('/conduct-rules')" />
       <van-cell title="生成中心" icon="bell" is-link :value="running ? `${running} 进行中` : ''" @click="$router.push('/notice')" />
       <van-cell v-if="auth.role === 'ADMIN'" title="系统管理" icon="setting-o" is-link @click="$router.push('/admin')" />
     </div>
@@ -48,7 +49,7 @@
         <img src="/campus-pano.jpg" alt="石实实验学校" class="about-pano">
         <img src="/badge.png" alt="" class="about-badge">
         <b>佛山市南海区石实实验学校</b>
-        <p>数智成长 · 中学素质报告平台</p>
+        <p>石实SHINE · 中学素质报告平台</p>
         <p class="motto">任重道远，毋忘奋斗 · 扬长教育，出彩人生</p>
         <p class="ver">{{ appVersion }}</p>
       </div>

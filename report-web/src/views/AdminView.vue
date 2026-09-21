@@ -5,7 +5,7 @@
       <aside class="aside">
         <div class="logo">
           <img src="/badge.png" alt="校徽">
-          <div class="lb">石实<em>SHINE</em><small>数智成长 · 管理端</small></div>
+          <div class="lb">石实<em>SHINE</em><small>成长平台 · 管理端</small></div>
         </div>
         <nav class="nav">
           <template v-for="g in groups" :key="g.label">

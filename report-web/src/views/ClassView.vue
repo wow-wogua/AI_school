@@ -68,7 +68,7 @@
 
     <p class="count">共 {{ total }} 名学生</p>
     <CampusSkyline />
-    <p class="app-foot">石实实验学校 · 数智成长</p>
+    <p class="app-foot">石实实验学校 · 石实SHINE</p>
 
     <!-- 班级选择（底部弹层） -->
     <van-popup v-model:show="pickOpen" position="bottom" round>

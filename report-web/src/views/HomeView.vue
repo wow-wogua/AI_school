@@ -7,7 +7,7 @@
       <div class="hero-top">
         <div class="hello">
           <p class="hi">{{ greeting }}，{{ auth.realName }}</p>
-          <h1>数智成长</h1>
+          <h1>石实SHINE</h1>
           <p class="sub">记录成长的每一步</p>
         </div>
         <div class="hero-actions">
@@ -56,7 +56,7 @@
     </div>
 
     <CampusSkyline />
-    <p class="app-foot">石实实验学校 · 数智成长</p>
+    <p class="app-foot">石实实验学校 · 石实SHINE</p>
     </van-pull-refresh>
   </div>
 </template>

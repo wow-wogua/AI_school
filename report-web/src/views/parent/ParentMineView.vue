@@ -49,7 +49,7 @@
         <img src="/campus-pano.jpg" alt="石实实验学校" class="about-pano">
         <img src="/badge.png" alt="" class="about-badge">
         <b>佛山市南海区石实实验学校</b>
-        <p>数智成长 · 中学素质报告平台</p>
+        <p>石实SHINE · 中学素质报告平台</p>
         <p class="motto">任重道远，毋忘奋斗 · 扬长教育，出彩人生</p>
         <p class="ver">{{ appVersion }}</p>
       </div>

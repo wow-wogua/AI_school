@@ -41,7 +41,7 @@
       <van-empty image-size="88" description="该分类下还没有记录" />
     </div>
 
-    <p class="app-foot">石实实验学校 · 数智成长</p>
+    <p class="app-foot">石实实验学校 · 石实SHINE</p>
     </van-pull-refresh>
     <PhotoPreview ref="photoPreview" />
   </div>

@@ -62,7 +62,7 @@
 
     <div v-else class="app-card empty">暂无考试，请先在教师端「成绩管理」建考试并录入成绩</div>
 
-    <p class="app-foot">石实实验学校 · 数智成长</p>
+    <p class="app-foot">石实实验学校 · 石实SHINE</p>
   </div>
 </template>
 
