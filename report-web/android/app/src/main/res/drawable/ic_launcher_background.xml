@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 自适应图标渐变底：App 同款品牌渐变（style.css 的 app-gradient 160deg，xml 角度限 45° 倍数取 135°） -->
+<!-- 自适应图标渐变底：C 系藏蓝渐变（app-gradient 160deg，xml 角度限 45° 倍数取 135°），
+     与金环校徽前景（mipmap/ic_launcher_foreground）搭配，拍板 P3v2 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <gradient
         android:type="linear"
         android:angle="135"
-        android:startColor="#16265A"
-        android:centerColor="#1E3A8A"
-        android:endColor="#2F5FC0" />
+        android:startColor="#141B2E"
+        android:centerColor="#1F2A44"
+        android:endColor="#3A4664" />
 </shape>

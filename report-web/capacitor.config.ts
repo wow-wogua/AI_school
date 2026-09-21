@@ -13,10 +13,10 @@ const serverUrl = process.env.CAP_SERVER_URL
 
 const config: CapacitorConfig = {
   appId: 'com.shishi.growth',
-  appName: '数智成长',
+  appName: '石实SHINE',
   webDir: 'dist',
   // WebView 底色 = 品牌深蓝：加载服务器页面的空档/键盘弹出时的露底不再闪白
-  backgroundColor: '#1B2E6B',
+  backgroundColor: '#1F2A44',
   // 页面与 API 同源（http://服务器），比「本地 https 壳发 http 请求」更干净，
   // CORS/混合内容问题一并消失；usesCleartextTraffic 明文闸此前已开。
   ...(serverUrl ? { server: { url: serverUrl } } : {}),

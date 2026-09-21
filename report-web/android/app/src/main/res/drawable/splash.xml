@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 启动屏（pre-Android 12 走 Theme.SplashScreen 兼容库回落到此 background）：
-     品牌渐变底 + 居中徽标（拱门+星+校名，与 App hero 同款渐变）。
+     C 系藏蓝渐变底 + 居中校徽/校名/副题（官方校徽，拍板 A2，与 App hero 同款渐变）。
      Android 12+ 由 windowSplashScreenBackground(渐变中段单色)+系统渲染 App 图标（见 styles.xml） -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@drawable/ic_launcher_background" />

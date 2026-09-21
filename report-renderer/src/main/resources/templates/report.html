@@ -20,7 +20,7 @@
   /* 页眉 = 校徽 + 校名整体锁排（同侧自适应，长校名不再与徽重叠） */
   .hdr { position: absolute; top: 21pt; height: 22pt; font-size: 9pt; white-space: nowrap;
          display: flex; align-items: center; gap: 7pt; }
-  .hdr img { width: 27pt; height: 22pt; flex: none; }
+  .hdr img { width: 22pt; height: 22pt; flex: none; }
   .hdr.r { right: 23pt; }
   .hdr.l { left: 22pt; }
   .pgnum { position: absolute; top: 810pt; left: 0; width: 100%; text-align: center;
@@ -96,9 +96,9 @@
     <div style="font-family:var(--serif);font-size:13pt;font-weight:bold;color:#A8232B;line-height:15pt;text-align:center">石实<br>SHINE</div>
   </div>
   <!-- 校徽 + 校名 -->
-  <img class="abs" th:src="${imgLogo}" style="top:74pt;left:50%;transform:translateX(-50%);width:62pt;height:50pt" alt=""/>
+  <img class="abs" th:src="${imgLogo}" style="top:70pt;left:50%;transform:translateX(-50%);width:62pt;height:62pt" alt=""/>
   <div class="abs" style="top:148pt;left:0;width:100%;text-align:center;font-size:20pt;font-weight:bold;color:#1F2A44;letter-spacing:3pt;margin-right:-3pt" th:text="${r.school.name}">佛山市南海区石实实验学校</div>
-  <div class="abs" style="top:182pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2.2pt;margin-right:-2.2pt">SHISHI EXPERIMENTAL SCHOOL · EST. 1999</div>
+  <div class="abs" style="top:182pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2.2pt;margin-right:-2.2pt">SHIMEN EXPERIMENTAL SCHOOL · EST. 2000</div>
   <!-- 主标题 -->
   <div class="abs" style="top:287pt;left:222.5pt;width:150pt;height:1pt;background:rgba(201,162,39,.55)"></div>
   <div class="abs" style="top:297pt;left:0;width:100%;text-align:center;font-size:33pt;font-weight:bold;color:#1F2A44;letter-spacing:7pt;margin-right:-7pt">学生成长报告册</div>
@@ -210,7 +210,7 @@
   <img class="abs" th:src="${imgIconL}" style="top:100pt;left:229pt;width:13pt;height:15pt" alt=""/>
   <img class="abs" th:src="${imgIconR}" style="top:100pt;left:353pt;width:13pt;height:15pt" alt=""/>
   <!-- 左栏：校徽 + 竖排校训 -->
-  <img class="abs" th:src="${imgLogo}" style="top:176pt;left:152pt;width:96pt;height:78pt" alt=""/>
+  <img class="abs" th:src="${imgLogo}" style="top:170pt;left:152pt;width:96pt;height:96pt" alt=""/>
   <div class="abs" style="top:292pt;left:98pt;width:204pt;height:330pt;display:flex;justify-content:center">
     <div style="writing-mode:vertical-rl;font-family:var(--serif);font-size:15pt;font-weight:bold;color:#B08A1E;letter-spacing:13pt">任重道远 · 毋忘奋斗</div>
   </div>
