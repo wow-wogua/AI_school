@@ -19,6 +19,7 @@ import com.aischool.server.service.auth.PermissionService;
 import com.aischool.server.service.auth.RoleApprovalService;
 import com.aischool.server.entity.RoleRequest;
 import com.aischool.server.service.excel.ExcelTeacherHelper;
+import com.aischool.server.service.excel.ExcelTeachHelper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -62,6 +63,7 @@ public class AdminUserController {
     private final TeacherProfileMapper teacherProfileMapper;
     private final UserPermissionMapper userPermissionMapper;
     private final ExcelTeacherHelper excelTeacher;
+    private final ExcelTeachHelper excelTeach;
     private final PasswordEncoder passwordEncoder;
     private final PermissionService permissionService;
     private final RoleApprovalService approvalService;
@@ -567,5 +569,103 @@ public class AdminUserController {
         }
         teachMapper.deleteById(id);
         return ApiResponse.ok();
+    }
+
+    /** 任课关系批量导入（管理员，multipart）：教师列填登录账号或姓名（重名须改填账号）；逐行校验部分成功 */
+    @PostMapping("/teach/import")
+    public ApiResponse<Map<String, Object>> importTeaches(@RequestParam("file") MultipartFile file) {
+        checkAdmin();
+        if (file == null || file.isEmpty()) {
+            throw new BizException(400, "请选择 Excel 文件");
+        }
+        List<ExcelTeachHelper.TeachRow> rows;
+        try (InputStream in = file.getInputStream()) {
+            rows = excelTeach.read(in);
+        } catch (IOException e) {
+            throw new BizException(400, "读取上传文件失败");
+        }
+        if (rows.isEmpty()) {
+            throw new BizException(400, "Excel 里没有数据行（首行为表头，请从第 2 行开始填写）");
+        }
+        // 教师按账号或姓名匹配（仅教工四类）；班级/学科按名称精确匹配
+        List<User> staff = userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getRole, ROLES));
+        Map<String, User> byUsername = staff.stream()
+                .collect(Collectors.toMap(User::getUsername, u -> u, (a, b) -> a));
+        Map<String, List<User>> byName = staff.stream()
+                .collect(Collectors.groupingBy(User::getRealName));
+        Map<String, Long> classIds = clazzMapper.selectList(null).stream()
+                .collect(Collectors.toMap(Clazz::getName, Clazz::getId, (a, b) -> a));
+        Map<String, Long> subjectIds = subjectMapper.selectList(null).stream()
+                .collect(Collectors.toMap(Subject::getName, Subject::getId, (a, b) -> a));
+        Set<String> existing = teachMapper.selectList(null).stream()
+                .map(t -> t.getTeacherId() + "#" + t.getClassId() + "#" + t.getSubjectId())
+                .collect(Collectors.toSet());
+        Set<String> seen = new HashSet<>();
+        List<Map<String, Object>> errors = new java.util.ArrayList<>();
+        int inserted = 0;
+        int skipped = 0;
+        for (ExcelTeachHelper.TeachRow r : rows) {
+            User teacher = byUsername.get(r.teacher());
+            String reason = null;
+            if (teacher == null) {
+                List<User> named = byName.get(r.teacher());
+                if (named == null) {
+                    reason = "教师不存在（账号或姓名都未匹配到）: " + r.teacher();
+                } else if (named.size() > 1) {
+                    reason = "姓名重名，请改填登录账号: " + r.teacher();
+                } else {
+                    teacher = named.get(0);
+                }
+            }
+            Long classId = null;
+            Long subjectId = null;
+            if (reason == null && !classIds.containsKey(r.className())) {
+                reason = "班级不存在: " + r.className();
+            } else {
+                classId = classIds.get(r.className());
+            }
+            if (reason == null && !subjectIds.containsKey(r.subjectName())) {
+                reason = "学科不存在（须与管理端学科名完全一致）: " + r.subjectName();
+            } else {
+                subjectId = subjectIds.get(r.subjectName());
+            }
+            if (reason != null) {
+                errors.add(Map.of("row", r.rowNum(), "reason", reason));
+                continue;
+            }
+            String key = teacher.getId() + "#" + classId + "#" + subjectId;
+            if (seen.contains(key) || existing.contains(key)) {
+                skipped++; // 已有的任课关系静默跳过，不算失败
+                continue;
+            }
+            seen.add(key);
+            Teach t = new Teach();
+            t.setTeacherId(teacher.getId());
+            t.setClassId(classId);
+            t.setSubjectId(subjectId);
+            teachMapper.insert(t);
+            existing.add(key);
+            inserted++;
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("inserted", inserted);
+        data.put("skipped", skipped);
+        data.put("failed", errors.size());
+        data.put("errors", errors);
+        return ApiResponse.ok(data);
+    }
+
+    /** 任课导入模板下载（仅表头，.xlsx） */
+    @GetMapping("/teach/import-template")
+    public ResponseEntity<byte[]> teachImportTemplate() {
+        checkAdmin();
+        byte[] bytes = excelTeach.template();
+        String filename = URLEncoder.encode("任课导入模板.xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .contentLength(bytes.length)
+                .body(bytes);
     }
 }

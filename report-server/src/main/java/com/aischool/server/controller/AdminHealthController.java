@@ -116,7 +116,7 @@ public class AdminHealthController {
                 .filter(p -> !blank(p.getDuty()))
                 .collect(Collectors.toMap(TeacherProfile::getUserId, TeacherProfile::getDuty, (a, b) -> a));
         IssueGroup gIdle = group("teacherIdle", "教师无班无课且无职务", "warning",
-                "既无任课也不带班、档案也无职务记录；任课关系尚未导入的教师也会列在此（待校方提供任课表）；职工（花工/电工/饭堂等）有职务属正常不算", "teacher");
+                "既无任课也不带班、档案也无职务记录；任课关系尚未导入的教师也会列在此——校方拿到任课表后可在「教师与任课」页签『导入任课』批量上传；职工（花工/电工/饭堂等）有职务属正常不算", "teacher");
         for (User u : staff) {
             if (("TEACHER".equals(u.getRole()) || "HEAD_TEACHER".equals(u.getRole()))
                     && !teachIds.contains(u.getId()) && !headIds.contains(u.getId())

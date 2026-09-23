@@ -10,6 +10,7 @@
       <el-input v-model="keyword" placeholder="账号/姓名搜索" style="width: 180px" clearable @change="loadUsers" />
       <el-button type="primary" @click="openCreate">新建账号</el-button>
       <el-button @click="openImport">批量导入</el-button>
+      <el-button @click="openTeachImport">导入任课</el-button>
     </div>
 
     <el-table :data="users" size="small">
@@ -126,6 +127,29 @@
       <template #footer>
         <el-button @click="importDialog = false">关闭</el-button>
         <el-button type="primary" :disabled="!importFile" :loading="importing" @click="doImport">开始导入</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="teachImportDialog" title="导入任课关系（Excel）" width="560px">
+      <div style="margin-bottom: 10px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6">
+        先下载模板，从第 2 行开始填写。教师列填登录账号或姓名（重名须改填账号）；班级名称与学科名须和管理端完全一致。
+        逐行校验：合法行入库，已存在的任课关系自动跳过，问题行列出原因。
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px">
+        <el-button size="small" @click="downloadTeachTemplate">下载模板</el-button>
+        <input type="file" accept=".xlsx"
+          @change="(e: Event) => (teachImportFile = (e.target as HTMLInputElement).files?.[0] ?? null)" />
+      </div>
+      <el-alert v-if="teachImportResult" :type="teachImportResult.failed ? 'warning' : 'success'" :closable="false">
+        新增 {{ teachImportResult.inserted }} 条<template v-if="teachImportResult.skipped">，已存在跳过 {{ teachImportResult.skipped }} 条</template><template v-if="teachImportResult.failed">，失败 {{ teachImportResult.failed }} 行：
+          <div v-for="e in teachImportResult.errors" :key="e.row" style="font-size: 12px">
+            第 {{ e.row }} 行：{{ e.reason }}
+          </div>
+        </template>
+      </el-alert>
+      <template #footer>
+        <el-button @click="teachImportDialog = false">关闭</el-button>
+        <el-button type="primary" :disabled="!teachImportFile" :loading="teachImporting" @click="doTeachImport">开始导入</el-button>
       </template>
     </el-dialog>
 
@@ -268,6 +292,35 @@ async function doImport() {
     await loadUsers()
   } finally {
     importing.value = false
+  }
+}
+
+const teachImportDialog = ref(false)
+const teachImportFile = ref<File | null>(null)
+const teachImporting = ref(false)
+const teachImportResult = ref<any>(null)
+
+function openTeachImport() {
+  teachImportFile.value = null
+  teachImportResult.value = null
+  teachImportDialog.value = true
+}
+
+async function downloadTeachTemplate() {
+  const blob = await fetchBlob('/api/admin/teach/import-template')
+  await saveFile(blob, '任课导入模板.xlsx')
+}
+
+async function doTeachImport() {
+  if (!teachImportFile.value) return
+  teachImporting.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', teachImportFile.value)
+    teachImportResult.value = await apiForm<any>('/api/admin/teach/import', fd)
+    await loadTeaches()
+  } finally {
+    teachImporting.value = false
   }
 }
 
