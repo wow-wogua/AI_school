@@ -7,6 +7,7 @@
         <el-option label="班主任" value="HEAD_TEACHER" />
         <el-option label="任课教师" value="TEACHER" />
       </el-select>
+      <el-input v-model="keyword" placeholder="账号/姓名搜索" style="width: 180px" clearable @change="loadUsers" />
       <el-button type="primary" @click="openCreate">新建账号</el-button>
       <el-button @click="openImport">批量导入</el-button>
     </div>
@@ -131,7 +132,8 @@
     <el-dialog v-model="dialog" :title="editing ? '编辑账号' : '新建账号'" width="460px">
       <el-form label-width="90px">
         <el-form-item label="登录名">
-          <el-input v-model="form.username" :disabled="!!editing" />
+          <el-input v-model="form.username" />
+          <div v-if="editing" class="hint">修改即换绑登录名（临时号转正等）；重置为统一初始密码后请通知本人</div>
         </el-form-item>
         <el-form-item v-if="!editing" label="初始密码">
           <el-input v-model="form.password" show-password />
@@ -161,15 +163,18 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../../api/http'
 import { saveFile } from '../../api/nativeShare'
 
+const route = useRoute()
 const users = ref<any[]>([])
 const classes = ref<{ id: number; name: string }[]>([])
 const subjects = ref<{ id: number; name: string }[]>([])
 const teaches = ref<any[]>([])
 const roleFilter = ref('')
+const keyword = ref((route.query.kw as string) || '')
 const dialog = ref(false)
 const editing = ref<any>(null)
 const form = ref<any>({})
@@ -182,6 +187,7 @@ function roleName(r: string) {
 async function loadUsers() {
   const qs = new URLSearchParams({ page: '1', size: '100' })
   if (roleFilter.value) qs.set('role', roleFilter.value)
+  if (keyword.value.trim()) qs.set('keyword', keyword.value.trim())
   const d = await api<{ records: any[] }>(`/api/admin/user/list?${qs}`)
   users.value = d.records
   await loadTeaches()
@@ -326,6 +332,7 @@ onMounted(async () => {
 <style scoped>
 /* 操作列 5 个按钮收一行：缩小按钮间距防换行 */
 .el-table :deep(.el-button + .el-button) { margin-left: 8px; }
+.hint { font-size: 11.5px; color: var(--el-text-color-secondary); line-height: 1.5; }
 .pf { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .pf-photo { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; }
 .pf-none { display: flex; align-items: center; justify-content: center;

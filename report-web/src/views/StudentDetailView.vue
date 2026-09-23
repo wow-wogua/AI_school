@@ -10,7 +10,7 @@
         <span class="ava" :style="{ background: avaColor(stu.name) }">{{ stu.name?.charAt(0) }}</span>
         <div class="stu-brief">
           <h1>{{ stu.name }}</h1>
-          <p>{{ className }}<template v-if="stu.gender"> · {{ stu.gender }}</template><template v-if="stu.studentNo"> · 学号 {{ stu.studentNo }}</template></p>
+          <p>{{ className }}<template v-if="genderLabel"> · {{ genderLabel }}</template><template v-if="stu.studentNo"> · 学号 {{ stu.studentNo }}</template></p>
         </div>
       </div>
     </div>
@@ -45,19 +45,57 @@
 
     <!-- 基本信息卡（学籍卡风格） -->
     <div class="app-card tl tex-e info">
-      <div class="app-sec" style="margin: 0 0 6px">基本信息<span class="card-tag">学籍卡</span></div>
+      <div class="app-sec" style="margin: 0 0 6px">基本信息<span class="card-tag">学籍卡</span>
+        <button v-if="editable" class="edit-btn" type="button" @click="openEdit">编辑资料</button>
+      </div>
       <van-cell title="状态" :value="stu.status || '—'" />
       <van-cell title="家长" :value="stu.guardianName || '—'" />
       <van-cell title="联系电话" :value="stu.guardianPhone || '—'" />
       <van-cell title="宿舍" :value="stu.dormBuilding ? `${stu.dormBuilding} ${stu.dormRoom}${stu.dormBed ? ' / ' + stu.dormBed + '床' : ''}` : '—'" />
       <div class="barcode" aria-hidden="true"><i v-for="n in 24" :key="n" :style="{ opacity: n % 3 ? .8 : .35 }"></i></div>
     </div>
+
+    <!-- 家长账号卡（批8.5：仅管理员/领导/班主任可见；班主任可重置家长密码） -->
+    <div v-if="editable" class="app-card tl tex-f parents">
+      <div class="app-sec" style="margin: 0 0 6px">家长账号<span class="mo-cnt">{{ parents.length }}</span></div>
+      <van-empty v-if="!parents.length" description="暂无绑定的家长账号" image="search" />
+      <div v-for="p in parents" :key="p.parentId" class="pa">
+        <div class="pa-info">
+          <b>{{ p.realName || '家长' }}</b>
+          <span class="pa-sub">{{ p.relation || '家长' }} · {{ p.account }}<template v-if="p.status !== 1"> · 已停用</template></span>
+        </div>
+        <van-button size="small" plain round type="primary" @click="resetParent(p)">重置密码</van-button>
+      </div>
+    </div>
+
+    <!-- 编辑资料（批8.5：班主任/级长/管理员订正基本资料；转班转出走管理端） -->
+    <van-dialog v-model:show="editOpen" title="编辑资料" show-cancel-button :before-close="onEditClose">
+      <div style="padding-top: 10px">
+        <van-field v-model="editForm.name" label="姓名" placeholder="学生姓名" />
+        <van-field v-model="editForm.genderStr" label="性别" placeholder="男 / 女 / 留空" />
+        <van-field v-model="editForm.studentNo" label="学号" placeholder="7 位：标识+入学年+班号+编号" />
+        <van-field v-model="editForm.guardianName" label="家长姓名" placeholder="留空=清除" />
+        <van-field v-model="editForm.guardianPhone" label="家长电话" placeholder="留空=清除" />
+        <van-field v-model="editForm.dormBuilding" label="宿舍楼" placeholder="留空=清除" />
+        <van-field v-model="editForm.dormRoom" label="房号" placeholder="留空=清除" />
+        <van-field v-model="editForm.dormBed" label="床位" placeholder="留空=清除" />
+      </div>
+    </van-dialog>
+
+    <!-- 重置家长密码结果（口令一次性展示，转告家长） -->
+    <van-dialog v-model:show="resetOpen" title="已重置家长密码" :show-confirm-button="false">
+      <div class="reset-tip">
+        <p>请将以下初始密码转告家长，首次登录会要求修改：</p>
+        <p class="code">{{ resetCode }}</p>
+      </div>
+    </van-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { showFailToast, showSuccessToast, showConfirmDialog } from 'vant'
 import { api } from '../api/http'
 import MomentPhoto from '../components/MomentPhoto.vue'
 import PhotoPreview from '../components/PhotoPreview.vue'
@@ -65,12 +103,77 @@ import PhotoPreview from '../components/PhotoPreview.vue'
 const route = useRoute()
 const router = useRouter()
 
-interface Stu { name?: string; gender?: string; studentNo?: string; classId?: number; status?: string; guardianName?: string; guardianPhone?: string; dormBuilding?: string; dormRoom?: string; dormBed?: string }
+interface Stu { name?: string; gender?: string; studentNo?: string; classId?: number; status?: string; guardianName?: string; guardianPhone?: string; dormBuilding?: string; dormRoom?: string; dormBed?: string; editable?: boolean }
 const stu = ref<Stu>({})
 const className = ref('')
 const termId = ref<number>()
 const moments = ref<{ id: number; photoUrl: string | null; sceneTag: string; note?: string; source?: string }[]>([])
 const photoPreview = ref<InstanceType<typeof PhotoPreview>>()
+
+/* 批8.5：可编辑（管理员/领导/该班班主任）→ 编辑资料 + 家长账号卡 */
+const editable = ref(false)
+const parents = ref<{ parentId: number; relation?: string; account?: string; realName?: string; status?: number }[]>([])
+
+const editOpen = ref(false)
+const editForm = ref<any>({})
+function openEdit() {
+  const s = stu.value
+  editForm.value = {
+    name: s.name || '', studentNo: s.studentNo || '',
+    genderStr: s.gender === 'M' ? '男' : s.gender === 'F' ? '女' : '',
+    guardianName: s.guardianName || '', guardianPhone: s.guardianPhone || '',
+    dormBuilding: s.dormBuilding || '', dormRoom: s.dormRoom || '', dormBed: s.dormBed || '',
+  }
+  editOpen.value = true
+}
+
+async function onEditClose(action: string) {
+  if (action !== 'confirm') return true
+  const f = editForm.value
+  if (!f.name.trim()) { showFailToast('姓名不能为空'); return false }
+  if (f.studentNo && !/^[12][0-9]{6}$/.test(f.studentNo)) { showFailToast('学号须为 7 位（标识+入学年+班号+编号）'); return false }
+  try {
+    await api(`/api/student/${route.params.id}/profile`, {
+      method: 'PUT',
+      json: {
+        name: f.name, studentNo: f.studentNo,
+        gender: f.genderStr === '男' ? 'M' : f.genderStr === '女' ? 'F' : '',
+        guardianName: f.guardianName, guardianPhone: f.guardianPhone,
+        dormBuilding: f.dormBuilding, dormRoom: f.dormRoom, dormBed: f.dormBed,
+      },
+    })
+    showSuccessToast('已保存')
+    await loadDetail()
+    return true
+  } catch (e: any) {
+    showFailToast(e?.message || '保存失败')
+    return false
+  }
+}
+
+const resetOpen = ref(false)
+const resetCode = ref('')
+async function resetParent(p: { parentId: number; realName?: string }) {
+  try {
+    await showConfirmDialog({ title: '重置家长密码', message: `为 ${p.realName || '该家长'} 重置密码？重置后原密码失效。` })
+  } catch { return }
+  try {
+    const d = await api<{ initialPassword: string }>(`/api/student/${route.params.id}/parent/${p.parentId}/reset-password`, { method: 'POST' })
+    resetCode.value = d.initialPassword
+    resetOpen.value = true
+  } catch (e: any) {
+    showFailToast(e?.message || '重置失败')
+  }
+}
+
+async function loadDetail() {
+  const id = Number(route.params.id)
+  stu.value = await api<Stu>(`/api/student/${id}`)
+  editable.value = !!stu.value.editable
+  if (editable.value) {
+    api<any>(`/api/student/${id}/parents`).then((d) => (parents.value = d)).catch(() => {})
+  }
+}
 
 /** 闪光时刻全屏预览：收集整墙已加载照片，可左右滑动，当前张定位 */
 function previewMoments(cur: string) {
@@ -103,6 +206,8 @@ function go(g: (typeof entries)[number]) {
 }
 
 const palette = ['#A8232B', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
+const genderLabel = computed(() =>
+  stu.value.gender === 'M' ? '男' : stu.value.gender === 'F' ? '女' : stu.value.gender || '')
 function avaColor(name?: string) {
   if (!name) return palette[0]
   let h = 0
@@ -112,7 +217,7 @@ function avaColor(name?: string) {
 
 onMounted(async () => {
   const id = Number(route.params.id)
-  stu.value = await api<Stu>(`/api/student/${id}`)
+  await loadDetail()
   const classes = await api<{ id: number; name: string }[]>('/api/meta/my-classes')
   className.value = classes.find((c) => c.id === stu.value.classId)?.name ?? ''
   const terms = await api<{ id: number; name: string; isCurrent?: number }[]>('/api/meta/terms')
@@ -166,6 +271,20 @@ onMounted(async () => {
 .info :deep(.van-cell) { font-size: 14px; }
 .card-tag { margin-left: 8px; padding: 1px 8px; border: 1px solid #E3DCCB; border-radius: 4px;
   font-size: 10px; font-weight: 500; color: var(--app-text-3); letter-spacing: 2px; }
+.edit-btn { margin-left: auto; padding: 3px 12px; border: 1px solid var(--app-card-border);
+  border-radius: 999px; background: none; color: var(--app-blue); font-size: 12px; cursor: pointer; }
+.app-sec { display: flex; align-items: center; }
+.parents { margin-top: 12px; padding: 14px 14px 8px; }
+.pa { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 2px; border-bottom: 1px dashed var(--app-card-border); }
+.pa:last-child { border-bottom: none; }
+.pa-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pa-info b { font-size: 14px; color: var(--app-text-1); }
+.pa-sub { font-size: 12px; color: var(--app-text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reset-tip { padding: 14px 20px 20px; }
+.reset-tip p { margin: 0 0 8px; font-size: 13px; line-height: 1.7; color: var(--app-text-2); }
+.reset-tip .code { margin: 4px 0 8px; padding: 10px; border-radius: 8px; background: #F6F7FA;
+  text-align: center; font-size: 18px; font-weight: 800; letter-spacing: 2px; color: var(--app-blue-deep, #1F2A44); }
 .barcode { display: flex; align-items: center; justify-content: center; gap: 3px; height: 26px;
   margin-top: 8px; }
 .barcode i { width: 2px; height: 100%; background: #1F2A44; border-radius: 1px; }

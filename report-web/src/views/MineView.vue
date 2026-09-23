@@ -21,7 +21,9 @@
     </div>
 
     <div class="app-card tex-e cells">
+      <van-cell title="修改手机号" icon="phone-o" is-link @click="phoneOpen = true" />
       <van-cell title="修改密码" icon="lock" is-link @click="pwdOpen = true" />
+      <van-cell title="意见反馈" icon="chat-o" is-link @click="$router.push('/feedback')" />
       <van-cell title="检查更新" icon="upgrade" is-link :value="appVersion" @click="onCheckUpdate" />
       <van-cell title="服务器地址" icon="desktop-o" is-link :value="srvBase || '默认'" @click="srvOpen = true" />
       <van-cell title="关于" icon="info-o" is-link @click="aboutOpen = true" />
@@ -34,6 +36,14 @@
         <van-field v-model="pwd.old" type="password" label="旧密码" placeholder="当前密码" />
         <van-field v-model="pwd.next" type="password" label="新密码" placeholder="至少 8 位" />
         <van-field v-model="pwd.again" type="password" label="确认新密码" placeholder="再输入一遍" />
+      </div>
+    </van-dialog>
+
+    <!-- 修改手机号（批8.5：密码确认即换；登录名即手机号的账号同步换绑） -->
+    <van-dialog v-model:show="phoneOpen" title="修改手机号" show-cancel-button :before-close="onPhoneClose">
+      <div style="padding-top: 10px">
+        <van-field v-model="phoneNext" type="tel" label="新手机号" placeholder="11 位手机号" maxlength="11" />
+        <van-field v-model="phonePwd" type="password" label="当前密码" placeholder="输入密码确认" />
       </div>
     </van-dialog>
 
@@ -110,6 +120,27 @@ async function onPwdClose(action: string) {
     return false
   }
 }
+/* 修改手机号（批8.5）：密码确认即换，成功换发 token */
+const phoneOpen = ref(false)
+const phoneNext = ref('')
+const phonePwd = ref('')
+async function onPhoneClose(action: string) {
+  if (action !== 'confirm') return true
+  if (!/^1\d{10}$/.test(phoneNext.value)) { showFailToast('请输入 11 位手机号'); return false }
+  if (!phonePwd.value) { showFailToast('请输入当前密码确认'); return false }
+  try {
+    const d = await api<{ token: string }>('/api/auth/phone', { method: 'PUT', json: { password: phonePwd.value, newPhone: phoneNext.value } })
+    auth.refreshToken(d.token)
+    showSuccessToast('手机号已更新')
+    phoneNext.value = ''
+    phonePwd.value = ''
+    return true
+  } catch (e: any) {
+    showFailToast(e?.message || '修改失败')
+    return false
+  }
+}
+
 const version = __APP_VERSION__
 
 /** App 内显示真实安装包版本（网页版回退 package.json 版本） */

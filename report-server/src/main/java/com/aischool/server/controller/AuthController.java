@@ -36,11 +36,26 @@ public class AuthController {
         private String newPassword;
     }
 
+    @Data
+    public static class ChangePhoneReq {
+        @NotBlank(message = "密码不能为空")
+        private String password;
+        @NotBlank(message = "新手机号不能为空")
+        private String newPhone;
+    }
+
     /** 修改自己的密码（登录态）：成功换发新 token（清除待改密态） */
     @PutMapping("/password")
     public ApiResponse<Map<String, Object>> changePassword(@Validated @RequestBody ChangePwdReq req) {
         String token = authService.changePassword(
                 AuthUtil.current().userId(), req.getOldPassword(), req.getNewPassword());
+        return ApiResponse.ok(Map.of("token", token));
+    }
+
+    /** 自助换绑手机号（批8.5）：密码确认即换；登录名即手机号的账号（家长）同步改登录名 */
+    @PutMapping("/phone")
+    public ApiResponse<Map<String, Object>> changePhone(@Validated @RequestBody ChangePhoneReq req) {
+        String token = authService.changePhone(AuthUtil.current().userId(), req.getPassword(), req.getNewPhone());
         return ApiResponse.ok(Map.of("token", token));
     }
 

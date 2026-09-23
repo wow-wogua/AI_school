@@ -24,6 +24,17 @@
         </van-button>
       </van-form>
 
+      <button class="forgot" type="button" @click="forgotOpen = true">忘记密码？</button>
+
+      <!-- 忘记密码引导（批8.5）：无短信通道，线下找对应负责人重置 -->
+      <van-dialog v-model:show="forgotOpen" title="忘记密码" :show-confirm-button="false">
+        <div class="forgot-tip">
+          <p><b>教师 / 管理员</b>：请联系学校管理员，在管理端「教师与任课」中重置密码。</p>
+          <p><b>家长</b>：请联系孩子的班主任，班主任可在学生详情页为家长重置密码；也可联系学校管理员。</p>
+          <p class="sub">重置后获得统一初始密码，首次登录会要求设置新密码。</p>
+        </div>
+      </van-dialog>
+
       <!-- App 直连服务器地址（打包形态必配；浏览器形态留空走同源） -->
       <button class="srv-toggle" type="button" @click="srvOpen = !srvOpen">
         <van-icon name="setting-o" /> 服务器地址{{ srvBase ? '' : '（未设置）' }}
@@ -49,6 +60,7 @@ const form = reactive({ username: '', password: '' })
 const loading = ref(false)
 const router = useRouter()
 const auth = useAuthStore()
+const forgotOpen = ref(false)
 
 /* 服务器地址：App 安装后首次使用在此配置（默认值来自打包注入 VITE_API_BASE） */
 const srvOpen = ref(false)
@@ -129,6 +141,12 @@ async function doLogin() {
 .srv-toggle { display: flex; align-items: center; gap: 6px; justify-content: center;
   width: 100%; margin-top: 16px; padding: 6px; background: none; border: none;
   color: var(--app-text-3); font-size: 12px; cursor: pointer; }
+.forgot { display: block; margin: 2px auto 0; background: none; border: none;
+  color: var(--app-text-3); font-size: 12.5px; cursor: pointer; text-decoration: underline dotted; }
+.forgot-tip { padding: 14px 20px 18px; }
+.forgot-tip p { margin: 0 0 10px; font-size: 13px; line-height: 1.7; color: var(--app-text-2); }
+.forgot-tip b { color: var(--app-text-1); }
+.forgot-tip .sub { margin: 0; font-size: 12px; color: var(--app-text-3); }
 .srv-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .srv-row .van-field { flex: 1; border: 1px solid var(--app-card-border); border-radius: 10px; }
 </style>

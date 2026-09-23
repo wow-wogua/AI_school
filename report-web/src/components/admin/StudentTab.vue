@@ -126,16 +126,18 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../../api/http'
 import { saveFile } from '../../api/nativeShare'
 
+const route = useRoute()
 const classes = ref<any[]>([])
 const records = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const classId = ref<number>()
-const keyword = ref('')
+const keyword = ref((route.query.kw as string) || '')
 const statusFilter = ref('')
 const dialog = ref(false)
 const form = ref<any>({})

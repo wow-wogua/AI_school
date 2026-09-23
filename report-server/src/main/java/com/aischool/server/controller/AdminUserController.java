@@ -95,6 +95,7 @@ public class AdminUserController {
         private String realName;
         private String role;
         private String phone;
+        private String username; // 批8.5：换绑登录名（ss 临时号等改名转正）
     }
 
     @Data
@@ -352,6 +353,18 @@ public class AdminUserController {
             throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER");
         }
         String newRole = req.getRole() != null ? req.getRole() : u.getRole();
+        // 换绑登录名（批8.5）：非空才改；唯一性+格式校验，改名后原 token 不受影响（按 userId 鉴权）
+        String newUsername = req.getUsername() == null || req.getUsername().isBlank()
+                ? u.getUsername() : req.getUsername().trim();
+        if (!newUsername.equals(u.getUsername())) {
+            if (newUsername.length() < 2 || newUsername.length() > 32 || newUsername.matches(".*\\s.*")) {
+                throw new BizException(400, "登录名须 2-32 位且不含空格");
+            }
+            if (userMapper.selectCount(new LambdaQueryWrapper<User>()
+                    .eq(User::getUsername, newUsername)) > 0) {
+                throw new BizException(400, "登录名已存在");
+            }
+        }
         // 教师原地升入 ADMIN/LEADER 走双人审批（批2-5）：本次不改角色，另一名管理员/领导通过后才生效。
         // 已是 ADMIN/LEADER 互转（已过一次审批）与降级不触发。
         boolean upgradeApproval = RoleApprovalService.needsApproval(newRole)
@@ -359,18 +372,20 @@ public class AdminUserController {
                 && !newRole.equals(u.getRole());
         if (upgradeApproval) {
             approvalService.submitUpgrade(id, u.getRole(), newRole);
-            // 其余字段（姓名/手机）照常生效；角色保持原值
+            // 其余字段（姓名/手机/登录名）照常生效；角色保持原值
             userMapper.update(null, new LambdaUpdateWrapper<User>()
                     .eq(User::getId, id)
                     .set(User::getRealName, req.getRealName() != null ? req.getRealName() : u.getRealName())
-                    .set(User::getPhone, req.getPhone()));
+                    .set(User::getPhone, req.getPhone())
+                    .set(!newUsername.equals(u.getUsername()), User::getUsername, newUsername));
             return ApiResponse.ok(Map.of("pendingApproval", true));
         }
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, id)
                 .set(User::getRealName, req.getRealName() != null ? req.getRealName() : u.getRealName())
                 .set(User::getRole, newRole)
-                .set(User::getPhone, req.getPhone()));
+                .set(User::getPhone, req.getPhone())
+                .set(!newUsername.equals(u.getUsername()), User::getUsername, newUsername));
         // 角色变更清权限点，防 LEADER 改角后遗留管理员级权限
         if (!newRole.equals(u.getRole())) {
             userPermissionMapper.delete(new LambdaQueryWrapper<UserPermission>()

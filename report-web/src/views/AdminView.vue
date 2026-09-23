@@ -14,6 +14,8 @@
               :class="{ on: tab === t.name }" @click="tab = t.name">
               <el-icon><component :is="t.icon" /></el-icon>{{ t.label }}
               <i v-if="t.name === 'roleRequest' && pendingCount > 0" class="badge">{{ pendingCount > 99 ? '99+' : pendingCount }}</i>
+              <i v-else-if="t.name === 'health' && healthDanger > 0" class="badge">{{ healthDanger }}</i>
+              <i v-else-if="t.name === 'feedback' && feedbackPending > 0" class="badge">{{ feedbackPending > 99 ? '99+' : feedbackPending }}</i>
             </button>
           </template>
         </nav>
@@ -64,6 +66,8 @@
         <el-tab-pane label="教师与任课" name="teacher"><TeacherTab /></el-tab-pane>
         <el-tab-pane label="家长账号" name="parent"><ParentTab /></el-tab-pane>
         <el-tab-pane :label="`账号审批${pendingCount ? '(' + pendingCount + ')' : ''}`" name="roleRequest"><RoleRequestTab @handled="loadPendingCount" /></el-tab-pane>
+        <el-tab-pane :label="`意见反馈${feedbackPending ? '(' + feedbackPending + ')' : ''}`" name="feedback"><FeedbackTab @handled="loadFeedbackPending" /></el-tab-pane>
+        <el-tab-pane :label="`数据体检${healthDanger ? '(' + healthDanger + ')' : ''}`" name="health"><HealthTab @scanned="onHealthScanned" /></el-tab-pane>
         <el-tab-pane label="内容发布" name="content"><ContentTab /></el-tab-pane>
         <el-tab-pane label="教师档案" name="teacherProfile"><TeacherProfileTab /></el-tab-pane>
         <el-tab-pane label="年级与班级" name="org"><OrgTab /></el-tab-pane>
@@ -86,12 +90,14 @@
 import { computed, markRaw, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { Aim, AlarmClock, Calendar, Coin, DataLine, Document, Iphone, Postcard, Promotion, School, Setting, Stamp, Tickets, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
+import { Aim, AlarmClock, Calendar, ChatDotRound, Coin, DataLine, Document, FirstAidKit, Iphone, Postcard, Promotion, School, Setting, Stamp, Tickets, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
 import { api } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import TeacherTab from '../components/admin/TeacherTab.vue'
 import ParentTab from '../components/admin/ParentTab.vue'
 import RoleRequestTab from '../components/admin/RoleRequestTab.vue'
+import FeedbackTab from '../components/admin/FeedbackTab.vue'
+import HealthTab from '../components/admin/HealthTab.vue'
 import ContentTab from '../components/admin/ContentTab.vue'
 import TeacherProfileTab from '../components/admin/TeacherProfileTab.vue'
 import OrgTab from '../components/admin/OrgTab.vue'
@@ -123,6 +129,8 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   teacher: { label: '教师与任课', comp: markRaw(TeacherTab), icon: User },
   parent: { label: '家长账号', comp: markRaw(ParentTab), icon: Iphone },
   roleRequest: { label: '账号审批', comp: markRaw(RoleRequestTab), icon: Stamp },
+  feedback: { label: '意见反馈', comp: markRaw(FeedbackTab), icon: ChatDotRound },
+  health: { label: '数据体检', comp: markRaw(HealthTab), icon: FirstAidKit },
   teacherProfile: { label: '教师档案', comp: markRaw(TeacherProfileTab), icon: Postcard },
   content: { label: '内容发布', comp: markRaw(ContentTab), icon: Promotion },
   appRelease: { label: '版本更新', comp: markRaw(AppReleaseTab), icon: Upload },
@@ -141,7 +149,7 @@ const groups = [
   { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile'] },
   { label: '内容运营', items: ['content', 'appRelease'] },
   { label: '基础数据', items: ['org', 'student', 'term', 'exam', 'duty', 'indicator', 'shop', 'template'] },
-  { label: '系统运维', items: ['audit', 'aiUsage'] },
+  { label: '系统运维', items: ['feedback', 'health', 'audit', 'aiUsage'] },
 ].map((g) => ({ ...g, items: g.items.map((k) => ({ name: k, ...TABS[k] })) }))
 
 const current = computed(() => TABS[tab.value] ?? TABS.teacher)
@@ -156,6 +164,21 @@ async function loadPendingCount() {
     const d = await api<{ pending: number }>('/api/role-request/count')
     pendingCount.value = d.pending
   } catch { /* 静默（非审批角色不显示） */ }
+}
+
+/* 意见反馈待处理数（批8.5 徽标；FeedbackTab 处理完即时回调） */
+const feedbackPending = ref(0)
+async function loadFeedbackPending() {
+  try {
+    const d = await api<{ pending: number }>('/api/admin/feedback/count')
+    feedbackPending.value = d.pending
+  } catch { /* 静默 */ }
+}
+
+/* 数据体检高危组数（批8.5 徽标；HealthTab 扫描完即时回调） */
+const healthDanger = ref(0)
+function onHealthScanned(danger: number) {
+  healthDanger.value = danger
 }
 
 /* 在线统计：桌面顶栏 chips / 窄屏统计条共用；30 秒轮询，失败静默 */
@@ -181,6 +204,7 @@ function ago(ms: number) {
 onMounted(() => {
   loadOnline()
   loadPendingCount()
+  loadFeedbackPending()
   onlineTimer = window.setInterval(() => { loadOnline(); loadPendingCount() }, 30_000)
   mq.addEventListener('change', onMq)
 })
