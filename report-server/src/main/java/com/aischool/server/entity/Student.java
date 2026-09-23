@@ -23,4 +23,7 @@ public class Student {
     private String photoUrl;
     private String guardianName;
     private String guardianPhone;
+    private String dormBuilding;
+    private String dormRoom;
+    private String dormBed;
 }

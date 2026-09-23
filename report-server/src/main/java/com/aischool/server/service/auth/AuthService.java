@@ -5,6 +5,7 @@ import com.aischool.server.entity.User;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.JwtService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -88,6 +89,38 @@ public class AuthService {
         user.setMustChangePwd(0);
         userMapper.updateById(user);
         return jwtService.issue(user.getId(), user.getUsername(), user.getRealName(), user.getRole(), false);
+    }
+
+    /** 自助换绑手机号（批8.5）：密码确认即换。登录名即手机号的账号（家长）同步改登录名；
+     *  换发新 token（token 携带 username）。待改密态被 JwtAuthFilter 拦在门外，无需放行。 */
+    public String changePhone(Long userId, String password, String newPhone) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(404, "账号不存在");
+        }
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new BizException(400, "密码不正确");
+        }
+        if (newPhone == null || !newPhone.matches("^1\\d{10}$")) {
+            throw new BizException(400, "手机号格式不正确");
+        }
+        if (newPhone.equals(user.getPhone()) && newPhone.equals(user.getUsername())) {
+            return jwtService.issue(user.getId(), user.getUsername(), user.getRealName(), user.getRole(), false);
+        }
+        // 唯一性：新手机号不能已被其他账号用作登录名或联系手机（避免登录歧义与联系错人）
+        if (userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .ne(User::getId, userId)
+                .and(q -> q.eq(User::getPhone, newPhone).or().eq(User::getUsername, newPhone))) > 0) {
+            throw new BizException(400, "该手机号已被其他账号使用");
+        }
+        // 登录名形如手机号（家长账号惯例）→ 登录名一并换绑；工号登录的教师只换联系手机号
+        boolean renameLogin = user.getUsername() != null && user.getUsername().matches("^1\\d{10}$");
+        userMapper.update(null, new LambdaUpdateWrapper<User>()
+                .eq(User::getId, userId)
+                .set(User::getPhone, newPhone)
+                .set(renameLogin, User::getUsername, newPhone));
+        String username = renameLogin ? newPhone : user.getUsername();
+        return jwtService.issue(user.getId(), username, user.getRealName(), user.getRole(), false);
     }
 
     private void recordFail(String username) {

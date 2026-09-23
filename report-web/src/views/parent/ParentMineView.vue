@@ -12,7 +12,9 @@
     </div>
 
     <div class="app-card overlap tl tex-f cells">
+      <van-cell title="修改手机号" icon="phone-o" is-link @click="phoneOpen = true" />
       <van-cell title="修改密码" icon="lock" is-link @click="pwdOpen = true" />
+      <van-cell title="意见反馈" icon="chat-o" is-link @click="$router.push('/p/feedback')" />
       <van-cell title="账号说明" icon="shield-o" is-link @click="tipOpen = true" />
     </div>
 
@@ -32,9 +34,18 @@
       </div>
     </van-dialog>
 
+    <!-- 修改手机号（批8.5）：家长账号登录名即手机号，换手机号后用新号登录 -->
+    <van-dialog v-model:show="phoneOpen" title="修改手机号" show-cancel-button :before-close="onPhoneClose">
+      <div class="srv-tip" style="padding-top: 10px">家长账号的登录名就是手机号，换绑后请用新手机号登录。</div>
+      <div style="padding-top: 6px">
+        <van-field v-model="phoneNext" type="tel" label="新手机号" placeholder="11 位手机号" maxlength="11" />
+        <van-field v-model="phonePwd" type="password" label="当前密码" placeholder="输入密码确认" />
+      </div>
+    </van-dialog>
+
     <!-- 账号说明 -->
     <van-dialog v-model:show="tipOpen" title="账号说明" :show-confirm-button="false">
-      <p class="tip">家长账号由学校管理员发放，仅可查看绑定孩子的成长动态；如需变更绑定请联系学校管理员。</p>
+      <p class="tip">家长账号由学校发放，仅可查看绑定孩子的成长动态。换手机号在上方「修改手机号」自助办理（登录名同步更换）；忘记密码请找孩子的班主任重置；变更绑定孩子请联系班主任或学校管理员。</p>
     </van-dialog>
 
     <!-- 服务器地址编辑 -->
@@ -99,6 +110,27 @@ async function onPwdClose(action: string) {
     auth.refreshToken(d.token, true) // 换发新 token（顺带清待改密态）
     showSuccessToast('密码已修改')
     pwd.value = { old: '', next: '', again: '' }
+    return true
+  } catch (e: any) {
+    showFailToast(e?.message || '修改失败')
+    return false
+  }
+}
+
+/* 修改手机号（批8.5）：家长登录名=手机号，换绑后 token 立即换发 */
+const phoneOpen = ref(false)
+const phoneNext = ref('')
+const phonePwd = ref('')
+async function onPhoneClose(action: string) {
+  if (action !== 'confirm') return true
+  if (!/^1\d{10}$/.test(phoneNext.value)) { showFailToast('请输入 11 位手机号'); return false }
+  if (!phonePwd.value) { showFailToast('请输入当前密码确认'); return false }
+  try {
+    const d = await api<{ token: string }>('/api/auth/phone', { method: 'PUT', json: { password: phonePwd.value, newPhone: phoneNext.value } })
+    auth.refreshToken(d.token)
+    showSuccessToast('已换绑，请用新手机号登录')
+    phoneNext.value = ''
+    phonePwd.value = ''
     return true
   } catch (e: any) {
     showFailToast(e?.message || '修改失败')

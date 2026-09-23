@@ -11,31 +11,28 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 新生 Excel：批量建档（学号/姓名/性别/班级名称/家长姓名/家长电话/宿舍楼/宿舍号/床位号），POI 直读直写 */
+/** 任课关系 Excel：批量导入（教师+班级+学科），POI 直读直写，列序与 template() 一致 */
 @Service
-public class ExcelStudentHelper {
+public class ExcelTeachHelper {
 
-    public record StudentRow(int rowNum, String studentNo, String name, String gender,
-                             String className, String guardianName, String guardianPhone,
-                             String dormBuilding, String dormRoom, String dormBed) {}
+    public record TeachRow(int rowNum, String teacher, String className, String subjectName) {}
 
-    /** 读首个工作表：跳过表头；学号与姓名均空的行跳过 */
-    public List<StudentRow> read(InputStream in) {
-        List<StudentRow> rows = new ArrayList<>();
+    /** 读首个工作表：跳过表头；三列全空的行跳过 */
+    public List<TeachRow> read(InputStream in) {
+        List<TeachRow> rows = new ArrayList<>();
         try (XSSFWorkbook wb = new XSSFWorkbook(in)) {
             DataFormatter fmt = new DataFormatter();
             for (Row row : wb.getSheetAt(0)) {
                 if (row.getRowNum() == 0) {
                     continue; // 表头
                 }
-                String no = cell(fmt, row, 0);
-                String name = cell(fmt, row, 1);
-                if (no.isBlank() && name.isBlank()) {
+                String teacher = cell(fmt, row, 0);
+                String className = cell(fmt, row, 1);
+                String subjectName = cell(fmt, row, 2);
+                if (teacher.isBlank() && className.isBlank() && subjectName.isBlank()) {
                     continue;
                 }
-                rows.add(new StudentRow(row.getRowNum() + 1, no, name, cell(fmt, row, 2),
-                        cell(fmt, row, 3), cell(fmt, row, 4), cell(fmt, row, 5),
-                        cell(fmt, row, 6), cell(fmt, row, 7), cell(fmt, row, 8)));
+                rows.add(new TeachRow(row.getRowNum() + 1, teacher, className, subjectName));
             }
         } catch (Exception e) {
             throw new BizException(400, "Excel 解析失败（需 .xlsx）: " + e.getMessage());
@@ -51,18 +48,17 @@ public class ExcelStudentHelper {
     /** 生成导入模板：仅表头（不放示例行，避免演示数据被误导入） */
     public byte[] template() {
         try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            var sheet = wb.createSheet("新生导入");
-            String[] headers = {"学号", "姓名", "性别(男/女)", "班级名称", "家长姓名", "家长电话",
-                    "宿舍楼", "宿舍号", "床位号"};
+            var sheet = wb.createSheet("任课导入");
+            String[] headers = {"教师(登录账号或姓名)(必填)", "班级名称(必填)", "任教学科(必填)"};
             var head = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 head.createCell(i).setCellValue(headers[i]);
-                sheet.setColumnWidth(i, 16 * 256);
+                sheet.setColumnWidth(i, 24 * 256);
             }
             wb.write(out);
             return out.toByteArray();
         } catch (Exception e) {
-            throw new BizException(500, "模板生成失败: " + e.getMessage());
+            throw new BizException(500, "生成模板失败: " + e.getMessage());
         }
     }
 }

@@ -7,8 +7,10 @@
         <el-option label="班主任" value="HEAD_TEACHER" />
         <el-option label="任课教师" value="TEACHER" />
       </el-select>
+      <el-input v-model="keyword" placeholder="账号/姓名搜索" style="width: 180px" clearable @change="loadUsers" />
       <el-button type="primary" @click="openCreate">新建账号</el-button>
       <el-button @click="openImport">批量导入</el-button>
+      <el-button @click="openTeachImport">导入任课</el-button>
     </div>
 
     <el-table :data="users" size="small">
@@ -128,10 +130,34 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="teachImportDialog" title="导入任课关系（Excel）" width="560px">
+      <div style="margin-bottom: 10px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6">
+        先下载模板，从第 2 行开始填写。教师列填登录账号或姓名（重名须改填账号）；班级名称与学科名须和管理端完全一致。
+        逐行校验：合法行入库，已存在的任课关系自动跳过，问题行列出原因。
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px">
+        <el-button size="small" @click="downloadTeachTemplate">下载模板</el-button>
+        <input type="file" accept=".xlsx"
+          @change="(e: Event) => (teachImportFile = (e.target as HTMLInputElement).files?.[0] ?? null)" />
+      </div>
+      <el-alert v-if="teachImportResult" :type="teachImportResult.failed ? 'warning' : 'success'" :closable="false">
+        新增 {{ teachImportResult.inserted }} 条<template v-if="teachImportResult.skipped">，已存在跳过 {{ teachImportResult.skipped }} 条</template><template v-if="teachImportResult.failed">，失败 {{ teachImportResult.failed }} 行：
+          <div v-for="e in teachImportResult.errors" :key="e.row" style="font-size: 12px">
+            第 {{ e.row }} 行：{{ e.reason }}
+          </div>
+        </template>
+      </el-alert>
+      <template #footer>
+        <el-button @click="teachImportDialog = false">关闭</el-button>
+        <el-button type="primary" :disabled="!teachImportFile" :loading="teachImporting" @click="doTeachImport">开始导入</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="dialog" :title="editing ? '编辑账号' : '新建账号'" width="460px">
       <el-form label-width="90px">
         <el-form-item label="登录名">
-          <el-input v-model="form.username" :disabled="!!editing" />
+          <el-input v-model="form.username" />
+          <div v-if="editing" class="hint">修改即换绑登录名（临时号转正等）；重置为统一初始密码后请通知本人</div>
         </el-form-item>
         <el-form-item v-if="!editing" label="初始密码">
           <el-input v-model="form.password" show-password />
@@ -161,15 +187,18 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../../api/http'
 import { saveFile } from '../../api/nativeShare'
 
+const route = useRoute()
 const users = ref<any[]>([])
 const classes = ref<{ id: number; name: string }[]>([])
 const subjects = ref<{ id: number; name: string }[]>([])
 const teaches = ref<any[]>([])
 const roleFilter = ref('')
+const keyword = ref((route.query.kw as string) || '')
 const dialog = ref(false)
 const editing = ref<any>(null)
 const form = ref<any>({})
@@ -182,6 +211,7 @@ function roleName(r: string) {
 async function loadUsers() {
   const qs = new URLSearchParams({ page: '1', size: '100' })
   if (roleFilter.value) qs.set('role', roleFilter.value)
+  if (keyword.value.trim()) qs.set('keyword', keyword.value.trim())
   const d = await api<{ records: any[] }>(`/api/admin/user/list?${qs}`)
   users.value = d.records
   await loadTeaches()
@@ -265,6 +295,35 @@ async function doImport() {
   }
 }
 
+const teachImportDialog = ref(false)
+const teachImportFile = ref<File | null>(null)
+const teachImporting = ref(false)
+const teachImportResult = ref<any>(null)
+
+function openTeachImport() {
+  teachImportFile.value = null
+  teachImportResult.value = null
+  teachImportDialog.value = true
+}
+
+async function downloadTeachTemplate() {
+  const blob = await fetchBlob('/api/admin/teach/import-template')
+  await saveFile(blob, '任课导入模板.xlsx')
+}
+
+async function doTeachImport() {
+  if (!teachImportFile.value) return
+  teachImporting.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', teachImportFile.value)
+    teachImportResult.value = await apiForm<any>('/api/admin/teach/import', fd)
+    await loadTeaches()
+  } finally {
+    teachImporting.value = false
+  }
+}
+
 function openEdit(row: any) {
   editing.value = row
   form.value = { username: row.username, realName: row.realName, role: row.role, phone: row.phone }
@@ -326,6 +385,7 @@ onMounted(async () => {
 <style scoped>
 /* 操作列 5 个按钮收一行：缩小按钮间距防换行 */
 .el-table :deep(.el-button + .el-button) { margin-left: 8px; }
+.hint { font-size: 11.5px; color: var(--el-text-color-secondary); line-height: 1.5; }
 .pf { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .pf-photo { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; }
 .pf-none { display: flex; align-items: center; justify-content: center;

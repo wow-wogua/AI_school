@@ -37,6 +37,11 @@
       </el-table-column>
       <el-table-column prop="guardianName" label="家长" width="90" />
       <el-table-column prop="guardianPhone" label="家长电话" width="130" />
+      <el-table-column label="宿舍" width="150">
+        <template #default="{ row }">
+          {{ row.dormBuilding ? `${row.dormBuilding}${row.dormRoom}${row.dormBed ? ' / ' + row.dormBed + '床' : ''}` : '' }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="130">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
@@ -71,6 +76,13 @@
         </el-form-item>
         <el-form-item label="家长姓名"><el-input v-model="form.guardianName" /></el-form-item>
         <el-form-item label="家长电话"><el-input v-model="form.guardianPhone" /></el-form-item>
+        <el-form-item label="宿舍">
+          <div style="display: flex; gap: 8px; width: 100%">
+            <el-input v-model="form.dormBuilding" placeholder="楼（如培英楼）" />
+            <el-input v-model="form.dormRoom" placeholder="房号" />
+            <el-input v-model="form.dormBed" placeholder="床位" />
+          </div>
+        </el-form-item>
         <el-form-item v-if="form.id" label="照片">
           <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
             <el-image v-if="photos[form.id]" :src="photos[form.id]" fit="cover"
@@ -114,16 +126,18 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../../api/http'
 import { saveFile } from '../../api/nativeShare'
 
+const route = useRoute()
 const classes = ref<any[]>([])
 const records = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const classId = ref<number>()
-const keyword = ref('')
+const keyword = ref((route.query.kw as string) || '')
 const statusFilter = ref('')
 const dialog = ref(false)
 const form = ref<any>({})

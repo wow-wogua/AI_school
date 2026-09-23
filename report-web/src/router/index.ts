@@ -39,6 +39,8 @@ const router = createRouter({
     { path: '/comprehensive', component: () => import('../views/ComprehensiveView.vue'), meta: { layout: 'sub', title: '综合素质' } },
     { path: '/bank', component: () => import('../views/TeacherBankView.vue'), meta: { layout: 'sub', title: '成长银行' } },
     { path: '/conduct-rules', component: () => import('../views/ConductRulesView.vue'), meta: { layout: 'sub', title: '德育规范' } },
+    // 意见反馈（批8.5）：教师/家长共用组件，双路由分流（家长被锁 /p/*）
+    { path: '/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'sub', title: '意见反馈' } },
     { path: '/profile', component: () => import('../views/ProfileView.vue'), meta: { layout: 'sub', title: '教师档案' } },
     { path: '/teacher-honor', component: () => import('../views/TeacherHonorView.vue'), meta: { layout: 'sub', title: '教师风采' } },
     { path: '/teacher-honor/new', component: () => import('../views/TeacherHonorCaptureView.vue'), meta: { layout: 'sub', title: '记录成就' } },
@@ -55,6 +57,8 @@ const router = createRouter({
     { path: '/p/moments', component: () => import('../views/parent/ParentMomentView.vue'), meta: { layout: 'psub', title: '微光信箱' } },
     // 成长报告（批5 家长版）：同任务双渲染的去成绩版 PDF，仅 parent_file_url 可达
     { path: '/p/report', component: () => import('../views/parent/ParentReportView.vue'), meta: { layout: 'psub', title: '成长报告' } },
+    // 意见反馈（批8.5）：家长入口
+    { path: '/p/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'psub', title: '意见反馈' } },
     // 领导端（LEADER 分流）：全校只读驾驶舱；成绩明细复用 /scores（LEADER 只读）；
     // 教师使用情况（批2）：六类行为按师聚合，psub 壳（第一版 sub-nav 形态+C 令牌）
     { path: '/l/home', component: () => import('../views/leader/LeaderHomeView.vue'), meta: { layout: 'lhome' } },
