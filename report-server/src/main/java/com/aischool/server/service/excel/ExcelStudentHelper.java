@@ -11,12 +11,13 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 新生 Excel：批量建档（学号/姓名/性别/班级名称/家长姓名/家长电话），POI 直读直写 */
+/** 新生 Excel：批量建档（学号/姓名/性别/班级名称/家长姓名/家长电话/宿舍楼/宿舍号/床位号），POI 直读直写 */
 @Service
 public class ExcelStudentHelper {
 
     public record StudentRow(int rowNum, String studentNo, String name, String gender,
-                             String className, String guardianName, String guardianPhone) {}
+                             String className, String guardianName, String guardianPhone,
+                             String dormBuilding, String dormRoom, String dormBed) {}
 
     /** 读首个工作表：跳过表头；学号与姓名均空的行跳过 */
     public List<StudentRow> read(InputStream in) {
@@ -33,7 +34,8 @@ public class ExcelStudentHelper {
                     continue;
                 }
                 rows.add(new StudentRow(row.getRowNum() + 1, no, name, cell(fmt, row, 2),
-                        cell(fmt, row, 3), cell(fmt, row, 4), cell(fmt, row, 5)));
+                        cell(fmt, row, 3), cell(fmt, row, 4), cell(fmt, row, 5),
+                        cell(fmt, row, 6), cell(fmt, row, 7), cell(fmt, row, 8)));
             }
         } catch (Exception e) {
             throw new BizException(400, "Excel 解析失败（需 .xlsx）: " + e.getMessage());
@@ -50,7 +52,8 @@ public class ExcelStudentHelper {
     public byte[] template() {
         try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             var sheet = wb.createSheet("新生导入");
-            String[] headers = {"学号", "姓名", "性别(男/女)", "班级名称", "家长姓名", "家长电话"};
+            String[] headers = {"学号", "姓名", "性别(男/女)", "班级名称", "家长姓名", "家长电话",
+                    "宿舍楼", "宿舍号", "床位号"};
             var head = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 head.createCell(i).setCellValue(headers[i]);

@@ -69,6 +69,9 @@ public class StudentController {
         r.put("status", s.getStatus());
         r.put("guardianName", s.getGuardianName());
         r.put("guardianPhone", s.getGuardianPhone());
+        r.put("dormBuilding", s.getDormBuilding());
+        r.put("dormRoom", s.getDormRoom());
+        r.put("dormBed", s.getDormBed());
         return ApiResponse.ok(r);
     }
 }

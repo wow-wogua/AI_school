@@ -49,6 +49,7 @@
       <van-cell title="状态" :value="stu.status || '—'" />
       <van-cell title="家长" :value="stu.guardianName || '—'" />
       <van-cell title="联系电话" :value="stu.guardianPhone || '—'" />
+      <van-cell title="宿舍" :value="stu.dormBuilding ? `${stu.dormBuilding} ${stu.dormRoom}${stu.dormBed ? ' / ' + stu.dormBed + '床' : ''}` : '—'" />
       <div class="barcode" aria-hidden="true"><i v-for="n in 24" :key="n" :style="{ opacity: n % 3 ? .8 : .35 }"></i></div>
     </div>
   </div>
@@ -64,7 +65,7 @@ import PhotoPreview from '../components/PhotoPreview.vue'
 const route = useRoute()
 const router = useRouter()
 
-interface Stu { name?: string; gender?: string; studentNo?: string; classId?: number; status?: string; guardianName?: string; guardianPhone?: string }
+interface Stu { name?: string; gender?: string; studentNo?: string; classId?: number; status?: string; guardianName?: string; guardianPhone?: string; dormBuilding?: string; dormRoom?: string; dormBed?: string }
 const stu = ref<Stu>({})
 const className = ref('')
 const termId = ref<number>()

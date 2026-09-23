@@ -284,6 +284,9 @@ public class AdminOrgController {
         private String photoUrl;
         private String guardianName;
         private String guardianPhone;
+        private String dormBuilding;
+        private String dormRoom;
+        private String dormBed;
     }
 
     @PostMapping("/student")
@@ -389,6 +392,9 @@ public class AdminOrgController {
             s.setStatus("在读");
             s.setGuardianName(r.guardianName().isBlank() ? null : r.guardianName());
             s.setGuardianPhone(r.guardianPhone().isBlank() ? null : r.guardianPhone());
+            s.setDormBuilding(r.dormBuilding().isBlank() ? null : r.dormBuilding());
+            s.setDormRoom(r.dormRoom().isBlank() ? null : r.dormRoom());
+            s.setDormBed(r.dormBed().isBlank() ? null : r.dormBed());
             studentMapper.insert(s);
             inserted++;
         }
@@ -480,6 +486,9 @@ public class AdminOrgController {
         s.setPhotoUrl(req.getPhotoUrl());
         s.setGuardianName(req.getGuardianName());
         s.setGuardianPhone(req.getGuardianPhone());
+        s.setDormBuilding(req.getDormBuilding());
+        s.setDormRoom(req.getDormRoom());
+        s.setDormBed(req.getDormBed());
     }
 
     /** 学生删除守卫：任一成长数据表有记录即拒删 */
