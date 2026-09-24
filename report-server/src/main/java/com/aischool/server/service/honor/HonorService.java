@@ -1,11 +1,16 @@
 package com.aischool.server.service.honor;
 
 import com.aischool.server.common.BizException;
+import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.Honor;
+import com.aischool.server.entity.Student;
+import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.HonorMapper;
+import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.service.ai.AiClient;
 import com.aischool.server.service.coin.CoinLedgerService;
 import com.aischool.server.service.report.PdfStoreService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +22,10 @@ import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -36,14 +43,17 @@ public class HonorService {
     private final PdfStoreService pdfStore;
     private final AiClient aiClient;
     private final CoinLedgerService coinLedger;
+    private final StudentMapper studentMapper;
+    private final ClazzMapper clazzMapper;
     private final ObjectMapper om = new ObjectMapper();
 
     /**
      * 上传证书：存 MinIO → AI 识别（未配置/失败/PDF 一律降级手动）→ 落库待确认。
      *
+     * @param uploadSource 上传来源 TEACHER|PARENT（家长上传待班主任确认后上墙）
      * @return {honorId, fileUrl, source: ai|manual, detail, parsed}
      */
-    public Map<String, Object> upload(Long studentId, MultipartFile file) {
+    public Map<String, Object> upload(Long studentId, MultipartFile file, String uploadSource) {
         if (file == null || file.isEmpty()) {
             throw new BizException(400, "请选择证书文件");
         }
@@ -105,6 +115,7 @@ public class HonorService {
         h.setHonorDate(parsed == null ? null : parseDate(parsed.get("date")));
         h.setFileUrl(objectName);
         h.setAiParsed(toJsonOrNull(parsed));
+        h.setSource(uploadSource);
         h.setConfirmStatus("待确认");
         honorMapper.insert(h);
 
@@ -115,6 +126,40 @@ public class HonorService {
         data.put("detail", detail);
         data.put("parsed", parsed);
         return data;
+    }
+
+    /** 全校荣誉墙（已确认）：所有老师、家长公开可看（原始需求一）；最新 200 条 */
+    public List<Map<String, Object>> wall() {
+        List<Honor> rows = honorMapper.selectList(new LambdaQueryWrapper<Honor>()
+                .eq(Honor::getConfirmStatus, "已确认")
+                .orderByDesc(Honor::getHonorDate)
+                .orderByDesc(Honor::getId)
+                .last("LIMIT 200"));
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        // selectBatchIds 传空集合会生成 IN () 非法 SQL，下方两个批量查询都先判空
+        var students = studentMapper.selectBatchIds(rows.stream().map(Honor::getStudentId).distinct().toList())
+                .stream().collect(java.util.stream.Collectors.toMap(Student::getId, s -> s));
+        List<Long> classIds = students.values().stream().map(Student::getClassId).distinct().toList();
+        var classes = classIds.isEmpty() ? java.util.Map.<Long, String>of()
+                : clazzMapper.selectBatchIds(classIds).stream()
+                .collect(java.util.stream.Collectors.toMap(Clazz::getId, Clazz::getName));
+        List<Map<String, Object>> list = new ArrayList<>(rows.size());
+        for (Honor h : rows) {
+            Student s = students.get(h.getStudentId());
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", h.getId());
+            m.put("name", h.getName());
+            m.put("level", h.getLevel());
+            m.put("issuer", h.getIssuer());
+            m.put("honorDate", h.getHonorDate());
+            m.put("source", h.getSource());
+            m.put("studentName", s == null ? "" : s.getName());
+            m.put("className", s == null || classes.get(s.getClassId()) == null ? "" : classes.get(s.getClassId()));
+            list.add(m);
+        }
+        return list;
     }
 
     /** 待确认态编辑字段 */

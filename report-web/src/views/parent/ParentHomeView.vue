@@ -89,6 +89,7 @@ const avatarChar = computed(() => auth.realName?.charAt(0) || '家')
    微光信箱/通知公告/育儿课堂批2、成长报告批5 家长版（去成绩板块）已点亮 */
 const grids = [
   { name: '微光信箱', icon: 'photograph', to: '/p/moments', bg: '#F97316' },
+  { name: '荣誉证书', icon: 'medal-o', to: '/p/honor', bg: '#EAB308' },
   { name: '通知公告', icon: 'bell', to: '/p/notices', bg: '#F59E0B' },
   { name: '育儿课堂', icon: 'bookmark-o', to: '/p/parenting', bg: '#10B981' },
   { name: '成长报告', icon: 'description', to: '/p/report', bg: '#14B8A6' },

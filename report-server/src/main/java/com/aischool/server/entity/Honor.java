@@ -21,6 +21,8 @@ public class Honor {
     private LocalDate honorDate;
     private String fileUrl;
     private String aiParsed;
+    /** 上传来源：TEACHER=教师上传（存量默认）| PARENT=家长自助上传（待班主任确认生效） */
+    private String source;
     private String confirmStatus;
     private LocalDateTime createTime;
 }

@@ -3,8 +3,10 @@ package com.aischool.server.controller;
 import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Honor;
+import com.aischool.server.entity.ParentBinding;
 import com.aischool.server.entity.Student;
 import com.aischool.server.mapper.HonorMapper;
+import com.aischool.server.mapper.ParentBindingMapper;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.auth.DataScopeService;
 import com.aischool.server.service.honor.HonorService;
@@ -40,6 +42,7 @@ public class HonorController {
     private final HonorService honorService;
     private final DataScopeService dataScope;
     private final PdfStoreService pdfStore;
+    private final ParentBindingMapper bindingMapper;
 
     @Data
     public static class SaveReq {
@@ -55,37 +58,54 @@ public class HonorController {
         private BigDecimal coin;
     }
 
-    /** 上传证书（multipart：file + studentId） */
+    /** 上传证书（multipart：file + studentId）；家长可给绑定孩子上传，待班主任确认后上墙（微光方案A 同款口径） */
     @PostMapping("/upload")
     public ApiResponse<Map<String, Object>> upload(@RequestParam Long studentId,
                                                    @RequestParam("file") MultipartFile file) {
+        if ("PARENT".equals(AuthUtil.current().role())) {
+            requireBound(studentId);
+            return ApiResponse.ok(honorService.upload(studentId, file, "PARENT"));
+        }
         checkWritable(studentId);
-        return ApiResponse.ok(honorService.upload(studentId, file));
+        return ApiResponse.ok(honorService.upload(studentId, file, "TEACHER"));
     }
 
-    /** 某学生的荣誉列表（create_time 倒序，含待确认） */
+    /** 某学生的荣誉列表（create_time 倒序，含待确认）；家长=绑定孩子 */
     @GetMapping("/list")
     public ApiResponse<List<Honor>> list(@RequestParam Long studentId) {
-        dataScope.checkStudentAccess(AuthUtil.current(), studentId);
+        if ("PARENT".equals(AuthUtil.current().role())) {
+            requireBound(studentId);
+        } else {
+            dataScope.checkStudentAccess(AuthUtil.current(), studentId);
+        }
         return ApiResponse.ok(honorMapper.selectList(new LambdaQueryWrapper<Honor>()
                 .eq(Honor::getStudentId, studentId)
                 .orderByDesc(Honor::getCreateTime)
                 .orderByDesc(Honor::getId)));
     }
 
+    /** 全校荣誉墙（已确认）：所有老师、家长公开可看（原始需求一「可看全校所有同学的」） */
+    @GetMapping("/wall")
+    public ApiResponse<List<Map<String, Object>>> wall() {
+        return ApiResponse.ok(honorService.wall());
+    }
+
     /** 编辑待确认荣誉字段 */
     @PutMapping("/{id}")
     public ApiResponse<Void> save(@PathVariable Long id, @RequestBody SaveReq req) {
         Honor h = requireHonor(id);
-        checkWritable(h.getStudentId());
+        checkEditable(h);
         honorService.save(id, req.getName(), req.getLevel(), req.getIssuer(), req.getHonorDate());
         return ApiResponse.ok();
     }
 
-    /** 确认生效（可选能量币入账） */
+    /** 确认生效（可选能量币入账）；家长不可确认——家长上传的由班主任确认 */
     @PutMapping("/{id}/confirm")
     public ApiResponse<Map<String, Object>> confirm(@PathVariable Long id,
                                                     @Validated @RequestBody ConfirmReq req) {
+        if ("PARENT".equals(AuthUtil.current().role())) {
+            throw new BizException(403, "家长上传的荣誉由班主任确认生效");
+        }
         Honor h = requireHonor(id);
         checkWritable(h.getStudentId());
         return ApiResponse.ok(honorService.confirm(id, req.getCoin()));
@@ -94,17 +114,23 @@ public class HonorController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         Honor h = requireHonor(id);
-        checkWritable(h.getStudentId());
+        checkEditable(h);
         honorService.delete(id);
         return ApiResponse.ok();
     }
 
-    /** 证书原件预览（inline；图片直显，PDF 同报告预览方式） */
+    /** 证书原件预览（inline；图片直显，PDF 同报告预览方式）；已确认=全校公开，待确认=本人可见范围 */
     @GetMapping("/file/{id}")
     public ResponseEntity<byte[]> file(@PathVariable Long id) throws IOException {
         var user = AuthUtil.current();
         Honor h = requireHonor(id);
-        dataScope.checkStudentAccess(user, h.getStudentId());
+        if (!"已确认".equals(h.getConfirmStatus())) {
+            if ("PARENT".equals(user.role())) {
+                requireBound(h.getStudentId());
+            } else {
+                dataScope.checkStudentAccess(user, h.getStudentId());
+            }
+        }
         if (h.getFileUrl() == null) {
             throw new BizException(404, "证书文件不存在");
         }
@@ -119,6 +145,26 @@ public class HonorController {
     }
 
     // ───────────────── 权限 ─────────────────
+
+    /** 编辑/删除（家长=自己上传的待确认项；教师侧=班主任/管理员，service 层限待确认） */
+    private void checkEditable(Honor h) {
+        if ("PARENT".equals(AuthUtil.current().role())) {
+            requireBound(h.getStudentId());
+            if (!"PARENT".equals(h.getSource()) || !"待确认".equals(h.getConfirmStatus())) {
+                throw new BizException(403, "仅可修改自己上传的待确认荣誉");
+            }
+            return;
+        }
+        checkWritable(h.getStudentId());
+    }
+
+    private void requireBound(Long studentId) {
+        if (bindingMapper.selectCount(new LambdaQueryWrapper<ParentBinding>()
+                .eq(ParentBinding::getParentUserId, AuthUtil.current().userId())
+                .eq(ParentBinding::getStudentId, studentId)) == 0) {
+            throw new BizException(403, "该学生未绑定当前家长账号");
+        }
+    }
 
     /** 写（上传/编辑/确认/删除）：管理员或该班班主任 */
     private void checkWritable(Long studentId) {
