@@ -114,6 +114,7 @@ const grids = computed(() => [
   { name: '行政办公', icon: 'todo-list-o', to: '/oa', bg: '#7C3AED' },
   { name: '报修', icon: 'brush-o', to: '/repair', bg: '#0891B2' },
   { name: '谈心记录', icon: 'chat-o', to: '/talk', bg: '#7C4DD8' },
+  { name: '成长足迹', icon: 'award-o', to: '/footprint', bg: '#0F766E' },
 ])
 
 function chipClass(type: string) {

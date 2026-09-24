@@ -90,7 +90,7 @@
 import { computed, markRaw, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { Aim, AlarmClock, Calendar, ChatDotRound, ChatLineRound, Coin, DataLine, Document, FirstAidKit, Goods as GoodsIcon, Iphone, OfficeBuilding, Postcard, Promotion, School, Setting, Stamp, Tickets, Tools, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
+import { Aim, AlarmClock, Calendar, ChatDotRound, ChatLineRound, Coin, DataLine, Document, FirstAidKit, Goods as GoodsIcon, Iphone, Medal, OfficeBuilding, Postcard, Promotion, School, Setting, Stamp, Tickets, Tools, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
 import { api } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import TeacherTab from '../components/admin/TeacherTab.vue'
@@ -116,6 +116,7 @@ import GoodsTab from '../components/admin/GoodsTab.vue'
 import RepairTab from '../components/admin/RepairTab.vue'
 import VenueTab from '../components/admin/VenueTab.vue'
 import TalkTab from '../components/admin/TalkTab.vue'
+import FootprintTab from '../components/admin/FootprintTab.vue'
 
 const auth = useAuthStore()
 
@@ -154,9 +155,10 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   repair: { label: '报修处理', comp: markRaw(RepairTab), icon: Tools },
   venue: { label: '场地管理', comp: markRaw(VenueTab), icon: OfficeBuilding },
   talk: { label: '谈心记录', comp: markRaw(TalkTab), icon: ChatLineRound },
+  footprint: { label: '教师足迹', comp: markRaw(FootprintTab), icon: Medal },
 }
 const groups = [
-  { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile'] },
+  { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile', 'footprint'] },
   { label: '内容运营', items: ['content', 'appRelease'] },
   { label: '基础数据', items: ['org', 'student', 'term', 'exam', 'duty', 'indicator', 'shop', 'goods', 'venue', 'template'] },
   { label: '系统运维', items: ['oa', 'repair', 'talk', 'feedback', 'health', 'audit', 'aiUsage'] },
