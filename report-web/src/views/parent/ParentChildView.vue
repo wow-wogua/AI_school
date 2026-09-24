@@ -38,6 +38,16 @@
       </div>
     </div>
 
+    <!-- 成长档案入口（批14 生命周期）：在校全期记录 -->
+    <div class="app-card tex-f archive-link" @click="goArchive">
+      <van-icon name="records" class="a-icon" />
+      <div class="a-text">
+        <b>成长档案</b>
+        <span>入学以来全部评价 · 活动 · 荣誉 · 微光</span>
+      </div>
+      <van-icon name="arrow" class="a-arrow" />
+    </div>
+
     <!-- 成长动态（feed 结构同教师端最近动态） -->
     <div class="app-sec">成长动态</div>
     <div class="app-card tex-c feed">
@@ -59,10 +69,11 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../../api/http'
 
 const route = useRoute()
+const router = useRouter()
 const child = ref<any>(null)
 const evaluations = ref<any[]>([])
 const wallet = ref<any>({})
@@ -71,6 +82,10 @@ const loading = ref(true)
 function fmtTime(t?: string) {
   if (!t) return ''
   return t.slice(0, 16).replace('T', ' ')
+}
+
+function goArchive() {
+  router.push(`/p/archive/${route.params.id}`)
 }
 
 onMounted(async () => {
@@ -112,6 +127,14 @@ onMounted(async () => {
 
 /* C 覆盖：区块竖条换 C 红（卡片/结构均第一版全局类） */
 .p-child .app-sec::before { background: var(--shine-red); }
+
+/* 成长档案入口条（批14）：横向点击卡 */
+.archive-link { margin-top: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.a-icon { flex: none; font-size: 22px; color: var(--shine-navy); }
+.a-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.a-text b { font-size: 14px; color: var(--app-text-1); }
+.a-text span { font-size: 11px; color: var(--app-text-3); }
+.a-arrow { flex: none; color: var(--app-text-3); }
 
 /* 双账本卡（批3）：左操行右能量币，窄于 480px 纵排 */
 .wallet { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
