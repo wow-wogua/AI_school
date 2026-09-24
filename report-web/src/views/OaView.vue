@@ -8,6 +8,9 @@
       <button class="start-btn goods" type="button" @click="openNew('GOODS')">
         <van-icon name="shopping-cart-o" /><span>物资申领</span>
       </button>
+      <button class="start-btn leave" type="button" @click="openNew('LEAVE')">
+        <van-icon name="clock-o" /><span>教师请假</span>
+      </button>
     </div>
 
     <van-tabs v-model:active="tab" class="oa-tabs" sticky>
@@ -15,7 +18,7 @@
         <div class="app-card list">
           <div v-if="!my.length" class="empty">还没有申请记录</div>
           <div v-for="f in my" :key="f.id" class="row" @click="openDetail(f.id)">
-            <van-tag :type="f.formType === 'SEAL' ? 'primary' : 'warning'" plain>{{ f.typeName }}</van-tag>
+            <van-tag :type="tagOf(f.formType)" plain>{{ f.typeName }}</van-tag>
             <div class="r-body">
               <p class="r-title">{{ f.title }}</p>
               <p class="r-sub">{{ statusText(f) }} · {{ relTime(f.createTime) }}</p>
@@ -28,7 +31,7 @@
         <div class="app-card list">
           <div v-if="!todo.length" class="empty">暂无待审批单据</div>
           <div v-for="f in todo" :key="f.id" class="row" @click="openDetail(f.id)">
-            <van-tag :type="f.formType === 'SEAL' ? 'primary' : 'warning'" plain>{{ f.typeName }}</van-tag>
+            <van-tag :type="tagOf(f.formType)" plain>{{ f.typeName }}</van-tag>
             <div class="r-body">
               <p class="r-title">{{ f.applicantName }}：{{ f.title }}</p>
               <p class="r-sub">待 {{ f.nodeName }} · {{ relTime(f.createTime) }}</p>
@@ -42,15 +45,25 @@
     <!-- 发起弹层 -->
     <van-popup v-model:show="newOpen" position="bottom" round :style="{ maxHeight: '82%' }" class="pop">
       <div class="p-head">
-        <b>{{ newType === 'SEAL' ? '公章使用申请' : '物资申领' }}</b>
+        <b>{{ typeLabel(newType) }}</b>
         <small>{{ newType === 'SEAL' ? '提交后依次经一、二、三级审批' : '提交后按学校配置的级数审批' }}</small>
       </div>
       <div class="p-body">
         <template v-if="newType === 'SEAL'">
           <van-field v-model="newTitle" type="textarea" rows="2" autosize label="事由" placeholder="例如：学生竞赛报名表盖章"
             :rules="[{ required: true, message: '请填写事由' }]" />
-          <van-field :model-value="newDateText" is-link readonly label="使用日期" placeholder="选择日期（可选）"
-            @click="dateOpen = true" />
+          <van-field :model-value="useDate" is-link readonly label="使用日期" placeholder="选择日期（可选）"
+            @click="openDate('use')" />
+        </template>
+        <template v-else-if="newType === 'LEAVE'">
+          <van-field :model-value="leaveType" is-link readonly label="请假类型" placeholder="选择类型（必选）"
+            @click="leaveOpen = true" />
+          <van-field :model-value="leaveStart" is-link readonly label="开始日期" placeholder="必选"
+            @click="openDate('start')" />
+          <van-field :model-value="leaveEnd" is-link readonly label="结束日期" placeholder="必选"
+            @click="openDate('end')" />
+          <van-field v-model="newTitle" type="textarea" rows="2" autosize label="事由"
+            placeholder="例如：家中急事需请假一天" />
         </template>
         <template v-else>
           <div v-for="(l, i) in newLines" :key="i" class="g-line">
@@ -82,6 +95,11 @@
           <div class="app-sec" style="margin: 0 0 4px">申请明细</div>
           <div v-if="detail.formType === 'SEAL'" class="detail-cells">
             <p><span>使用日期</span><b>{{ detailJson.useDate || '未指定' }}</b></p>
+            <p><span>事由</span><b>{{ detailJson.reason }}</b></p>
+          </div>
+          <div v-else-if="detail.formType === 'LEAVE'" class="detail-cells">
+            <p><span>请假类型</span><b>{{ detailJson.leaveType }}</b></p>
+            <p><span>起止日期</span><b>{{ detailJson.startDate }} ~ {{ detailJson.endDate }}</b></p>
             <p><span>事由</span><b>{{ detailJson.reason }}</b></p>
           </div>
           <div v-else class="detail-cells goods-cells">
@@ -118,13 +136,19 @@
       </template>
     </van-popup>
 
-    <!-- 物资/日期选择器 -->
+    <!-- 物资/类型/日期选择器 -->
     <van-popup v-model:show="goodsOpen" position="bottom" round>
       <van-picker title="选择物资" :columns="goodsColumns" @confirm="onGoods" @cancel="goodsOpen = false" />
     </van-popup>
+    <van-popup v-model:show="leaveOpen" position="bottom" round>
+      <van-picker title="请假类型" :columns="LEAVE_TYPES"
+        @confirm="(ev: any) => { leaveType = ev.selectedOptions?.[0]?.text || ''; leaveOpen = false }"
+        @cancel="leaveOpen = false" />
+    </van-popup>
     <van-popup v-model:show="dateOpen" position="bottom" round>
-      <van-date-picker title="使用日期" v-model="datePick" :columns-type="['year', 'month', 'day']"
-        :min-date="minDate" :max-date="maxDate" @confirm="dateOpen = false" @cancel="dateOpen = false" />
+      <van-date-picker :title="dateField === 'use' ? '使用日期' : dateField === 'start' ? '开始日期' : '结束日期'"
+        v-model="dateBuf" :columns-type="['year', 'month', 'day']"
+        :min-date="minDate" :max-date="maxDate" @confirm="onDateOk" @cancel="dateOpen = false" />
     </van-popup>
   </div>
 </template>
@@ -165,25 +189,57 @@ async function load() {
 const newOpen = ref(false)
 const newType = ref('SEAL')
 const newTitle = ref('')
-const datePick = ref<string[]>([])
-const dateOpen = ref(false)
+const useDate = ref('')
 const goods = ref<GoodsOpt[]>([])
 const goodsOpen = ref(false)
 const pickLine = ref(0)
 const newLines = ref<{ goodsId: number; name: string; qty: string }[]>([{ goodsId: 0, name: '', qty: '' }])
 const submitting = ref(false)
 
+/* 日期三字段共用一个 picker（use=公章使用日期 / start·end=请假起止） */
+const dateOpen = ref(false)
+const dateField = ref<'use' | 'start' | 'end'>('use')
+const dateBuf = ref<string[]>([])
+const leaveType = ref('')
+const leaveStart = ref('')
+const leaveEnd = ref('')
+const leaveOpen = ref(false)
+const LEAVE_TYPES = ['事假', '病假', '婚假', '产假', '其他'].map((t) => ({ text: t, value: t }))
+
 const minDate = new Date(2020, 0, 1)
 const maxDate = new Date(2030, 11, 31)
-const newDateText = computed(() => datePick.value.length === 3 ? datePick.value.join('-') : '')
 const goodsColumns = computed(() => goods.value.map((g) => ({
   text: `${g.name}（库存 ${g.stock}${g.unit}）`, value: g.id,
 })))
 
+function typeLabel(t: string) {
+  return ({ SEAL: '公章使用申请', GOODS: '物资申领', LEAVE: '教师请假' } as Record<string, string>)[t] || t
+}
+function tagOf(t: string) {
+  return ({ SEAL: 'primary', GOODS: 'warning', LEAVE: 'success' } as Record<string, string>)[t] || 'primary'
+}
+
+function openDate(field: 'use' | 'start' | 'end') {
+  dateField.value = field
+  const v = field === 'use' ? useDate.value : field === 'start' ? leaveStart.value : leaveEnd.value
+  dateBuf.value = v ? v.split('-') : []
+  dateOpen.value = true
+}
+function onDateOk() {
+  const v = dateBuf.value.join('-')
+  if (dateField.value === 'use') useDate.value = v
+  else if (dateField.value === 'start') leaveStart.value = v
+  else leaveEnd.value = v
+  dateOpen.value = false
+}
+
 function openNew(type: string) {
   newType.value = type
   newTitle.value = ''
-  datePick.value = []
+  useDate.value = ''
+  leaveType.value = ''
+  leaveStart.value = ''
+  leaveEnd.value = ''
   newLines.value = [{ goodsId: 0, name: '', qty: '' }]
   if (type === 'GOODS' && !goods.value.length) {
     api<GoodsOpt[]>('/api/oa/goods').then((d) => (goods.value = d)).catch(() => {})
@@ -206,7 +262,19 @@ async function doSubmit() {
     if (!newTitle.value.trim()) { showToast('请填写事由'); return }
     submitting.value = true
     try {
-      await api('/api/oa/submit', { method: 'POST', json: { formType: 'SEAL', title: newTitle.value, useDate: newDateText.value } })
+      await api('/api/oa/submit', { method: 'POST', json: { formType: 'SEAL', title: newTitle.value, useDate: useDate.value } })
+    } finally { submitting.value = false }
+  } else if (newType.value === 'LEAVE') {
+    if (!leaveType.value) { showToast('请选择请假类型'); return }
+    if (!leaveStart.value || !leaveEnd.value) { showToast('请选择起止日期'); return }
+    if (leaveEnd.value < leaveStart.value) { showToast('结束日期不能早于开始日期'); return }
+    if (!newTitle.value.trim()) { showToast('请填写请假事由'); return }
+    submitting.value = true
+    try {
+      await api('/api/oa/submit', {
+        method: 'POST',
+        json: { formType: 'LEAVE', title: newTitle.value, leaveType: leaveType.value, startDate: leaveStart.value, endDate: leaveEnd.value },
+      })
     } finally { submitting.value = false }
   } else {
     const lines = newLines.value.filter((l) => l.goodsId && Number(l.qty) > 0)
@@ -281,6 +349,7 @@ onMounted(load)
 .start-btn .van-icon { font-size: 22px; }
 .start-btn.seal { background: linear-gradient(150deg, #8C1D23, #A8232B); }
 .start-btn.goods { background: linear-gradient(150deg, #B45309, #D97706); }
+.start-btn.leave { background: linear-gradient(150deg, #047857, #0D9467); }
 
 .list { margin-top: 12px; padding: 6px 14px; }
 .row { display: flex; align-items: center; gap: 10px; padding: 12px 0; cursor: pointer; }

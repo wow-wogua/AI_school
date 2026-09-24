@@ -1,0 +1,118 @@
+<template>
+  <div>
+    <div class="bar">
+      <el-select v-model="qStatus" clearable placeholder="状态" style="width: 130px" @change="load">
+        <el-option value="PENDING" label="待处理" />
+        <el-option value="DONE" label="已完成" />
+        <el-option value="REJECTED" label="不予受理" />
+      </el-select>
+    </div>
+    <el-table :data="rows" size="small">
+      <el-table-column prop="id" label="单号" width="70" />
+      <el-table-column prop="location" label="地点/设施" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="description" label="故障描述" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="reporterName" label="报修人" width="90" />
+      <el-table-column label="凭证" width="60">
+        <template #default="{ row }">{{ row.photoCount || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="tagType(row.status)" size="small">{{ stLabel(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="报修时间" width="140">
+        <template #default="{ row }">{{ fmtTime(row.createTime) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" :width="qStatus === 'PENDING' || !qStatus ? 130 : 80">
+        <template #default="{ row }">
+          <el-button link type="primary" size="small" @click="open(row.id)">详情</el-button>
+          <el-button v-if="row.status === 'PENDING'" link type="success" size="small" @click="open(row.id)">处理</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 详情/处理 -->
+    <el-dialog v-model="dlg" title="报修详情" width="560px">
+      <template v-if="detail">
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="地点/设施">{{ detail.location }}</el-descriptions-item>
+          <el-descriptions-item label="故障描述">{{ detail.description }}</el-descriptions-item>
+          <el-descriptions-item label="报修人">{{ detail.reporterName }}</el-descriptions-item>
+          <el-descriptions-item label="报修时间">{{ fmtTime(detail.createTime) }}</el-descriptions-item>
+          <el-descriptions-item v-if="detail.status !== 'PENDING'" label="处理结果">
+            {{ stLabel(detail.status) }} · {{ detail.handlerName }} · {{ fmtTime(detail.handleTime) }}
+            <template v-if="detail.handleNote">（{{ detail.handleNote }}）</template>
+          </el-descriptions-item>
+        </el-descriptions>
+        <div v-if="imgs.length" class="shots">
+          <el-image v-for="(u, i) in imgs" :key="i" :src="u" fit="cover"
+            :preview-src-list="imgs" :initial-index="i" class="shot" />
+        </div>
+        <div v-if="detail.status === 'PENDING'" class="acts">
+          <el-input v-model="note" placeholder="处理说明（可选）" style="width: 240px" />
+          <el-button type="warning" plain @click="handle('REJECTED')">不予受理</el-button>
+          <el-button type="primary" @click="handle('DONE')">标记完成</el-button>
+        </div>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { api, fetchBlob } from '../../api/http'
+
+const qStatus = ref('')
+const rows = ref<any[]>([])
+const dlg = ref(false)
+const detail = ref<any>(null)
+const note = ref('')
+const imgs = ref<string[]>([])
+
+async function load() {
+  const p = new URLSearchParams()
+  if (qStatus.value) p.set('status', qStatus.value)
+  rows.value = await api<any[]>(`/api/admin/repair/list?${p}`)
+}
+
+async function open(id: number) {
+  note.value = ''
+  detail.value = await api<any>(`/api/admin/repair/${id}`)
+  imgs.value = []
+  dlg.value = true
+  for (const u of detail.value.photoUrls) {
+    try {
+      const blob = await fetchBlob(u)
+      imgs.value.push(URL.createObjectURL(blob))
+    } catch { /* 单张缺失不阻塞 */ }
+  }
+}
+
+async function handle(status: string) {
+  if (!detail.value) return
+  await api(`/api/admin/repair/${detail.value.id}/handle`, { method: 'PUT', json: { status, note: note.value.trim() } })
+  ElMessage.success(status === 'DONE' ? '已标记完成' : '已标记不予受理')
+  dlg.value = false
+  await load()
+}
+
+function fmtTime(t?: string) {
+  return t ? t.slice(0, 16).replace('T', ' ') : '—'
+}
+function stLabel(s: string) {
+  return ({ PENDING: '待处理', DONE: '已完成', REJECTED: '不予受理' } as Record<string, string>)[s] || s
+}
+function tagType(s: string) {
+  return ({ PENDING: 'warning', DONE: 'success', REJECTED: 'info' } as Record<string, string>)[s] || 'info'
+}
+
+onMounted(load)
+</script>
+
+<style scoped>
+.bar { display: flex; align-items: center; gap: 10px; margin: 12px 0 8px; }
+.shots { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.shot { width: 120px; height: 90px; border-radius: 8px; }
+.acts { display: flex; gap: 10px; margin-top: 14px; }
+</style>
