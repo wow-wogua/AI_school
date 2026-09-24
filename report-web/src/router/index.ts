@@ -47,6 +47,7 @@ const router = createRouter({
     { path: '/repair', component: () => import('../views/RepairView.vue'), meta: { layout: 'sub', title: '报修' } },
     // 谈心记录（批11）：教师对可见班级学生，管理端全量
     { path: '/talk', component: () => import('../views/TalkView.vue'), meta: { layout: 'sub', title: '谈心记录' } },
+    { path: '/footprint', component: () => import('../views/FootprintView.vue'), meta: { layout: 'sub', title: '成长足迹' } },
     // 意见反馈（批8.5）：教师/家长共用组件，双路由分流（家长被锁 /p/*）
     { path: '/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'sub', title: '意见反馈' } },
     { path: '/profile', component: () => import('../views/ProfileView.vue'), meta: { layout: 'sub', title: '教师档案' } },
