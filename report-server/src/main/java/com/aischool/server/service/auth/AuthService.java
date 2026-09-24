@@ -1,7 +1,13 @@
 package com.aischool.server.service.auth;
 
 import com.aischool.server.common.BizException;
+import com.aischool.server.entity.InviteCode;
+import com.aischool.server.entity.ParentBinding;
+import com.aischool.server.entity.Student;
 import com.aischool.server.entity.User;
+import com.aischool.server.mapper.InviteCodeMapper;
+import com.aischool.server.mapper.ParentBindingMapper;
+import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.JwtService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -36,6 +42,81 @@ public class AuthService {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
     private final RoleApprovalService roleApprovalService;
+    private final InviteCodeMapper inviteCodeMapper;
+    private final StudentMapper studentMapper;
+    private final ParentBindingMapper parentBindingMapper;
+
+    /** 家长自助注册（批8.6）：学号+邀请码绑定孩子；自助绑定每生上限 2 个（管理端/班主任绑定不受限）。
+     *  手机号即登录名；密码自设（≥8 位，无强制改密）。成功即登录，返回与 login 相同结构。 */
+    public Map<String, Object> registerParent(String phone, String password, String studentNo,
+                                              String inviteCode, String realName, String relation) {
+        if (phone == null || !phone.matches("^1\\d{10}$")) {
+            throw new BizException(400, "手机号格式不正确");
+        }
+        if (password == null || password.length() < 8) {
+            throw new BizException(400, "密码至少 8 位");
+        }
+        if (userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .and(q -> q.eq(User::getPhone, phone).or().eq(User::getUsername, phone))) > 0) {
+            throw new BizException(400, "该手机号已被使用，如忘记密码请联系班主任重置");
+        }
+        if (studentNo == null || studentNo.isBlank() || inviteCode == null || inviteCode.isBlank()) {
+            throw new BizException(400, "请填写孩子学号与邀请码");
+        }
+        Student student = studentMapper.selectOne(new LambdaQueryWrapper<Student>()
+                .eq(Student::getStudentNo, studentNo.trim()).last("LIMIT 1"));
+        if (student == null) {
+            throw new BizException(400, "学号不存在，请向班主任核对");
+        }
+        if ("毕业".equals(student.getStatus()) || "转出".equals(student.getStatus())) {
+            throw new BizException(400, "该学生已不在校，请联系学校管理员");
+        }
+        InviteCode code = inviteCodeMapper.selectOne(new LambdaQueryWrapper<InviteCode>()
+                .eq(InviteCode::getCode, inviteCode.trim()).last("LIMIT 1"));
+        if (code == null || !student.getId().equals(code.getStudentId())) {
+            throw new BizException(400, "邀请码不正确（一码对应一位学生，请向班主任核对）");
+        }
+        if (code.getStatus() != InviteCode.UNUSED) {
+            throw new BizException(400, "邀请码已使用或已作废，请向班主任重新获取");
+        }
+        // 自助上限 2/生（管理端/班主任绑定不占此限，爷爷奶奶兜底走管理端）
+        long selfBound = parentBindingMapper.selectCount(new LambdaQueryWrapper<ParentBinding>()
+                .eq(ParentBinding::getStudentId, student.getId())
+                .eq(ParentBinding::getSource, 1));
+        if (selfBound >= 2) {
+            throw new BizException(400, "该学生的自助注册名额已满（上限 2 位），其余家长请联系班主任绑定");
+        }
+        User u = new User();
+        u.setUsername(phone);
+        u.setPasswordHash(passwordEncoder.encode(password));
+        u.setRealName(realName == null || realName.isBlank() ? student.getName() + "家长" : realName.trim());
+        u.setRole("PARENT");
+        u.setPhone(phone);
+        u.setStatus(1);
+        u.setMustChangePwd(0);
+        userMapper.insert(u);
+        ParentBinding b = new ParentBinding();
+        b.setParentUserId(u.getId());
+        b.setStudentId(student.getId());
+        b.setRelation(relation == null || relation.isBlank() ? "家长" : relation.trim());
+        b.setSource(1);
+        parentBindingMapper.insert(b);
+        code.setStatus(InviteCode.USED);
+        code.setUsedBy(u.getId());
+        inviteCodeMapper.updateById(code);
+
+        String token = jwtService.issue(u.getId(), u.getUsername(), u.getRealName(), u.getRole(), false);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("token", token);
+        Map<String, Object> us = new LinkedHashMap<>();
+        us.put("id", u.getId());
+        us.put("username", u.getUsername());
+        us.put("realName", u.getRealName());
+        us.put("role", u.getRole());
+        us.put("mustChangePassword", false);
+        m.put("user", us);
+        return m;
+    }
 
     public Map<String, Object> login(String username, String password) {
         Long locked = lockUntil.get(username);

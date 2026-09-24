@@ -8,9 +8,14 @@
           <h1>成长档案</h1>
           <p>记录学生成长的每一时刻</p>
         </div>
-        <button class="class-pick" type="button" @click="pickOpen = true">
-          {{ curClassName }} <van-icon name="arrow-down" />
-        </button>
+        <div class="hero-btns">
+          <button v-if="canInvite" class="class-pick invite-pick" type="button" @click="openInvite">
+            <van-icon name="envelope" /> 邀请码
+          </button>
+          <button class="class-pick" type="button" @click="pickOpen = true">
+            {{ curClassName }} <van-icon name="arrow-down" />
+          </button>
+        </div>
       </div>
       <!-- 校园全景照片带（学校元素） -->
       <img class="hero-photo" src="/campus-pano.jpg" alt="石实实验学校">
@@ -74,6 +79,29 @@
     <van-popup v-model:show="pickOpen" position="bottom" round>
       <van-picker title="选择班级" :columns="classColumns" @confirm="onPick" @cancel="pickOpen = false" />
     </van-popup>
+
+    <!-- 家长邀请码（批8.6）：班主任/级长/管理员按班生成，家长凭「学号+邀请码」自助注册 -->
+    <van-popup v-model:show="inviteOpen" position="bottom" round :style="{ maxHeight: '78%' }" class="invite-pop">
+      <div class="iv-head">
+        <div>
+          <b>家长邀请码</b>
+          <small>发给对应学生的家长，在登录页「家长注册」使用</small>
+        </div>
+        <van-button size="small" round type="primary" :loading="inviteBusy" @click="genAll">一键生成全班</van-button>
+      </div>
+      <div class="iv-list">
+        <div v-for="r in inviteRows" :key="r.studentId" class="iv-row" @click="copyCode(r)">
+          <div class="iv-stu">
+            <b>{{ r.name }}</b>
+            <small>{{ r.studentNo || '无学号' }}<template v-if="r.boundCount"> · 已绑 {{ r.boundCount }} 位家长</template><template v-if="r.registered"> · 已注册</template></small>
+          </div>
+          <van-tag v-if="r.code" type="primary" plain class="iv-code">{{ r.code }}</van-tag>
+          <span v-else class="iv-none">未生成</span>
+        </div>
+        <van-empty v-if="!inviteRows.length" image-size="72" description="本班暂无在读学生" />
+      </div>
+      <p class="iv-tip">点击行复制邀请码；重新生成后旧码作废。每位学生最多自助注册 2 位家长，更多家长请由管理端绑定。</p>
+    </van-popup>
     </van-pull-refresh>
     <PhotoPreview ref="photoPreview" />
   </div>
@@ -81,7 +109,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { showSuccessToast, showToast } from 'vant'
 import { api } from '../api/http'
+import { useAuthStore } from '../stores/auth'
 import MomentPhoto from '../components/MomentPhoto.vue'
 import CampusSkyline from '../components/CampusSkyline.vue'
 import PhotoPreview from '../components/PhotoPreview.vue'
@@ -98,6 +128,49 @@ const total = ref(0)
 const keyword = ref('')
 const loading = ref(true)
 const pickOpen = ref(false)
+
+/* 家长邀请码（批8.6）：班主任/级长/管理员可见（后端按班硬校验） */
+const auth = useAuthStore()
+const canInvite = computed(() => ['HEAD_TEACHER', 'LEADER', 'ADMIN'].includes(auth.role))
+interface InviteRow { studentId: number; studentNo: string; name: string; code: string; registered: boolean; boundCount: number }
+const inviteOpen = ref(false)
+const inviteBusy = ref(false)
+const inviteRows = ref<InviteRow[]>([])
+
+async function openInvite() {
+  if (!classId.value) return
+  inviteOpen.value = true
+  await loadInvite()
+}
+
+async function loadInvite() {
+  try {
+    inviteRows.value = await api<InviteRow[]>(`/api/invite/list?classId=${classId.value}`)
+  } catch (e) {
+    inviteOpen.value = false
+    showToast((e as Error).message || '仅班主任可查看本班邀请码')
+  }
+}
+
+async function genAll() {
+  inviteBusy.value = true
+  try {
+    await api('/api/invite/generate', { method: 'POST', json: { classId: classId.value } })
+    await loadInvite()
+  } finally {
+    inviteBusy.value = false
+  }
+}
+
+async function copyCode(r: InviteRow) {
+  if (!r.code) return
+  try {
+    await navigator.clipboard.writeText(r.code)
+    showSuccessToast(`已复制 ${r.name} 的邀请码`)
+  } catch {
+    showToast(`邀请码：${r.code}`)
+  }
+}
 const refreshing = ref(false)
 const photoPreview = ref<InstanceType<typeof PhotoPreview>>()
 
@@ -219,3 +292,22 @@ onMounted(async () => {
 .stu-arrow { color: #C6CDD9; }
 .count { margin: 14px 0 0; text-align: center; font-size: 12px; color: var(--app-text-3); }
 </style>
+
+/* 家长邀请码入口+弹层（批8.6） */
+.hero-btns { display: flex; gap: 8px; flex: none; }
+.invite-pick { background: rgba(255,255,255,.92); }
+:global(.invite-pop) { padding-bottom: 12px; }
+.iv-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 16px 18px 10px; }
+.iv-head b { font-size: 16px; }
+.iv-head small { display: block; margin-top: 2px; font-size: 11px; color: var(--app-text-3); }
+.iv-list { max-height: 46vh; overflow-y: auto; padding: 0 10px; }
+.iv-row { display: flex; align-items: center; gap: 10px; padding: 10px 10px;
+  border-bottom: 1px solid var(--app-card-border, #eef1f7); }
+.iv-row:last-child { border-bottom: none; }
+.iv-stu { flex: 1; min-width: 0; }
+.iv-stu b { font-size: 14px; }
+.iv-stu small { display: block; font-size: 11px; color: var(--app-text-3); }
+.iv-code { font-size: 14px; font-weight: 700; letter-spacing: 2px; font-family: monospace; }
+.iv-none { font-size: 12px; color: var(--app-text-3); }
+.iv-tip { margin: 8px 18px 4px; font-size: 11px; line-height: 1.6; color: var(--app-text-3); }

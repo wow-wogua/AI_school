@@ -15,6 +15,8 @@ const router = createRouter({
     { path: '/login', component: () => import('../views/LoginView.vue'), meta: { layout: 'bare' } },
     // 首登强制改密页（管理员设密/重置/批量导入初始密码后；改完才放行业务）
     { path: '/change-password', component: () => import('../views/ChangePasswordView.vue'), meta: { layout: 'bare' } },
+    // 家长自助注册（批8.6）：学号+邀请码绑定，免登录
+    { path: '/p/register', component: () => import('../views/ParentRegisterView.vue'), meta: { layout: 'bare' } },
     // 底部 Tab 一级页
     { path: '/', component: () => import('../views/HomeView.vue'), meta: { layout: 'tab', tab: 'home' } },
     { path: '/class', component: () => import('../views/ClassView.vue'), meta: { layout: 'tab', tab: 'class' } },
@@ -74,7 +76,7 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  if (to.path !== '/login' && to.path !== '/change-password' && !auth.token) return '/login'
+  if (to.path !== '/login' && to.path !== '/change-password' && to.path !== '/p/register' && !auth.token) return '/login'
   // 首登强制改密：未改密前一切页面都拦到改密页（改密页/登录页除外）
   if (auth.mustChangePwd && to.path !== '/change-password' && to.path !== '/login') {
     return '/change-password'
@@ -82,9 +84,10 @@ router.beforeEach((to) => {
   // 角色分流：PARENT 锁 /p/*；教师/管理员/领导走现状路由——批3.5 领导教师化：
   // 领导不再锁 /l/*，教师功能全量可用（首页宫格进领导驾驶舱），/l/* 仅领导可进
   const role = auth.role
-  const free = to.path === '/login' || to.path === '/change-password'
+  // /p/register 免登开放（未登录 role 为空，不能被 /p/* 锁拦回）
+  const free = to.path === '/login' || to.path === '/change-password' || to.path === '/p/register'
   if (role === 'PARENT' && !free && !to.path.startsWith('/p/')) return '/p/home'
-  if (role !== 'PARENT' && to.path.startsWith('/p/')) return '/'
+  if (role !== 'PARENT' && !free && to.path.startsWith('/p/')) return '/'
   if (role !== 'LEADER' && to.path.startsWith('/l/')) return '/'
 })
 

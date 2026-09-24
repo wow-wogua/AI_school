@@ -47,7 +47,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/login", "/error").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/parent/register", "/error").permitAll()
                         // 接口文档（公网生产建议 SPRINGDOC_API_DOCS_ENABLED=false 整体关闭）
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())

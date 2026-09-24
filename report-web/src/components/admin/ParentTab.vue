@@ -5,6 +5,7 @@
         @keyup.enter="load" @clear="load" />
       <el-button type="primary" @click="openCreate">新建家长</el-button>
       <el-button @click="genDialog = true">按班批量生成</el-button>
+      <el-button @click="openInvite">邀请码</el-button>
       <el-button @click="doExport">导出</el-button>
     </div>
 
@@ -93,6 +94,40 @@
       </template>
     </el-dialog>
 
+    <!-- 家长邀请码（批8.6）：班主任在 App 生成为主路径，管理端兜底同款能力 -->
+    <el-dialog v-model="inviteDialog" title="家长邀请码（自助注册）" width="640px">
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px">
+        <el-select v-model="inviteClassId" placeholder="选择班级" style="width: 200px" @change="loadInvite">
+          <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
+        </el-select>
+        <el-button type="primary" size="small" :disabled="!inviteClassId" :loading="inviting" @click="genInviteAll">一键生成全班</el-button>
+        <span style="font-size: 12px; color: var(--el-text-color-secondary)">家长凭「学号+邀请码」在登录页自助注册</span>
+      </div>
+      <el-table v-if="inviteRows.length" :data="inviteRows" size="small" max-height="380">
+        <el-table-column prop="studentNo" label="学号" width="110" />
+        <el-table-column prop="name" label="姓名" width="100" />
+        <el-table-column label="邀请码" width="140">
+          <template #default="{ row }">
+            <b v-if="row.code" style="font-family: monospace; letter-spacing: 2px">{{ row.code }}</b>
+            <span v-else style="color: #c0c4cc; font-size: 12px">未生成</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.registered" size="small" type="success">已注册</el-tag>
+            <el-tag v-else-if="row.boundCount" size="small" type="warning">已绑 {{ row.boundCount }} 位</el-tag>
+            <span v-else style="font-size: 12px; color: var(--el-text-color-secondary)">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="90">
+          <template #default="{ row }">
+            <el-button v-if="row.code" link type="primary" @click="copyInvite(row)">复制</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div v-else class="dlg-tip" style="margin-top: 8px">先选择班级查看码况；重新生成后旧码作废。每位学生自助注册上限 2 位家长，更多家长可在「新建家长/绑定管理」里兜底绑定。</div>
+    </el-dialog>
+
     <!-- 绑定管理 -->
     <el-dialog v-model="bindDialog" :title="`绑定管理 - ${viewing?.realName ?? ''}`" width="520px">
       <el-table :data="bindings" size="small">
@@ -140,6 +175,37 @@ const genDialog = ref(false)
 const genClassId = ref<number>()
 const genResult = ref<any>(null)
 const generating = ref(false)
+
+/* 家长邀请码（批8.6） */
+const inviteDialog = ref(false)
+const inviteClassId = ref<number>()
+const inviteRows = ref<any[]>([])
+const inviting = ref(false)
+
+function openInvite() {
+  inviteDialog.value = true
+  if (inviteClassId.value) loadInvite()
+}
+
+async function loadInvite() {
+  if (!inviteClassId.value) return
+  inviteRows.value = await api<any[]>(`/api/invite/list?classId=${inviteClassId.value}`)
+}
+
+async function genInviteAll() {
+  inviting.value = true
+  try {
+    await api('/api/invite/generate', { method: 'POST', json: { classId: inviteClassId.value } })
+    await loadInvite()
+  } finally {
+    inviting.value = false
+  }
+}
+
+async function copyInvite(row: any) {
+  await navigator.clipboard.writeText(row.code)
+  ElMessage.success(`已复制 ${row.name} 的邀请码`)
+}
 
 const bindDialog = ref(false)
 const viewing = ref<any>(null)
