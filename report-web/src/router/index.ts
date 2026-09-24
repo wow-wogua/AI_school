@@ -45,6 +45,8 @@ const router = createRouter({
     { path: '/oa', component: () => import('../views/OaView.vue'), meta: { layout: 'sub', title: '行政办公' } },
     // 报修（批10）：文字+拍照凭证，工单直达管理端
     { path: '/repair', component: () => import('../views/RepairView.vue'), meta: { layout: 'sub', title: '报修' } },
+    // 谈心记录（批11）：教师对可见班级学生，管理端全量
+    { path: '/talk', component: () => import('../views/TalkView.vue'), meta: { layout: 'sub', title: '谈心记录' } },
     // 意见反馈（批8.5）：教师/家长共用组件，双路由分流（家长被锁 /p/*）
     { path: '/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'sub', title: '意见反馈' } },
     { path: '/profile', component: () => import('../views/ProfileView.vue'), meta: { layout: 'sub', title: '教师档案' } },

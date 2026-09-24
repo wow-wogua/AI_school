@@ -5,9 +5,11 @@ import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Goods;
 import com.aischool.server.entity.GoodsFlow;
 import com.aischool.server.entity.User;
+import com.aischool.server.entity.Venue;
 import com.aischool.server.mapper.GoodsFlowMapper;
 import com.aischool.server.mapper.GoodsMapper;
 import com.aischool.server.mapper.UserMapper;
+import com.aischool.server.mapper.VenueMapper;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.auth.PermissionService;
 import com.aischool.server.service.oa.OaService;
@@ -50,8 +52,10 @@ public class AdminOaController {
         out.put("sealApprovers", approverView("seal", names));
         out.put("goodsApprovers", approverView("goods", names));
         out.put("leaveApprovers", approverView("leave", names));
+        out.put("venueApprovers", approverView("venue", names));
         out.put("goodsLevels", oaService.levels("GOODS"));
         out.put("leaveLevels", oaService.levels("LEAVE"));
+        out.put("venueLevels", oaService.levels("VENUE"));
         return ApiResponse.ok(out);
     }
 
@@ -69,11 +73,11 @@ public class AdminOaController {
         return list;
     }
 
-    /** 三型九键涉及的审批人姓名 */
+    /** 四型十二键涉及的审批人姓名 */
     private Map<Long, String> approverNames() {
         List<Long> ids = new java.util.ArrayList<>();
         for (int i = 1; i <= 3; i++) {
-            for (String type : List.of("seal", "goods", "leave")) {
+            for (String type : List.of("seal", "goods", "leave", "venue")) {
                 String v = oaService.cfgOf("oa_" + type + "_l" + i);
                 if (!v.isEmpty()) {
                     ids.add(Long.parseLong(v));
@@ -92,11 +96,14 @@ public class AdminOaController {
             oaService.setCfg("oa_seal_l" + i, idStr(req.getSealApprovers(), i));
             oaService.setCfg("oa_goods_l" + i, idStr(req.getGoodsApprovers(), i));
             oaService.setCfg("oa_leave_l" + i, idStr(req.getLeaveApprovers(), i));
+            oaService.setCfg("oa_venue_l" + i, idStr(req.getVenueApprovers(), i));
         }
         int goodsLevels = Math.max(1, Math.min(3, req.getGoodsLevels() == null ? 1 : req.getGoodsLevels()));
         oaService.setCfg("oa_goods_levels", String.valueOf(goodsLevels));
         int leaveLevels = Math.max(1, Math.min(3, req.getLeaveLevels() == null ? 1 : req.getLeaveLevels()));
         oaService.setCfg("oa_leave_levels", String.valueOf(leaveLevels));
+        int venueLevels = Math.max(1, Math.min(3, req.getVenueLevels() == null ? 1 : req.getVenueLevels()));
+        oaService.setCfg("oa_venue_levels", String.valueOf(venueLevels));
         return ApiResponse.ok();
     }
 
@@ -113,6 +120,72 @@ public class AdminOaController {
             @RequestParam(required = false) String status) {
         permissionService.checkAdminAccess("只有管理员可查单据");
         return ApiResponse.ok(oaService.allList(formType, status));
+    }
+
+    // ---- 场地字典（批11） ----
+
+    private final VenueMapper venueMapper;
+
+    @GetMapping("/venue")
+    public ApiResponse<List<Map<String, Object>>> venue() {
+        permissionService.checkAdminAccess("只有管理员可管理场地");
+        return ApiResponse.ok(venueMapper.selectList(new LambdaQueryWrapper<Venue>().orderByAsc(Venue::getId))
+                .stream().<Map<String, Object>>map(v -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", v.getId());
+                    m.put("name", v.getName());
+                    m.put("location", v.getLocation() == null ? "" : v.getLocation());
+                    m.put("capacity", v.getCapacity());
+                    m.put("status", v.getStatus());
+                    return m;
+                }).toList());
+    }
+
+    /** 新增/编辑（id 空=新增；名称唯一） */
+    @PostMapping("/venue")
+    public ApiResponse<Void> saveVenue(@Validated @RequestBody VenueReq req) {
+        permissionService.checkAdminAccess("只有管理员可管理场地");
+        Venue v = req.getId() == null ? new Venue() : venueMapper.selectById(req.getId());
+        if (v == null) {
+            throw new BizException(404, "场地不存在");
+        }
+        v.setName(req.getName().trim());
+        v.setLocation(req.getLocation());
+        v.setCapacity(req.getCapacity());
+        if (req.getId() == null) {
+            v.setStatus(1);
+        }
+        try {
+            if (req.getId() == null) {
+                venueMapper.insert(v);
+            } else {
+                venueMapper.updateById(v);
+            }
+        } catch (DuplicateKeyException e) {
+            throw new BizException(400, "已存在同名场地");
+        }
+        return ApiResponse.ok();
+    }
+
+    @PutMapping("/venue/{id}/status")
+    public ApiResponse<Void> toggleVenue(@PathVariable Long id) {
+        permissionService.checkAdminAccess("只有管理员可管理场地");
+        Venue v = venueMapper.selectById(id);
+        if (v == null) {
+            throw new BizException(404, "场地不存在");
+        }
+        v.setStatus(v.getStatus() != null && v.getStatus() == 1 ? 0 : 1);
+        venueMapper.updateById(v);
+        return ApiResponse.ok();
+    }
+
+    @Data
+    public static class VenueReq {
+        private Long id;
+        @NotBlank(message = "名称不能为空")
+        private String name;
+        private String location;
+        private Integer capacity;
     }
 
     // ---- 物资字典 ----
@@ -237,6 +310,8 @@ public class AdminOaController {
         private List<Long> goodsApprovers;
         private Integer leaveLevels; // 批10
         private List<Long> leaveApprovers;
+        private Integer venueLevels; // 批11
+        private List<Long> venueApprovers;
     }
 
     @Data
