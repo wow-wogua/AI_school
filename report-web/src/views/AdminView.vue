@@ -90,7 +90,7 @@
 import { computed, markRaw, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { Aim, AlarmClock, Calendar, ChatDotRound, Coin, DataLine, Document, FirstAidKit, Goods as GoodsIcon, Iphone, Postcard, Promotion, School, Setting, Stamp, Tickets, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
+import { Aim, AlarmClock, Calendar, ChatDotRound, Coin, DataLine, Document, FirstAidKit, Goods as GoodsIcon, Iphone, Postcard, Promotion, School, Setting, Stamp, Tickets, Tools, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
 import { api } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import TeacherTab from '../components/admin/TeacherTab.vue'
@@ -113,6 +113,7 @@ import AiUsageTab from '../components/admin/AiUsageTab.vue'
 import AppReleaseTab from '../components/admin/AppReleaseTab.vue'
 import OaTab from '../components/admin/OaTab.vue'
 import GoodsTab from '../components/admin/GoodsTab.vue'
+import RepairTab from '../components/admin/RepairTab.vue'
 
 const auth = useAuthStore()
 
@@ -148,12 +149,13 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   aiUsage: { label: 'AI 用量', comp: markRaw(AiUsageTab), icon: DataLine },
   oa: { label: 'OA 审批', comp: markRaw(OaTab), icon: Stamp },
   goods: { label: '物资管理', comp: markRaw(GoodsTab), icon: GoodsIcon },
+  repair: { label: '报修处理', comp: markRaw(RepairTab), icon: Tools },
 }
 const groups = [
   { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile'] },
   { label: '内容运营', items: ['content', 'appRelease'] },
   { label: '基础数据', items: ['org', 'student', 'term', 'exam', 'duty', 'indicator', 'shop', 'goods', 'template'] },
-  { label: '系统运维', items: ['oa', 'feedback', 'health', 'audit', 'aiUsage'] },
+  { label: '系统运维', items: ['oa', 'repair', 'feedback', 'health', 'audit', 'aiUsage'] },
 ].map((g) => ({ ...g, items: g.items.map((k) => ({ name: k, ...TABS[k] })) }))
 
 const current = computed(() => TABS[tab.value] ?? TABS.teacher)

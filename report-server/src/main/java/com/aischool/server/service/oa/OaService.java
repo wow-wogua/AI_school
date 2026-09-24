@@ -65,13 +65,13 @@ public class OaService {
         return cfg(key);
     }
 
-    /** 物资审批级数（1-3，默认 1）；公章固定 3 */
+    /** 物资/请假审批级数（1-3，默认 1，键 oa_{type}_levels）；公章固定 3 */
     public int levels(String formType) {
         if (OaForm.TYPE_SEAL.equals(formType)) {
             return 3;
         }
         try {
-            return Math.max(1, Math.min(3, Integer.parseInt(cfg("oa_goods_levels"))));
+            return Math.max(1, Math.min(3, Integer.parseInt(cfg("oa_" + formType.toLowerCase() + "_levels"))));
         } catch (NumberFormatException e) {
             return 1;
         }
@@ -95,7 +95,10 @@ public class OaService {
     }
 
     public static String typeName(String formType) {
-        return OaForm.TYPE_GOODS.equals(formType) ? "物资申领" : "公章使用申请";
+        if (OaForm.TYPE_GOODS.equals(formType)) {
+            return "物资申领";
+        }
+        return OaForm.TYPE_LEAVE.equals(formType) ? "教师请假" : "公章使用申请";
     }
 
     // ---- 提交 ----
@@ -107,6 +110,9 @@ public class OaService {
         private String reason;
         private String useDate;
         private List<GoodsLine> goodsLines;
+        private String leaveType; // 批10：事假/病假/婚假/产假/其他
+        private String startDate;
+        private String endDate;
     }
 
     @Data
@@ -120,7 +126,8 @@ public class OaService {
         if ("PARENT".equals(user.role())) {
             throw new BizException(403, "家长账号无需使用行政办公审批");
         }
-        String type = OaForm.TYPE_GOODS.equals(req.getFormType()) ? OaForm.TYPE_GOODS : OaForm.TYPE_SEAL;
+        String type = OaForm.TYPE_LEAVE.equals(req.getFormType()) ? OaForm.TYPE_LEAVE
+                : OaForm.TYPE_GOODS.equals(req.getFormType()) ? OaForm.TYPE_GOODS : OaForm.TYPE_SEAL;
         checkApproversConfigured(type);
         OaForm form = new OaForm();
         form.setFormType(type);
@@ -135,6 +142,25 @@ public class OaService {
             detail.put("reason", req.getTitle());
             detail.put("useDate", req.getUseDate());
             form.setTitle(req.getTitle().trim());
+            form.setDetail(toJson(detail));
+        } else if (type.equals(OaForm.TYPE_LEAVE)) {
+            if (req.getLeaveType() == null || req.getLeaveType().isBlank()
+                    || req.getStartDate() == null || req.getStartDate().isBlank()
+                    || req.getEndDate() == null || req.getEndDate().isBlank()) {
+                throw new BizException(400, "请填写请假类型与起止日期");
+            }
+            if (req.getEndDate().compareTo(req.getStartDate()) < 0) {
+                throw new BizException(400, "结束日期不能早于开始日期");
+            }
+            if (req.getTitle() == null || req.getTitle().isBlank()) {
+                throw new BizException(400, "请填写请假事由");
+            }
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("leaveType", req.getLeaveType());
+            detail.put("startDate", req.getStartDate());
+            detail.put("endDate", req.getEndDate());
+            detail.put("reason", req.getTitle().trim());
+            form.setTitle(req.getLeaveType() + "·" + req.getStartDate() + "~" + req.getEndDate());
             form.setDetail(toJson(detail));
         } else {
             List<GoodsLine> lines = req.getGoodsLines();
