@@ -63,6 +63,7 @@ const router = createRouter({
     { path: '/p/content/:id', component: () => import('../views/parent/ContentDetailView.vue'), meta: { layout: 'psub', title: '内容详情' } },
     // 家长微光信箱（批2-3 方案A）：拍照仅进孩子成长档案（家长+班主任可见）
     { path: '/p/moments', component: () => import('../views/parent/ParentMomentView.vue'), meta: { layout: 'psub', title: '微光信箱' } },
+    { path: '/p/honor', component: () => import('../views/parent/ParentHonorView.vue'), meta: { layout: 'psub', title: '荣誉证书' } },
     // 成长报告（批5 家长版）：同任务双渲染的去成绩版 PDF，仅 parent_file_url 可达
     { path: '/p/report', component: () => import('../views/parent/ParentReportView.vue'), meta: { layout: 'psub', title: '成长报告' } },
     // 意见反馈（批8.5）：家长入口

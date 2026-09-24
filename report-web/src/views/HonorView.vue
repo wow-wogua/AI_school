@@ -22,6 +22,27 @@
 
     <el-alert v-if="uploadInfo" :title="uploadInfo" type="info" :closable="true" style="margin-bottom: 12px" />
 
+    <!-- 全校荣誉墙（批12：所有老师、家长公开可看的已确认荣誉；家长上传经班主任确认后上墙） -->
+    <el-collapse v-model="wallOpen" style="margin-bottom: 12px">
+      <el-collapse-item name="w">
+        <template #title>
+          <b>全校荣誉墙</b><span class="w-n">{{ wallRows.length }} 条已确认 · 家长端同步可见</span>
+        </template>
+        <el-table :data="wallRows" size="small" max-height="320">
+          <el-table-column prop="name" label="奖项名称" min-width="140" />
+          <el-table-column prop="level" label="级别" width="70" />
+          <el-table-column prop="studentName" label="学生" width="80" />
+          <el-table-column prop="className" label="班级" width="100" />
+          <el-table-column prop="honorDate" label="日期" width="100" />
+          <el-table-column label="" width="64">
+            <template #default="{ row }">
+              <el-button link size="small" @click="viewWall(row)">证书</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-collapse-item>
+    </el-collapse>
+
     <el-table :data="honors" v-loading="loading">
       <el-table-column prop="name" label="奖项名称" min-width="150" />
       <el-table-column prop="level" label="级别" width="80" />
@@ -92,6 +113,8 @@ const honors = ref<Honor[]>([])
 const loading = ref(false)
 const uploading = ref(false)
 const uploadInfo = ref('')
+const wallOpen = ref<string[]>([])
+const wallRows = ref<{ id: number; name: string; level?: string; studentName: string; className: string; honorDate?: string }[]>([])
 const editVisible = ref(false)
 const confirming = ref(false)
 const editForm = ref<Partial<Honor> & { coin?: number }>({})
@@ -103,6 +126,16 @@ async function init() {
     await loadStudents()
   }
   await preselect()
+  loadWall()
+}
+
+async function loadWall() {
+  wallRows.value = await api('/api/honor/wall').catch(() => [])
+}
+
+async function viewWall(w: { id: number; name: string }) {
+  const blob = await fetchBlob(`/api/honor/file/${w.id}`)
+  await openFile(blob, w.name || `荣誉_${w.id}`)
 }
 
 /** 学生详情宫格带学生进来：自动选中该生并拉荣誉 */
@@ -214,4 +247,5 @@ onMounted(init)
 
 <style scoped>
 .hint { color: var(--el-text-color-secondary); font-size: 12px; }
+.w-n { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--el-text-color-secondary); }
 </style>
