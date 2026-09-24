@@ -49,6 +49,10 @@ function fmtTime(t?: string | null) {
 onMounted(async () => {
   try {
     item.value = await api<any>(`/api/parent/contents/${route.params.id}`)
+    // 通知已读回执（批9）：打开即打点（幂等；失败不阻塞阅读）
+    if (item.value.type === 'NOTICE') {
+      api(`/api/parent/notice/${route.params.id}/read`, { method: 'POST' }).catch(() => {})
+    }
     if (item.value.coverUrl) {
       try {
         const blob = await fetchBlob(`/api/content/file/${item.value.id}`)

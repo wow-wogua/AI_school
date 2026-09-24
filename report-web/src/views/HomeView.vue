@@ -111,6 +111,7 @@ const grids = computed(() => [
   { name: '成长报告', icon: 'orders-o', to: '/reports', bg: '#14B8A6' },
   { name: '教师风采', icon: 'friends-o', to: '/teacher-honor', bg: '#EC4899' },
   { name: '教师档案', icon: 'manager-o', to: auth.role === 'ADMIN' ? '/admin?tab=teacherProfile' : '/profile', bg: '#475569' },
+  { name: '行政办公', icon: 'todo-list-o', to: '/oa', bg: '#7C3AED' },
 ])
 
 function chipClass(type: string) {

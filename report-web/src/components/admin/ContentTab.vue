@@ -50,9 +50,12 @@
       <el-table-column label="发布时间" width="160">
         <template #default="{ row }">{{ fmtTime(row.publishTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="170">
+      <el-table-column label="操作" :width="type === 'NOTICE' ? 210 : 170">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button v-if="type === 'NOTICE' && row.status === 1" link type="success" @click="openReadStats(row)">
+            回执
+          </el-button>
           <el-button link :type="row.status === 1 ? 'warning' : 'success'" @click="toggleStatus(row)">
             {{ row.status === 1 ? '下架' : '发布' }}
           </el-button>
@@ -60,6 +63,27 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 通知已读回执（批9）：应读=可见范围已绑定家长 -->
+    <el-dialog v-model="statsDlg" :title="`已读回执：${stats?.title ?? ''}`" width="440px">
+      <template v-if="stats">
+        <div class="stats-line">
+          <b :style="{ color: stats.total && stats.read === stats.total ? '#67C23A' : '#E6A23C' }">
+            {{ stats.read }} / {{ stats.total }}
+          </b>
+          <span>家长已读（{{ stats.total ? Math.round((stats.read / stats.total) * 100) : 0 }}%）</span>
+        </div>
+        <template v-if="stats.unread.length">
+          <div class="sec">未读名单（{{ stats.unread.length }}）</div>
+          <div class="unread">
+            <el-tag v-for="(u, i) in stats.unread" :key="i" size="small" type="info" class="u-tag">
+              {{ u.name }}（{{ u.phone }}）
+            </el-tag>
+          </div>
+        </template>
+        <p v-else class="all-read">全部已读 🎉</p>
+      </template>
+    </el-dialog>
 
     <!-- 新建 / 编辑 -->
     <el-dialog v-model="dialog" :title="editing ? '编辑内容' : typeLabel + '· 新建'" width="560px">
@@ -227,6 +251,15 @@ onMounted(async () => {
   await load()
   classes.value = await api<{ id: number; name: string }[]>('/api/meta/my-classes')
 })
+
+/* 已读回执（批9） */
+const statsDlg = ref(false)
+const stats = ref<{ title: string; total: number; read: number; unread: { name: string; phone: string }[] } | null>(null)
+
+async function openReadStats(row: any) {
+  stats.value = await api(`/api/admin/notice/${row.id}/read-stats`)
+  statsDlg.value = true
+}
 </script>
 
 <style scoped>
@@ -239,4 +272,11 @@ onMounted(async () => {
 .cover-row { display: flex; align-items: center; gap: 10px; }
 .cover-hint { font-size: 12px; color: var(--el-text-color-secondary); }
 .cover-hint.ok { color: var(--el-color-success); }
+.stats-line { display: flex; align-items: baseline; gap: 10px; }
+.stats-line b { font-size: 26px; }
+.stats-line span { font-size: 13px; color: var(--el-text-color-secondary); }
+.sec { margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
+.unread { display: flex; flex-wrap: wrap; gap: 6px; max-height: 260px; overflow-y: auto; }
+.u-tag { font-weight: 400; }
+.all-read { margin: 14px 0 4px; text-align: center; color: var(--el-color-success); font-size: 14px; }
 </style>

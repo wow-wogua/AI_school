@@ -130,7 +130,8 @@ public class AdminUserController {
                                                      @RequestParam(defaultValue = "1") long page,
                                                      @RequestParam(defaultValue = "20") long size) {
         checkAdmin();
-        var p = userMapper.selectPage(Page.of(page, Math.min(size, 100)), new LambdaQueryWrapper<User>()
+        // size 上限 1000：教师/行政全量（487+）要进下拉选择器（值班排班/OA 审批人），钳 100 会丢高 id 新号
+        var p = userMapper.selectPage(Page.of(page, Math.min(size, 1000)), new LambdaQueryWrapper<User>()
                 .in(User::getRole, ROLES) // 家长账号不混入教师列表
                 .eq(role != null && !role.isBlank(), User::getRole, role)
                 .and(keyword != null && !keyword.isBlank(),

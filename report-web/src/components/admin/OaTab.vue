@@ -1,0 +1,208 @@
+<template>
+  <div>
+    <h4>OA 审批（公章使用申请=固定三级审批；物资申领=级数可配。审批人配齐后教师端才能提交；管理员可代审任意节点）</h4>
+
+    <!-- 审批人配置 -->
+    <div class="cfg">
+      <div class="cfg-row">
+        <span class="lbl">公章审批</span>
+        <span class="lv">一级</span>
+        <el-select v-model="seal[0]" filterable clearable placeholder="选择审批人" style="width: 160px">
+          <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
+        </el-select>
+        <span class="lv">二级</span>
+        <el-select v-model="seal[1]" filterable clearable placeholder="选择审批人" style="width: 160px">
+          <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
+        </el-select>
+        <span class="lv">三级</span>
+        <el-select v-model="seal[2]" filterable clearable placeholder="选择审批人" style="width: 160px">
+          <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
+        </el-select>
+      </div>
+      <div class="cfg-row">
+        <span class="lbl">物资审批</span>
+        <el-select v-model="goodsLevels" style="width: 90px" @change="trimGoods">
+          <el-option :value="1" label="1 级" />
+          <el-option :value="2" label="2 级" />
+          <el-option :value="3" label="3 级" />
+        </el-select>
+        <template v-for="i in goodsLevels" :key="i">
+          <span class="lv">{{ ['一', '二', '三'][i - 1] }}级</span>
+          <el-select v-model="goods[i - 1]" filterable clearable placeholder="选择审批人" style="width: 160px">
+            <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
+          </el-select>
+        </template>
+        <el-button type="primary" :loading="saving" @click="saveCfg">保存配置</el-button>
+      </div>
+    </div>
+
+    <!-- 单据全量 -->
+    <div class="bar">
+      <el-select v-model="qType" clearable placeholder="类型" style="width: 130px" @change="load">
+        <el-option value="SEAL" label="公章使用申请" />
+        <el-option value="GOODS" label="物资申领" />
+      </el-select>
+      <el-select v-model="qStatus" clearable placeholder="状态" style="width: 110px" @change="load">
+        <el-option value="PENDING" label="待审" />
+        <el-option value="APPROVED" label="已通过" />
+        <el-option value="REJECTED" label="已驳回" />
+        <el-option value="REVOKED" label="已撤回" />
+      </el-select>
+    </div>
+    <el-table :data="rows" size="small">
+      <el-table-column prop="id" label="单号" width="70" />
+      <el-table-column prop="typeName" label="类型" width="110" />
+      <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="applicantName" label="申请人" width="100" />
+      <el-table-column label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="tagType(row.status)" size="small">{{ stLabel(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="当前节点" width="100">
+        <template #default="{ row }">{{ row.status === 'PENDING' ? row.nodeName : '—' }}</template>
+      </el-table-column>
+      <el-table-column label="发起时间" width="140">
+        <template #default="{ row }">{{ fmtTime(row.createTime) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="80">
+        <template #default="{ row }">
+          <el-button link type="primary" size="small" @click="open(row.id)">详情</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 详情/代审 -->
+    <el-dialog v-model="dlg" title="单据详情" width="560px">
+      <template v-if="detail">
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="类型">{{ detail.typeName }}</el-descriptions-item>
+          <el-descriptions-item label="标题">{{ detail.title }}</el-descriptions-item>
+          <el-descriptions-item v-if="detail.formType === 'SEAL'" label="使用日期">{{ detailJson.useDate || '未指定' }}</el-descriptions-item>
+          <el-descriptions-item v-for="(l, i) in detailLines" :key="i" :label="`物资 ${i + 1}`">
+            {{ l.name }} × {{ l.qty }} {{ l.unit }}（{{ l.location || '地点未填' }}）
+          </el-descriptions-item>
+          <el-descriptions-item label="申请人">{{ detail.applicantName }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            {{ stLabel(detail.status) }}<template v-if="detail.status === 'PENDING'">（当前：{{ detail.nodeName }}，共 {{ detail.levels }} 级）</template>
+          </el-descriptions-item>
+        </el-descriptions>
+        <div class="logs">
+          <p v-for="(l, i) in detail.logs" :key="i" class="log">
+            <b>{{ l.nodeName }}</b> · {{ l.operatorName }} {{ actLabel(l.action) }}
+            <span v-if="l.note">「{{ l.note }}」</span>
+            <small>{{ l.createTime }}</small>
+          </p>
+        </div>
+        <div v-if="detail.status === 'PENDING'" class="acts">
+          <el-input v-model="opinion" placeholder="代审意见（可选）" style="width: 240px" />
+          <el-button type="danger" plain @click="handle('REJECT')">驳回</el-button>
+          <el-button type="primary" @click="handle('AGREE')">通过（代审）</el-button>
+        </div>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { api } from '../../api/http'
+
+const teachers = ref<any[]>([])
+const seal = ref<(number | undefined)[]>([undefined, undefined, undefined])
+const goods = ref<(number | undefined)[]>([undefined, undefined, undefined])
+const goodsLevels = ref(1)
+const saving = ref(false)
+
+const qType = ref('')
+const qStatus = ref('')
+const rows = ref<any[]>([])
+const dlg = ref(false)
+const detail = ref<any>(null)
+const opinion = ref('')
+
+const detailJson = computed<any>(() => {
+  if (!detail.value) return {}
+  try { return JSON.parse(detail.value.detail) } catch { return {} }
+})
+const detailLines = computed(() => (detail.value?.formType === 'GOODS' ? detailJson.value : []))
+
+async function loadCfg() {
+  const c = await api<{ sealApprovers: ({ id: number; name: string } | null)[]; goodsApprovers: ({ id: number; name: string } | null)[]; goodsLevels: number }>('/api/admin/oa/config')
+  seal.value = (c.sealApprovers || []).map((x) => x?.id)
+  goods.value = (c.goodsApprovers || []).map((x) => x?.id)
+  goodsLevels.value = c.goodsLevels || 1
+}
+
+async function saveCfg() {
+  if (seal.value.some((v) => !v)) { ElMessage.warning('公章三级审批人须配齐'); return }
+  if (goods.value.slice(0, goodsLevels.value).some((v) => !v)) { ElMessage.warning('物资审批人须按级数配齐'); return }
+  saving.value = true
+  try {
+    await api('/api/admin/oa/config', {
+      method: 'PUT',
+      json: { sealApprovers: seal.value, goodsApprovers: goods.value, goodsLevels: goodsLevels.value },
+    })
+    ElMessage.success('已保存（教师端立即生效）')
+  } finally { saving.value = false }
+}
+
+function trimGoods() {
+  // 级数调小后多余的选择仅不保存（服务端按级数取前 N 个）
+}
+
+async function load() {
+  const p = new URLSearchParams()
+  if (qType.value) p.set('formType', qType.value)
+  if (qStatus.value) p.set('status', qStatus.value)
+  rows.value = await api<any[]>(`/api/admin/oa/list?${p}`)
+}
+
+async function open(id: number) {
+  opinion.value = ''
+  detail.value = await api<any>(`/api/oa/${id}`)
+  dlg.value = true
+}
+
+async function handle(action: string) {
+  if (!detail.value) return
+  await api(`/api/oa/${detail.value.id}/handle`, { method: 'POST', json: { action, note: opinion.value.trim() } })
+  ElMessage.success(action === 'AGREE' ? '已通过' : '已驳回')
+  dlg.value = false
+  await load()
+}
+
+function fmtTime(t?: string) {
+  return t ? t.slice(0, 16).replace('T', ' ') : '—'
+}
+function stLabel(s: string) {
+  return ({ PENDING: '待审', APPROVED: '已通过', REJECTED: '已驳回', REVOKED: '已撤回' } as Record<string, string>)[s] || s
+}
+function tagType(s: string) {
+  return ({ PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', REVOKED: 'info' } as Record<string, string>)[s] || 'info'
+}
+function actLabel(a: string) {
+  return ({ SUBMIT: '提交了申请', AGREE: '通过', REJECT: '驳回', REVOKE: '撤回' } as Record<string, string>)[a] || a
+}
+
+onMounted(async () => {
+  // 全量拉取（服务端 size 上限 1000；排除停用账号——停用者配成审批人会让单据卡死）
+  const d = await api<{ records: any[] }>('/api/admin/user/list?page=1&size=1000')
+  teachers.value = d.records.filter((u: any) => u.status !== 0)
+  await Promise.all([loadCfg(), load()])
+})
+</script>
+
+<style scoped>
+.cfg { border: 1px solid #e8ecf5; border-radius: 10px; padding: 12px 14px; margin: 10px 0; }
+.cfg-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.lbl { font-size: 13px; color: #606266; font-weight: 600; }
+.lv { font-size: 12px; color: #909399; }
+.bar { display: flex; align-items: center; gap: 10px; margin: 12px 0 8px; }
+.logs { margin-top: 12px; }
+.log { margin: 0; padding: 7px 0; font-size: 13px; border-bottom: 1px dashed #e8ecf5; }
+.log b { font-weight: 600; }
+.log small { color: #909399; margin-left: 8px; }
+.acts { display: flex; gap: 10px; margin-top: 14px; }
+</style>
