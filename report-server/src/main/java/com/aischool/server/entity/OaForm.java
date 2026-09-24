@@ -7,7 +7,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** t_oa_form OA 审批单（批9：公章/物资；批10：请假） */
+/** t_oa_form OA 审批单（批9：公章/物资；批10：请假；批11：场地） */
 @Data
 @TableName("t_oa_form")
 public class OaForm {
@@ -15,6 +15,7 @@ public class OaForm {
     public static final String TYPE_SEAL = "SEAL";
     public static final String TYPE_GOODS = "GOODS";
     public static final String TYPE_LEAVE = "LEAVE";
+    public static final String TYPE_VENUE = "VENUE";
 
     public static final String PENDING = "PENDING";
     public static final String APPROVED = "APPROVED";
@@ -25,7 +26,7 @@ public class OaForm {
     private Long id;
     private String formType;
     private String title;
-    /** 类型专属明细 JSON（SEAL:{reason,useDate} GOODS:[{goodsId,name,qty,unit,location}] LEAVE:{leaveType,startDate,endDate,reason}） */
+    /** 类型专属明细 JSON（SEAL:{reason,useDate} GOODS:[{goodsId,name,qty,unit,location}] LEAVE:{leaveType,startDate,endDate,reason} VENUE:{venueId,venueName,useDate,reason}） */
     private String detail;
     private Long applicantId;
     private String status;

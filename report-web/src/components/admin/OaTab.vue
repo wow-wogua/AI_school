@@ -46,6 +46,20 @@
             <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
           </el-select>
         </template>
+      </div>
+      <div class="cfg-row">
+        <span class="lbl">场地审批</span>
+        <el-select v-model="venueLevels" style="width: 90px">
+          <el-option :value="1" label="1 级" />
+          <el-option :value="2" label="2 级" />
+          <el-option :value="3" label="3 级" />
+        </el-select>
+        <template v-for="i in venueLevels" :key="i">
+          <span class="lv">{{ ['一', '二', '三'][i - 1] }}级</span>
+          <el-select v-model="venue[i - 1]" filterable clearable placeholder="选择审批人" style="width: 160px">
+            <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
+          </el-select>
+        </template>
         <el-button type="primary" :loading="saving" @click="saveCfg">保存配置</el-button>
       </div>
     </div>
@@ -56,6 +70,7 @@
         <el-option value="SEAL" label="公章使用申请" />
         <el-option value="GOODS" label="物资申领" />
         <el-option value="LEAVE" label="教师请假" />
+        <el-option value="VENUE" label="场地申请" />
       </el-select>
       <el-select v-model="qStatus" clearable placeholder="状态" style="width: 110px" @change="load">
         <el-option value="PENDING" label="待审" />
@@ -99,6 +114,11 @@
             <el-descriptions-item label="起止日期">{{ detailJson.startDate }} ~ {{ detailJson.endDate }}</el-descriptions-item>
             <el-descriptions-item label="事由">{{ detailJson.reason }}</el-descriptions-item>
           </template>
+          <template v-if="detail.formType === 'VENUE'">
+            <el-descriptions-item label="场地">{{ detailJson.venueName }}</el-descriptions-item>
+            <el-descriptions-item label="使用日期">{{ detailJson.useDate }}</el-descriptions-item>
+            <el-descriptions-item label="事由">{{ detailJson.reason }}</el-descriptions-item>
+          </template>
           <el-descriptions-item v-for="(l, i) in detailLines" :key="i" :label="`物资 ${i + 1}`">
             {{ l.name }} × {{ l.qty }} {{ l.unit }}（{{ l.location || '地点未填' }}）
           </el-descriptions-item>
@@ -133,8 +153,10 @@ const teachers = ref<any[]>([])
 const seal = ref<(number | undefined)[]>([undefined, undefined, undefined])
 const goods = ref<(number | undefined)[]>([undefined, undefined, undefined])
 const leave = ref<(number | undefined)[]>([undefined, undefined, undefined])
+const venue = ref<(number | undefined)[]>([undefined, undefined, undefined])
 const goodsLevels = ref(1)
 const leaveLevels = ref(1)
+const venueLevels = ref(1)
 const saving = ref(false)
 
 const qType = ref('')
@@ -151,18 +173,21 @@ const detailJson = computed<any>(() => {
 const detailLines = computed(() => (detail.value?.formType === 'GOODS' ? detailJson.value : []))
 
 async function loadCfg() {
-  const c = await api<{ sealApprovers: ({ id: number; name: string } | null)[]; goodsApprovers: ({ id: number; name: string } | null)[]; leaveApprovers: ({ id: number; name: string } | null)[]; goodsLevels: number; leaveLevels: number }>('/api/admin/oa/config')
+  const c = await api<{ sealApprovers: ({ id: number; name: string } | null)[]; goodsApprovers: ({ id: number; name: string } | null)[]; leaveApprovers: ({ id: number; name: string } | null)[]; venueApprovers: ({ id: number; name: string } | null)[]; goodsLevels: number; leaveLevels: number; venueLevels: number }>('/api/admin/oa/config')
   seal.value = (c.sealApprovers || []).map((x) => x?.id)
   goods.value = (c.goodsApprovers || []).map((x) => x?.id)
   leave.value = (c.leaveApprovers || []).map((x) => x?.id)
+  venue.value = (c.venueApprovers || []).map((x) => x?.id)
   goodsLevels.value = c.goodsLevels || 1
   leaveLevels.value = c.leaveLevels || 1
+  venueLevels.value = c.venueLevels || 1
 }
 
 async function saveCfg() {
   if (seal.value.some((v) => !v)) { ElMessage.warning('公章三级审批人须配齐'); return }
   if (goods.value.slice(0, goodsLevels.value).some((v) => !v)) { ElMessage.warning('物资审批人须按级数配齐'); return }
   if (leave.value.slice(0, leaveLevels.value).some((v) => !v)) { ElMessage.warning('请假审批人须按级数配齐'); return }
+  if (venue.value.slice(0, venueLevels.value).some((v) => !v)) { ElMessage.warning('场地审批人须按级数配齐'); return }
   saving.value = true
   try {
     await api('/api/admin/oa/config', {
@@ -170,6 +195,7 @@ async function saveCfg() {
       json: {
         sealApprovers: seal.value, goodsApprovers: goods.value, goodsLevels: goodsLevels.value,
         leaveApprovers: leave.value, leaveLevels: leaveLevels.value,
+        venueApprovers: venue.value, venueLevels: venueLevels.value,
       },
     })
     ElMessage.success('已保存（教师端立即生效）')

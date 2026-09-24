@@ -11,6 +11,9 @@
       <button class="start-btn leave" type="button" @click="openNew('LEAVE')">
         <van-icon name="clock-o" /><span>教师请假</span>
       </button>
+      <button class="start-btn venue" type="button" @click="openNew('VENUE')">
+        <van-icon name="location-o" /><span>场地申请</span>
+      </button>
     </div>
 
     <van-tabs v-model:active="tab" class="oa-tabs" sticky>
@@ -65,6 +68,15 @@
           <van-field v-model="newTitle" type="textarea" rows="2" autosize label="事由"
             placeholder="例如：家中急事需请假一天" />
         </template>
+        <template v-else-if="newType === 'VENUE'">
+          <van-field :model-value="venueName" is-link readonly label="场地" placeholder="选择场地（必选）"
+            @click="venueOpen = true" />
+          <van-field :model-value="venueDate" is-link readonly label="使用日期" placeholder="必选"
+            @click="openDate('venue')" />
+          <van-field v-model="newTitle" type="textarea" rows="2" autosize label="事由"
+            placeholder="例如：班会课使用报告厅" />
+          <p v-if="!venues.length" class="goods-tip">暂无可申请场地，请管理员先在管理端维护场地字典</p>
+        </template>
         <template v-else>
           <div v-for="(l, i) in newLines" :key="i" class="g-line">
             <van-field :model-value="l.name" is-link readonly label="物资" placeholder="选择物资"
@@ -100,6 +112,11 @@
           <div v-else-if="detail.formType === 'LEAVE'" class="detail-cells">
             <p><span>请假类型</span><b>{{ detailJson.leaveType }}</b></p>
             <p><span>起止日期</span><b>{{ detailJson.startDate }} ~ {{ detailJson.endDate }}</b></p>
+            <p><span>事由</span><b>{{ detailJson.reason }}</b></p>
+          </div>
+          <div v-else-if="detail.formType === 'VENUE'" class="detail-cells">
+            <p><span>场地</span><b>{{ detailJson.venueName }}</b></p>
+            <p><span>使用日期</span><b>{{ detailJson.useDate }}</b></p>
             <p><span>事由</span><b>{{ detailJson.reason }}</b></p>
           </div>
           <div v-else class="detail-cells goods-cells">
@@ -145,8 +162,11 @@
         @confirm="(ev: any) => { leaveType = ev.selectedOptions?.[0]?.text || ''; leaveOpen = false }"
         @cancel="leaveOpen = false" />
     </van-popup>
+    <van-popup v-model:show="venueOpen" position="bottom" round>
+      <van-picker title="选择场地" :columns="venueColumns" @confirm="onVenue" @cancel="venueOpen = false" />
+    </van-popup>
     <van-popup v-model:show="dateOpen" position="bottom" round>
-      <van-date-picker :title="dateField === 'use' ? '使用日期' : dateField === 'start' ? '开始日期' : '结束日期'"
+      <van-date-picker :title="dateTitle"
         v-model="dateBuf" :columns-type="['year', 'month', 'day']"
         :min-date="minDate" :max-date="maxDate" @confirm="onDateOk" @cancel="dateOpen = false" />
     </van-popup>
@@ -196,41 +216,67 @@ const pickLine = ref(0)
 const newLines = ref<{ goodsId: number; name: string; qty: string }[]>([{ goodsId: 0, name: '', qty: '' }])
 const submitting = ref(false)
 
-/* 日期三字段共用一个 picker（use=公章使用日期 / start·end=请假起止） */
+/* 日期四字段共用一个 picker（use=公章使用日期 / start·end=请假起止 / venue=场地使用日期） */
 const dateOpen = ref(false)
-const dateField = ref<'use' | 'start' | 'end'>('use')
+const dateField = ref<'use' | 'start' | 'end' | 'venue'>('use')
 const dateBuf = ref<string[]>([])
 const leaveType = ref('')
 const leaveStart = ref('')
 const leaveEnd = ref('')
 const leaveOpen = ref(false)
 const LEAVE_TYPES = ['事假', '病假', '婚假', '产假', '其他'].map((t) => ({ text: t, value: t }))
+const venues = ref<{ id: number; name: string; location: string; capacity: number | null }[]>([])
+const venueOpen = ref(false)
+const venueId = ref(0)
+const venueName = ref('')
+const venueDate = ref('')
 
 const minDate = new Date(2020, 0, 1)
 const maxDate = new Date(2030, 11, 31)
 const goodsColumns = computed(() => goods.value.map((g) => ({
   text: `${g.name}（库存 ${g.stock}${g.unit}）`, value: g.id,
 })))
+const venueColumns = computed(() => venues.value.map((v) => ({
+  text: v.location ? `${v.name}（${v.location}）` : v.name, value: v.id,
+})))
 
 function typeLabel(t: string) {
-  return ({ SEAL: '公章使用申请', GOODS: '物资申领', LEAVE: '教师请假' } as Record<string, string>)[t] || t
+  return ({ SEAL: '公章使用申请', GOODS: '物资申领', LEAVE: '教师请假', VENUE: '场地申请' } as Record<string, string>)[t] || t
 }
 function tagOf(t: string) {
-  return ({ SEAL: 'primary', GOODS: 'warning', LEAVE: 'success' } as Record<string, string>)[t] || 'primary'
+  return ({ SEAL: 'primary', GOODS: 'warning', LEAVE: 'success', VENUE: 'default' } as Record<string, string>)[t] || 'primary'
 }
+const dateTitle = computed(() =>
+  ({ use: '使用日期', start: '开始日期', end: '结束日期', venue: '使用日期' } as Record<string, string>)[dateField.value])
 
-function openDate(field: 'use' | 'start' | 'end') {
+function openDate(field: 'use' | 'start' | 'end' | 'venue') {
   dateField.value = field
-  const v = field === 'use' ? useDate.value : field === 'start' ? leaveStart.value : leaveEnd.value
-  dateBuf.value = v ? v.split('-') : []
+  const v = field === 'use' ? useDate.value : field === 'start' ? leaveStart.value
+    : field === 'end' ? leaveEnd.value : venueDate.value
+  if (v) {
+    dateBuf.value = v.split('-')
+  } else { // 空 model 的 van-date-picker 会落 min-date（2020），须预置今天
+    const now = new Date()
+    dateBuf.value = [String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')]
+  }
   dateOpen.value = true
 }
 function onDateOk() {
   const v = dateBuf.value.join('-')
   if (dateField.value === 'use') useDate.value = v
   else if (dateField.value === 'start') leaveStart.value = v
-  else leaveEnd.value = v
+  else if (dateField.value === 'end') leaveEnd.value = v
+  else venueDate.value = v
   dateOpen.value = false
+}
+
+function onVenue(ev: { selectedOptions: { text: string; value: number }[] }) {
+  const opt = ev.selectedOptions?.[0]
+  if (opt) {
+    venueId.value = opt.value
+    venueName.value = opt.text
+  }
+  venueOpen.value = false
 }
 
 function openNew(type: string) {
@@ -240,9 +286,15 @@ function openNew(type: string) {
   leaveType.value = ''
   leaveStart.value = ''
   leaveEnd.value = ''
+  venueId.value = 0
+  venueName.value = ''
+  venueDate.value = ''
   newLines.value = [{ goodsId: 0, name: '', qty: '' }]
   if (type === 'GOODS' && !goods.value.length) {
     api<GoodsOpt[]>('/api/oa/goods').then((d) => (goods.value = d)).catch(() => {})
+  }
+  if (type === 'VENUE' && !venues.value.length) {
+    api<typeof venues.value>('/api/venue/list').then((d) => (venues.value = d)).catch(() => {})
   }
   newOpen.value = true
 }
@@ -274,6 +326,17 @@ async function doSubmit() {
       await api('/api/oa/submit', {
         method: 'POST',
         json: { formType: 'LEAVE', title: newTitle.value, leaveType: leaveType.value, startDate: leaveStart.value, endDate: leaveEnd.value },
+      })
+    } finally { submitting.value = false }
+  } else if (newType.value === 'VENUE') {
+    if (!venueId.value) { showToast('请选择场地'); return }
+    if (!venueDate.value) { showToast('请选择使用日期'); return }
+    if (!newTitle.value.trim()) { showToast('请填写申请事由'); return }
+    submitting.value = true
+    try {
+      await api('/api/oa/submit', {
+        method: 'POST',
+        json: { formType: 'VENUE', title: newTitle.value, venueId: venueId.value, useDate: venueDate.value },
       })
     } finally { submitting.value = false }
   } else {
@@ -350,6 +413,7 @@ onMounted(load)
 .start-btn.seal { background: linear-gradient(150deg, #8C1D23, #A8232B); }
 .start-btn.goods { background: linear-gradient(150deg, #B45309, #D97706); }
 .start-btn.leave { background: linear-gradient(150deg, #047857, #0D9467); }
+.start-btn.venue { background: linear-gradient(150deg, #1E40AF, #3B82F6); }
 
 .list { margin-top: 12px; padding: 6px 14px; }
 .row { display: flex; align-items: center; gap: 10px; padding: 12px 0; cursor: pointer; }

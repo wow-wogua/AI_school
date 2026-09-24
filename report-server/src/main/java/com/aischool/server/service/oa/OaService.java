@@ -7,12 +7,14 @@ import com.aischool.server.entity.OaFlowLog;
 import com.aischool.server.entity.OaForm;
 import com.aischool.server.entity.SysConfig;
 import com.aischool.server.entity.User;
+import com.aischool.server.entity.Venue;
 import com.aischool.server.mapper.GoodsFlowMapper;
 import com.aischool.server.mapper.GoodsMapper;
 import com.aischool.server.mapper.OaFlowLogMapper;
 import com.aischool.server.mapper.OaFormMapper;
 import com.aischool.server.mapper.SysConfigMapper;
 import com.aischool.server.mapper.UserMapper;
+import com.aischool.server.mapper.VenueMapper;
 import com.aischool.server.security.AuthUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +47,7 @@ public class OaService {
     private final GoodsFlowMapper goodsFlowMapper;
     private final SysConfigMapper sysConfigMapper;
     private final UserMapper userMapper;
+    private final VenueMapper venueMapper;
 
     // ---- 配置 ----
 
@@ -98,7 +101,10 @@ public class OaService {
         if (OaForm.TYPE_GOODS.equals(formType)) {
             return "物资申领";
         }
-        return OaForm.TYPE_LEAVE.equals(formType) ? "教师请假" : "公章使用申请";
+        if (OaForm.TYPE_LEAVE.equals(formType)) {
+            return "教师请假";
+        }
+        return OaForm.TYPE_VENUE.equals(formType) ? "场地申请" : "公章使用申请";
     }
 
     // ---- 提交 ----
@@ -113,6 +119,7 @@ public class OaService {
         private String leaveType; // 批10：事假/病假/婚假/产假/其他
         private String startDate;
         private String endDate;
+        private Long venueId; // 批11：场地申请（t_venue）
     }
 
     @Data
@@ -127,7 +134,8 @@ public class OaService {
             throw new BizException(403, "家长账号无需使用行政办公审批");
         }
         String type = OaForm.TYPE_LEAVE.equals(req.getFormType()) ? OaForm.TYPE_LEAVE
-                : OaForm.TYPE_GOODS.equals(req.getFormType()) ? OaForm.TYPE_GOODS : OaForm.TYPE_SEAL;
+                : OaForm.TYPE_GOODS.equals(req.getFormType()) ? OaForm.TYPE_GOODS
+                : OaForm.TYPE_VENUE.equals(req.getFormType()) ? OaForm.TYPE_VENUE : OaForm.TYPE_SEAL;
         checkApproversConfigured(type);
         OaForm form = new OaForm();
         form.setFormType(type);
@@ -161,6 +169,25 @@ public class OaService {
             detail.put("endDate", req.getEndDate());
             detail.put("reason", req.getTitle().trim());
             form.setTitle(req.getLeaveType() + "·" + req.getStartDate() + "~" + req.getEndDate());
+            form.setDetail(toJson(detail));
+        } else if (type.equals(OaForm.TYPE_VENUE)) {
+            if (req.getVenueId() == null || req.getUseDate() == null || req.getUseDate().isBlank()) {
+                throw new BizException(400, "请选择场地与使用日期");
+            }
+            if (req.getTitle() == null || req.getTitle().isBlank()) {
+                throw new BizException(400, "请填写申请事由");
+            }
+            Venue v = venueMapper.selectById(req.getVenueId());
+            if (v == null || v.getStatus() == null || v.getStatus() != 1) {
+                throw new BizException(400, "场地不存在或已停用");
+            }
+            checkVenueFree(v.getId(), req.getUseDate());
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("venueId", v.getId());
+            detail.put("venueName", v.getName());
+            detail.put("useDate", req.getUseDate());
+            detail.put("reason", req.getTitle().trim());
+            form.setTitle(v.getName() + "·" + req.getUseDate());
             form.setDetail(toJson(detail));
         } else {
             List<GoodsLine> lines = req.getGoodsLines();
@@ -419,6 +446,30 @@ public class OaService {
             return o instanceof List ? (List<Map<String, Object>>) o : List.of();
         } catch (Exception e) {
             return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseObj(String detail) {
+        try {
+            Object o = JSON.readValue(detail == null ? "{}" : detail, Object.class);
+            return o instanceof Map ? (Map<String, Object>) o : Map.of();
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    /** 同场地同日已被 PENDING/APPROVED 单据占用则拒绝（撤回/驳回后释放，可重提；场地申请量小，Java 层过滤 detail JSON） */
+    private void checkVenueFree(Long venueId, String useDate) {
+        List<OaForm> held = formMapper.selectList(new LambdaQueryWrapper<OaForm>()
+                .eq(OaForm::getFormType, OaForm.TYPE_VENUE)
+                .in(OaForm::getStatus, List.of(OaForm.PENDING, OaForm.APPROVED)));
+        for (OaForm f : held) {
+            Map<String, Object> d = parseObj(f.getDetail());
+            Object vid = d.get("venueId");
+            if (vid instanceof Number n && n.longValue() == venueId && useDate.equals(d.get("useDate"))) {
+                throw new BizException(400, "「" + d.get("venueName") + "」在 " + useDate + " 已有申请单（#" + f.getId() + "），请改期或联系管理员");
+            }
         }
     }
 }
