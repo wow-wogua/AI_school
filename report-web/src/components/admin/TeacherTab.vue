@@ -13,7 +13,17 @@
       <el-button @click="openTeachImport">导入任课</el-button>
     </div>
 
-    <el-table :data="users" size="small">
+    <!-- 批量操作（批15：批量操作全面覆盖；删除逐个走护栏，失败名单回显） -->
+    <div v-if="selected.length" class="batch-bar">
+      已选 {{ selected.length }} 项：
+      <el-button size="small" @click="batchStatus(1)">批量启用</el-button>
+      <el-button size="small" @click="batchStatus(0)">批量停用</el-button>
+      <el-button size="small" @click="batchReset">重置为初始密码</el-button>
+      <el-button size="small" type="danger" @click="batchRemove">批量删除</el-button>
+    </div>
+
+    <el-table :data="users" size="small" @selection-change="(rows: any[]) => (selected = rows)">
+      <el-table-column type="selection" width="42" />
       <el-table-column prop="username" label="登录名" width="120" />
       <el-table-column prop="realName" label="姓名" width="110" />
       <el-table-column label="角色" width="150">
@@ -362,6 +372,42 @@ async function removeUser(row: any) {
   await loadUsers()
 }
 
+// ── 批量操作（批15） ──
+const selected = ref<any[]>([])
+
+async function batchStatus(status: number) {
+  await ElMessageBox.confirm(`${status === 1 ? '启用' : '停用'}选中的 ${selected.value.length} 个账号？`, '确认')
+  await api('/api/admin/user/batch/status', {
+    method: 'PUT', json: { ids: selected.value.map((r) => r.id), status },
+  })
+  ElMessage.success('已批量操作')
+  await loadUsers()
+}
+
+async function batchReset() {
+  await ElMessageBox.confirm(
+    `将选中的 ${selected.value.length} 个账号重置为初始密码 Shishi@2026？重置后首登强制改密。`, '确认')
+  const d = await api<{ initialPassword: string }>('/api/admin/user/batch/reset-password', {
+    method: 'PUT', json: { ids: selected.value.map((r) => r.id) },
+  })
+  ElMessage.success(`已重置，初始密码 ${d.initialPassword}`)
+}
+
+async function batchRemove() {
+  await ElMessageBox.confirm(
+    `删除选中的 ${selected.value.length} 个账号？有任课/班主任关系的会跳过并在结果中说明。`, '确认')
+  const d = await api<{ deleted: number; failed: { name: string; reason: string }[] }>('/api/admin/user/batch', {
+    method: 'DELETE', json: { ids: selected.value.map((r) => r.id) },
+  })
+  const skipped = d.failed?.map((f) => `${f.name || f.id}：${f.reason}`).join('；')
+  if (skipped) {
+    ElMessageBox.alert(`成功删除 ${d.deleted} 个；跳过 ${d.failed.length} 个 —— ${skipped}`, '部分成功')
+  } else {
+    ElMessage.success(`已删除 ${d.deleted} 个账号`)
+  }
+  await loadUsers()
+}
+
 async function addTeach() {
   await api('/api/admin/teach', { method: 'POST', json: teach.value })
   ElMessage.success('任课关系已添加')
@@ -385,6 +431,8 @@ onMounted(async () => {
 <style scoped>
 /* 操作列 5 个按钮收一行：缩小按钮间距防换行 */
 .el-table :deep(.el-button + .el-button) { margin-left: 8px; }
+.batch-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  font-size: 13px; color: var(--el-text-color-regular); }
 .hint { font-size: 11.5px; color: var(--el-text-color-secondary); line-height: 1.5; }
 .pf { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .pf-photo { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; }
