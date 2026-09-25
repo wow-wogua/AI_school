@@ -51,6 +51,8 @@ public class ReportController {
         private Long studentId;
         @NotNull(message = "termId 不能为空")
         private Long termId;
+        /** 报告类型（批26）：TERM 学期=默认 / YEAR 学年 / SCHOOL 在校 */
+        private String reportType;
     }
 
     @Data
@@ -59,6 +61,8 @@ public class ReportController {
         private Long classId;
         @NotNull(message = "termId 不能为空")
         private Long termId;
+        /** 报告类型（批26）：TERM 学期=默认 / YEAR 学年 / SCHOOL 在校 */
+        private String reportType;
     }
 
     @Data
@@ -67,6 +71,8 @@ public class ReportController {
         private Long gradeId;
         @NotNull(message = "termId 不能为空")
         private Long termId;
+        /** 报告类型（批26）：TERM 学期=默认 / YEAR 学年 / SCHOOL 在校 */
+        private String reportType;
     }
 
     /** 单份生成：30s 内出 PDF（优先级最高） */
@@ -77,7 +83,7 @@ public class ReportController {
         if (!"ADMIN".equals(user.role())) {
             dataScope.checkClassOperable(user, student.getClassId());
         }
-        ReportTask task = taskService.createTask("单生", req.studentId, req.termId, user.userId());
+        ReportTask task = taskService.createTask("单生", req.studentId, req.termId, typeOf(req.reportType), user.userId());
         return ApiResponse.ok(taskView(task));
     }
 
@@ -86,7 +92,7 @@ public class ReportController {
     public ApiResponse<Map<String, Object>> generateBatch(@Validated @RequestBody GenerateBatchReq req) {
         var user = AuthUtil.current();
         dataScope.checkClassOperable(user, req.classId);
-        ReportTask task = taskService.createTask("班级", req.classId, req.termId, user.userId());
+        ReportTask task = taskService.createTask("班级", req.classId, req.termId, typeOf(req.reportType), user.userId());
         return ApiResponse.ok(taskView(task));
     }
 
@@ -97,7 +103,7 @@ public class ReportController {
         if (!"ADMIN".equals(user.role())) {
             throw new BizException(403, "只有管理员可生成全年级报告");
         }
-        ReportTask task = taskService.createTask("年级", req.gradeId, req.termId, user.userId());
+        ReportTask task = taskService.createTask("年级", req.gradeId, req.termId, typeOf(req.reportType), user.userId());
         return ApiResponse.ok(taskView(task));
     }
 
@@ -142,7 +148,8 @@ public class ReportController {
     /** 学生的最新报告（报告列表页） */
     @GetMapping("/list")
     public ApiResponse<List<Map<String, Object>>> list(@RequestParam Long classId,
-                                                       @RequestParam Long termId) {
+                                                       @RequestParam Long termId,
+                                                       @RequestParam(defaultValue = "TERM") String scopeType) {
         var user = AuthUtil.current();
         List<Long> visible = dataScope.visibleClassIds(user);
         if (visible != null && !visible.contains(classId)) {
@@ -151,6 +158,7 @@ public class ReportController {
         // 每个学生取最新一份成功报告
         List<Report> reports = reportMapper.selectList(new LambdaQueryWrapper<Report>()
                 .eq(Report::getTermId, termId)
+                .eq(Report::getScopeType, scopeType)
                 .in(Report::getStatus, "成功", "失败", "排队", "渲染中")
                 .inSql(Report::getStudentId,
                         "SELECT id FROM t_student WHERE class_id = " + classId)
@@ -163,6 +171,7 @@ public class ReportController {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("reportId", r.getId());
             m.put("studentId", r.getStudentId());
+            m.put("scopeType", r.getScopeType() == null ? "TERM" : r.getScopeType());
             m.put("status", r.getStatus());
             m.put("fileUrl", r.getFileUrl());
             m.put("genTime", r.getGenTime());
@@ -215,12 +224,17 @@ public class ReportController {
         m.put("taskId", t.getId());
         m.put("termId", t.getTermId());
         m.put("scope", t.getScope());
+        m.put("scopeType", t.getScopeType() == null ? "TERM" : t.getScopeType());
         m.put("targetId", t.getTargetId());
         m.put("status", t.getStatus());
         m.put("total", t.getTotal());
         m.put("done", t.getDone());
         m.put("failed", t.getFailed());
         return m;
+    }
+
+    private static String typeOf(String reportType) {
+        return reportType == null || reportType.isBlank() ? "TERM" : reportType;
     }
 
     private void checkTaskReadable(com.aischool.server.security.UserPrincipal user, ReportTask task) {

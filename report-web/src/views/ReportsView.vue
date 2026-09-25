@@ -16,6 +16,11 @@
       <el-select v-model="termId" placeholder="学期" style="min-width: 160px" @change="reload">
         <el-option v-for="t in terms" :key="t.id" :label="t.name" :value="t.id" />
       </el-select>
+      <el-select v-model="reportType" style="min-width: 120px" @change="reload">
+        <el-option label="学期报告" value="TERM" />
+        <el-option label="学年报告" value="YEAR" />
+        <el-option label="在校报告" value="SCHOOL" />
+      </el-select>
       <el-button v-if="scope === 'grade'" type="primary" :loading="batching" :disabled="!gradeId || !termId" @click="startGrade">
         批量生成全年级
       </el-button>
@@ -73,6 +78,7 @@ const terms = ref<{ id: number; name: string }[]>([])
 const classId = ref<number>()
 const gradeId = ref<number>()
 const termId = ref<number>()
+const reportType = ref<'TERM' | 'YEAR' | 'SCHOOL'>('TERM')
 const scope = ref<'class' | 'grade'>('class')
 const rows = ref<{ className?: string; studentId: number; studentNo: string; name: string; status: string; error?: string; reportId?: number }[]>([])
 const generating = ref<number | null>(null)
@@ -109,7 +115,7 @@ async function reload() {
         `/api/student/list?classId=${c.id}&page=1&size=100`,
       )
       const reports = await api<{ studentId: number; status: string; error?: string; reportId?: number }[]>(
-        `/api/report/list?classId=${c.id}&termId=${termId.value}`,
+        `/api/report/list?classId=${c.id}&termId=${termId.value}&scopeType=${reportType.value}`,
       )
       const byStu = new Map(reports.map((r) => [r.studentId, r]))
       return stu.records.map((s) => {
@@ -125,7 +131,7 @@ async function reload() {
     `/api/student/list?classId=${classId.value}&page=1&size=100`,
   )
   const reports = await api<{ studentId: number; status: string; error?: string; reportId?: number }[]>(
-    `/api/report/list?classId=${classId.value}&termId=${termId.value}`,
+    `/api/report/list?classId=${classId.value}&termId=${termId.value}&scopeType=${reportType.value}`,
   )
   const byStu = new Map(reports.map((r) => [r.studentId, r]))
   rows.value = stu.records.map((s) => {
@@ -149,7 +155,7 @@ async function generateOne(row: { studentId: number; name: string }) {
   try {
     const t = await api<{ taskId: number }>('/api/report/generate', {
       method: 'POST',
-      json: { studentId: row.studentId, termId: termId.value },
+      json: { studentId: row.studentId, termId: termId.value, reportType: reportType.value },
     })
     const start = Date.now()
     for (;;) {
@@ -172,7 +178,7 @@ async function startBatch() {
   try {
     const t = await api<{ taskId: number }>('/api/report/generate-batch', {
       method: 'POST',
-      json: { classId: classId.value, termId: termId.value },
+      json: { classId: classId.value, termId: termId.value, reportType: reportType.value },
     })
     ElMessage.success(`批量任务 #${t.taskId} 已创建`)
     router.push('/')
@@ -188,7 +194,7 @@ async function startGrade() {
   try {
     const t = await api<{ taskId: number }>('/api/report/generate-grade', {
       method: 'POST',
-      json: { gradeId: gradeId.value, termId: termId.value },
+      json: { gradeId: gradeId.value, termId: termId.value, reportType: reportType.value },
     })
     ElMessage.success(`年级批量任务 #${t.taskId} 已创建`)
     router.push('/')
@@ -204,7 +210,8 @@ function preview(row: { reportId?: number }) {
 async function download(row: { name: string; reportId?: number }) {
   if (!row.reportId) return
   const blob = await fetchBlob(`/api/report/file/${row.reportId}?disposition=attachment`)
-  await saveFile(blob, `${row.name}-素质报告单.pdf`)
+  const label = reportType.value === 'YEAR' ? '学年报告' : reportType.value === 'SCHOOL' ? '在校报告' : '素质报告单'
+  await saveFile(blob, `${row.name}-${label}.pdf`)
 }
 
 onMounted(init)

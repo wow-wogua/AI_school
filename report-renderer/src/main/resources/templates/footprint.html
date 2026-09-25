@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"/>
+<title>教师成长足迹报告</title>
+<style>
+  /* ===== 教师成长足迹报告（批26）：六维足迹 + 奖项，页面骨架与学期报告同源 ===== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "HarmonyOS Sans SC", Arial, sans-serif; color: #000; background: #fff; }
+  .page { width: 210mm; height: 296.9mm; position: relative; overflow: hidden;
+          page-break-after: always; background: #fff; }
+  .page:last-child { page-break-after: auto; }
+  .z-o { --pnc: #A8232B; --lc: #EAD9B8; --chip: #F5EDDD; }
+  .z-b { --pnc: #1F2A44; --lc: #DDE2EC; --chip: #1F2A44; --chipop: 0.149; --tbox: #1F2A44; }
+  .hdr { position: absolute; top: 21pt; height: 22pt; font-size: 9pt; white-space: nowrap;
+         display: flex; align-items: center; gap: 7pt; color: #1F2A44; }
+  .hdr img { width: 22pt; height: 22pt; flex: none; }
+  .hdr.r { right: 23pt; }
+  .hdr.l { left: 22pt; }
+  .hdr::after { content: ''; position: absolute; left: 0; right: 0; bottom: -6pt; height: .7pt;
+                background: linear-gradient(90deg, rgba(201,162,39,0), rgba(201,162,39,.75), rgba(201,162,39,0)); }
+  .pgnum { position: absolute; top: 810pt; left: 0; width: 100%; text-align: center;
+           font-size: 9pt; color: var(--pnc); }
+  .pline { position: absolute; top: 814.6pt; height: .7pt; background: var(--lc); }
+  .pl1 { left: 0; width: 278.8pt; }
+  .pl2 { left: 316.2pt; right: 0; }
+  .psq { position: absolute; top: 814.6pt; width: 3pt; height: 3pt; background: var(--pnc); }
+  .abs { position: absolute; }
+  :root { --serif: 'Noto Serif SC', 'Source Han Serif SC', 'STZhongsong', 'SimSun', serif; }
+  .sec-title { position: absolute; top: 60pt; left: 0; width: 100%; text-align: center;
+               font-family: var(--serif); font-size: 18pt; font-weight: bold; color: #1F2A44; }
+  .sec-title::before { content: ''; position: absolute; left: 50%; top: 36pt; transform: translateX(-50%);
+                       width: 46pt; height: .8pt; background: rgba(201,162,39,.7); }
+  .sec-sub { position: absolute; left: 0; width: 100%; text-align: center; font-size: 8pt;
+             color: #8A93A6; letter-spacing: 2pt; margin-right: -2pt; }
+  .card { background: #FFFFFF; border: 1pt solid #E3D5AE; border-radius: 8pt; }
+  table.dt { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  table.dt th { background: #1F2A44; color: #fff; font-weight: normal; padding: 5pt 4pt;
+                font-size: 8pt; letter-spacing: 1pt; }
+  table.dt td { border-bottom: .6pt solid #E8E2D2; padding: 5pt 4pt; color: #1F2A44;
+                overflow: hidden; white-space: nowrap; }
+  .empty { width: 100%; text-align: center; font-size: 10pt; color: #B0B0B0;
+           letter-spacing: 2pt; padding: 26pt 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ p1 封面 ═══════════ -->
+<div class="page nohdr nonum" style="background:linear-gradient(180deg,#FDFCF9 0%,#F6F1E6 100%)">
+  <div class="abs" style="top:26pt;left:26pt;right:26pt;bottom:26pt;border:1.5pt solid rgba(201,162,39,.85);border-radius:2pt"></div>
+  <div class="abs" style="top:32pt;left:32pt;right:32pt;bottom:32pt;border:.5pt solid rgba(201,162,39,.5)"></div>
+  <div class="abs" style="top:26pt;left:26pt;width:66pt;height:1.5pt;background:#A8232B"></div>
+  <div class="abs" style="top:26pt;left:26pt;width:1.5pt;height:66pt;background:linear-gradient(180deg,#A8232B 0%,#C9A227 100%)"></div>
+  <div class="abs" style="bottom:26pt;right:26pt;width:66pt;height:1.5pt;background:#C9A227"></div>
+  <div class="abs" style="bottom:26pt;right:26pt;width:1.5pt;height:66pt;background:linear-gradient(180deg,#C9A227 0%,#A8232B 100%)"></div>
+  <div class="abs" style="top:712pt;left:472pt;width:58pt;height:58pt;border:2pt solid rgba(168,35,43,.8);border-radius:4pt;transform:rotate(4deg);display:flex;align-items:center;justify-content:center">
+    <div style="font-family:var(--serif);font-size:13pt;font-weight:bold;color:#A8232B;line-height:15pt;text-align:center">石实<br>SHINE</div>
+  </div>
+  <img class="abs" th:src="${imgLogo}" style="top:70pt;left:50%;transform:translateX(-50%);width:62pt;height:62pt" alt=""/>
+  <div class="abs" style="top:148pt;left:0;width:100%;text-align:center;font-size:20pt;font-weight:bold;color:#1F2A44;letter-spacing:3pt;margin-right:-3pt" th:text="${r.schoolName}">佛山市南海区石实实验学校</div>
+  <div class="abs" style="top:182pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2.2pt;margin-right:-2.2pt">SHIMEN EXPERIMENTAL SCHOOL · EST. 2000</div>
+  <div class="abs" style="top:287pt;left:222.5pt;width:150pt;height:1pt;background:rgba(201,162,39,.55)"></div>
+  <div class="abs" style="top:297pt;left:0;width:100%;text-align:center;font-size:33pt;font-weight:bold;color:#1F2A44;letter-spacing:7pt;margin-right:-7pt">教师成长足迹</div>
+  <div class="abs" style="top:355pt;left:0;width:100%;text-align:center;font-size:9.5pt;color:#B08A1E;letter-spacing:3.5pt;margin-right:-3.5pt">TEACHER GROWTH FOOTPRINT REPORT</div>
+  <div class="abs" style="top:366pt;left:222.5pt;width:150pt;height:1pt;background:rgba(201,162,39,.55)"></div>
+  <div class="abs" style="top:406pt;left:0;width:100%;text-align:center;font-size:8pt;color:#8A93A6;letter-spacing:4pt;margin-right:-4pt">公开课 · 听课 · 奖项 · 讲座 · 读书笔记 · 工作室</div>
+  <div class="abs card" style="top:566pt;left:147.5pt;width:300pt;padding:24pt 0 20pt;box-shadow:0 3pt 10pt rgba(31,42,68,.12)">
+    <div style="display:flex;align-items:baseline;justify-content:center;margin-bottom:14pt">
+      <span style="width:70pt;text-align:right;font-size:11pt;color:#B08A1E;letter-spacing:2pt">姓　名</span>
+      <span style="width:150pt;margin-left:18pt;text-align:center;font-size:12pt;color:#1F2A44;border-bottom:.8pt solid rgba(201,162,39,.6);padding-bottom:3pt" th:text="${r.teacher.name}">李老师</span>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:center">
+      <span style="width:70pt;text-align:right;font-size:11pt;color:#B08A1E;letter-spacing:2pt">角　色</span>
+      <span style="width:150pt;margin-left:18pt;text-align:center;font-size:12pt;color:#1F2A44;border-bottom:.8pt solid rgba(201,162,39,.6);padding-bottom:3pt" th:text="${r.teacher.role}">教师</span>
+    </div>
+  </div>
+  <div class="abs" style="top:700pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6" th:text="${r.generatedAt}">2026-09-25</div>
+</div>
+
+<!-- ═══════════ p2 成长总览 ═══════════ -->
+<div class="page z-o">
+  <div class="sec-title">成长总览</div>
+  <div class="sec-sub" style="top:92pt">GROWTH OVERVIEW</div>
+  <!-- 六维计数：2 行 × 3 列 -->
+  <div class="abs card" th:each="d, dStat : ${r.dims}"
+       th:style="|top:${126 + (dStat.index / 3) * 96}pt;left:${44 + (dStat.index % 3) * 175}pt;width:163pt;height:82pt;text-align:center|">
+    <div style="padding-top:14pt;font-size:9pt;color:#8A93A6;letter-spacing:1pt" th:text="${d.label}">公开课</div>
+    <div style="padding-top:6pt;font-size:21pt;font-weight:bold;color:#1F2A44;font-family:var(--serif)" th:text="${d.count}">3</div>
+    <div style="padding-top:5pt;font-size:6.5pt;color:#C9A227;letter-spacing:2pt">RECORDS</div>
+  </div>
+  <!-- 奖项列表 -->
+  <div class="abs" style="top:330pt;left:44pt;width:511pt">
+    <div style="font-size:10.5pt;font-weight:bold;color:#1F2A44;font-family:var(--serif);margin-bottom:10pt">奖项荣誉</div>
+    <table class="dt" th:if="${!#lists.isEmpty(r.honors)}">
+      <tr><th style="text-align:left;padding-left:8pt;width:180pt">奖项名称</th><th>级别</th><th>颁发单位</th><th>日期</th></tr>
+      <tr th:each="h, hStat : ${r.honors}" th:if="${hStat.index < 14}">
+        <td style="padding-left:8pt" th:text="${h.name}">优秀教师</td>
+        <td th:text="${h.level}">区级</td>
+        <td th:text="${h.issuer}">教育局</td>
+        <td th:text="${h.date}">2026-06-30</td>
+      </tr>
+    </table>
+    <div class="empty" th:if="${#lists.isEmpty(r.honors)}">暂无奖项记录</div>
+    <div style="padding-top:8pt;font-size:8pt;color:#8A93A6" th:if="${#lists.size(r.honors) > 14}"
+         th:text="|仅列出最近 14 项，另有 ${#lists.size(r.honors) - 14} 项未展示。|">…</div>
+  </div>
+</div>
+
+<!-- ═══════════ p3–p5 维度明细：每页 2 维（dims 恒为 6 项，批26 契约） ═══════════ -->
+<div class="page" th:classappend="${pg % 2 == 0} ? 'z-o' : 'z-b'" th:each="pg : ${#numbers.sequence(0,2)}">
+  <div class="sec-title" th:text="'足迹明细 · ' + ${r.dims[pg*2].label} + ' / ' + ${r.dims[pg*2+1].label}">足迹明细</div>
+  <div class="sec-sub" style="top:92pt">FOOTPRINT DETAIL</div>
+  <th:block th:each="k : ${#numbers.sequence(0,1)}">
+    <th:block th:with="dim=${r.dims[pg*2+k]}">
+      <div class="abs" th:style="|top:${126 + k * 300}pt;left:44pt;width:511pt|">
+        <div style="display:flex;align-items:baseline;margin-bottom:8pt">
+          <span style="font-family:var(--serif);font-size:12pt;font-weight:bold;color:#1F2A44" th:text="${dim.label}">公开课</span>
+          <span style="margin-left:10pt;font-size:8.5pt;color:#B08A1E" th:text="${'共 ' + dim.count + ' 条'}">共 3 条</span>
+        </div>
+        <table class="dt" th:if="${!#lists.isEmpty(dim.records)}">
+          <tr><th style="text-align:left;padding-left:8pt;width:170pt">标题</th><th style="width:66pt">日期</th><th style="width:96pt">地点</th><th>备注</th></tr>
+          <tr th:each="rec, recStat : ${dim.records}" th:if="${recStat.index < 11}">
+            <td style="padding-left:8pt" th:text="${#strings.abbreviate(rec.title,22)}">公开课标题</td>
+            <td th:text="${rec.date}">2026-05-20</td>
+            <td th:text="${#strings.abbreviate(rec.place,12)}">录播室</td>
+            <td th:text="${#strings.abbreviate(rec.note,24)}">备注</td>
+          </tr>
+        </table>
+        <div class="empty" th:if="${#lists.isEmpty(dim.records)}">本维度暂无记录</div>
+        <div style="padding-top:6pt;font-size:8pt;color:#8A93A6" th:if="${#lists.size(dim.records) > 11}"
+             th:text="|仅列出最近 11 条，另有 ${#lists.size(dim.records) - 11} 条未展示。|">…</div>
+      </div>
+    </th:block>
+  </th:block>
+</div>
+
+<!-- ═══════════ p6 封底 ═══════════ -->
+<div class="page z-o nohdr nonum" style="background:linear-gradient(180deg,#F6F1E6 0%,#FDFCF9 100%)">
+  <div class="abs" style="top:26pt;left:26pt;right:26pt;bottom:26pt;border:1.5pt solid rgba(201,162,39,.85);border-radius:2pt"></div>
+  <div class="abs" style="top:392pt;left:0;width:100%;text-align:center;font-family:var(--serif);font-size:15pt;color:#B08A1E;letter-spacing:5pt;margin-right:-5pt">任重道远　毋忘奋斗</div>
+  <div class="abs" style="top:440pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2pt;margin-right:-2pt"
+       th:text="${r.schoolName} + ' · 教师成长足迹报告'">佛山市南海区石实实验学校</div>
+</div>
+
+<script th:utext="${echartsJs}"></script>
+<script th:inline="javascript">
+const DATA = JSON.parse(/*[[${dataJson}]]*/ '{}');
+const LOGO = /*[[${imgLogo}]]*/ '';
+/* ── 页眉 / 页码注入（同 report.html） ── */
+document.querySelectorAll('.page').forEach((pg, i) => {
+  const n = i + 1;
+  if (!pg.classList.contains('nohdr')) {
+    const side = (i % 2) ? 'r' : 'l';
+    const h = document.createElement('div');
+    h.className = 'hdr ' + side;
+    const lg = document.createElement('img');
+    lg.src = LOGO;
+    lg.alt = '';
+    h.appendChild(lg);
+    h.appendChild(document.createTextNode(DATA.schoolName + '教师成长足迹报告'));
+    pg.appendChild(h);
+  }
+  if (!pg.classList.contains('nonum')) {
+    const p = document.createElement('div');
+    p.className = 'pgnum';
+    p.textContent = n;
+    pg.appendChild(p);
+    ['pl1', 'pl2'].forEach(cl => { const l = document.createElement('div'); l.className = 'pline ' + cl; pg.appendChild(l); });
+    const one = String(n).length === 1;
+    ['ps1', 'ps2'].forEach((cl, k) => {
+      const s = document.createElement('div');
+      s.className = 'psq ' + cl;
+      s.style.left = one ? (k ? '305pt' : '287.8pt') : (k ? '307.2pt' : '284.8pt');
+      pg.appendChild(s);
+    });
+  }
+});
+window.chartsReady = true;   /* 本模板无图表 */
+</script>
+</body>
+</html>

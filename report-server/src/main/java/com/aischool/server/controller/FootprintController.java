@@ -7,11 +7,17 @@ import com.aischool.server.entity.TeacherHonor;
 import com.aischool.server.mapper.TeacherFootprintMapper;
 import com.aischool.server.mapper.TeacherHonorMapper;
 import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.report.RenderService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
@@ -26,6 +32,7 @@ public class FootprintController {
 
     private final TeacherFootprintMapper footprintMapper;
     private final TeacherHonorMapper honorMapper;
+    private final RenderService renderService;
 
     @Data
     public static class CreateReq {
@@ -111,6 +118,33 @@ public class FootprintController {
         }
         footprintMapper.deleteById(id);
         return ApiResponse.ok();
+    }
+
+    /** 成长足迹 PDF（批26）：本人导出；ADMIN 可带 teacherId 导出任意教师。同步渲染约 10s（不入任务队列） */
+    @GetMapping("/report")
+    public ResponseEntity<byte[]> report(@RequestParam(required = false) Long teacherId) throws Exception {
+        rejectParent();
+        var user = AuthUtil.current();
+        Long target = user.userId();
+        if (teacherId != null && !teacherId.equals(user.userId())) {
+            if (!"ADMIN".equals(user.role())) {
+                throw new BizException(403, "只能导出自己的成长足迹");
+            }
+            target = teacherId;
+        }
+        Path pdf = renderService.submitFootprint(target).get();
+        byte[] bytes;
+        try {
+            bytes = Files.readAllBytes(pdf);
+        } finally {
+            Files.deleteIfExists(pdf);
+            Files.deleteIfExists(pdf.resolveSibling("report-fp.html"));
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentLength(bytes.length);
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=footprint-" + target + ".pdf");
+        return ResponseEntity.ok().headers(headers).body(bytes);
     }
 
     private void rejectParent() {

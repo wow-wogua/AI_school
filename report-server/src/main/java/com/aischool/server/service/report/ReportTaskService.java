@@ -95,11 +95,24 @@ public class ReportTaskService {
 
     // ───────────────── 任务创建 ─────────────────
 
-    public ReportTask createTask(String scope, Long targetId, Long termId, Long createBy) {
+    /** 报告类型（批26）：TERM 学期=存量；YEAR 学年=锚定学期所在学年（9 月划界）；SCHOOL 在校=全部学期 */
+    public ReportTask createTask(String scope, Long targetId, Long termId, String reportType, Long createBy) {
         Term term = termMapper.selectById(termId);
         if (term == null) {
             throw new BizException(404, "学期不存在");
         }
+        List<Term> covered = switch (reportType) {
+            case "TERM" -> List.of(term);
+            case "YEAR" -> termsOfSchoolYear(term);
+            case "SCHOOL" -> termMapper.selectList(new LambdaQueryWrapper<Term>().orderByAsc(Term::getId));
+            default -> throw new BizException(400, "reportType 必须为 TERM/YEAR/SCHOOL");
+        };
+        if (covered.isEmpty()) {
+            throw new BizException(400, "报告范围内没有学期");
+        }
+        String termIds = covered.stream().map(t -> String.valueOf(t.getId()))
+                .reduce((a, b) -> a + "," + b).orElse(null);
+
         List<Long> studentIds = switch (scope) {
             case "单生" -> {
                 Student s = studentMapper.selectById(targetId);
@@ -127,6 +140,8 @@ public class ReportTaskService {
         ReportTask task = new ReportTask();
         task.setTermId(termId);
         task.setScope(scope);
+        task.setScopeType(reportType);
+        task.setTermIds(termIds);
         task.setTargetId(targetId);
         task.setStatus("排队");
         task.setTotal(studentIds.size());
@@ -140,12 +155,27 @@ public class ReportTaskService {
             item.setTaskId(task.getId());
             item.setStudentId(studentId);
             item.setTermId(termId);
+            item.setScopeType(reportType);
+            item.setTermIds(termIds);
             item.setStatus("排队");
             reportMapper.insert(item);
         }
         writeProgress(task);
         redis.opsForList().leftPush(QUEUE_KEY, String.valueOf(task.getId()));
         return task;
+    }
+
+    /** 学年归属：startDate 在 9 月前属上一学年（2026-02 开学的春季学期 → 2025 学年） */
+    private List<Term> termsOfSchoolYear(Term anchor) {
+        int schoolYear = schoolYear(anchor);
+        return termMapper.selectList(new LambdaQueryWrapper<Term>().orderByAsc(Term::getId)).stream()
+                .filter(t -> t.getStartDate() != null && schoolYear(t) == schoolYear)
+                .toList();
+    }
+
+    private int schoolYear(Term t) {
+        return t.getStartDate().getMonthValue() >= 9
+                ? t.getStartDate().getYear() : t.getStartDate().getYear() - 1;
     }
 
     private void dispatch(Long taskId) {
@@ -165,14 +195,25 @@ public class ReportTaskService {
             return;
         }
         int priority = "单生".equals(task.getScope()) ? RenderService.PRIORITY_SINGLE : RenderService.PRIORITY_BATCH;
+        String reportType = task.getScopeType() == null ? "TERM" : task.getScopeType();
+        List<Long> termIds = task.getTermIds() == null ? List.of(task.getTermId())
+                : java.util.Arrays.stream(task.getTermIds().split(",")).map(Long::parseLong).toList();
         // 逐项挂完成回调：成功→归档+计数；失败→记错+计数。
-        // 批5 家长版并行渲染：行状态以教师版为准，家长版失败仅 error 注记（不阻塞、不计失败）
+        // 学期报告（TERM）双版并行：行状态以教师版为准，家长版失败仅 error 注记（批5）；
+        // 学年/在校报告（YEAR/SCHOOL）学业仅个人成绩，单版本教师/家长通用（批26）
         var callbacks = items.stream()
                 .map(item -> {
-                    CompletableFuture<Path> parent = renderService.submit(priority, String.valueOf(taskId),
-                            item.getStudentId(), task.getTermId(), true);
-                    return renderService.submit(priority, String.valueOf(taskId), item.getStudentId(), task.getTermId(), false)
-                            .whenComplete((pdf, err) -> finalizeItem(taskId, item, pdf, err, parent));
+                    CompletableFuture<Path> parent = "TERM".equals(reportType)
+                            ? renderService.submit(priority, String.valueOf(taskId),
+                                    item.getStudentId(), task.getTermId(), true)
+                            : CompletableFuture.completedFuture(null);
+                    CompletableFuture<Path> main = switch (reportType) {
+                        case "YEAR", "SCHOOL" -> renderService.submitAnnual(priority, String.valueOf(taskId),
+                                item.getStudentId(), termIds, reportType.toLowerCase());
+                        default -> renderService.submit(priority, String.valueOf(taskId),
+                                item.getStudentId(), task.getTermId(), false);
+                    };
+                    return main.whenComplete((pdf, err) -> finalizeItem(taskId, item, pdf, err, parent));
                 })
                 .toList();
         CompletableFuture.allOf(callbacks.toArray(new CompletableFuture[0]))
@@ -204,18 +245,33 @@ public class ReportTaskService {
             bumpCounter(taskId, "failed", 1);
             return;
         }
+        // 学年/在校报告单版本教师/家长通用（学业仅个人成绩，符合家长版口径）→ 家长端点同对象直取
+        boolean single = !"TERM".equals(item.getScopeType() == null ? "TERM" : item.getScopeType());
         current.setStatus("成功");
         current.setFileUrl(objectName);
+        current.setParentFileUrl(single ? objectName : current.getParentFileUrl());
+        current.setError(null);
         current.setGenTime(LocalDateTime.now());
-        reportMapper.updateById(current);
+        // 默认 NOT_NULL 策略 updateById 跳 null 字段：重试成功须显式 set error=null 清旧错
+        reportMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Report>()
+                .eq(Report::getId, current.getId())
+                .set(Report::getStatus, "成功")
+                .set(Report::getFileUrl, objectName)
+                .set(Report::getParentFileUrl, current.getParentFileUrl())
+                .set(Report::getError, null)
+                .set(Report::getGenTime, current.getGenTime()));
         bumpCounter(taskId, "done", 1);
         try {
             java.nio.file.Files.deleteIfExists(pdf);
             java.nio.file.Files.deleteIfExists(pdf.resolveSibling("report.html"));
         } catch (Exception ignore) {
         }
-        // 批5 家长版异步归档：教师版已成功后处理第二份产物
-        parentFuture.whenComplete((ppdf, perr) -> archiveParent(item.getId(), ppdf, perr));
+        // 批5 家长版异步归档：教师版已成功后处理第二份产物（YEAR/SCHOOL 单版本 completedFuture(null) 直跳）
+        parentFuture.whenComplete((ppdf, perr) -> {
+            if (ppdf != null || perr != null) {
+                archiveParent(item.getId(), ppdf, perr);
+            }
+        });
     }
 
     /** 家长版归档（批5）：成功写 parent_file_url；失败仅 error 注记——行状态已是「成功」不动、不计失败 */

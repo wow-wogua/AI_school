@@ -13,7 +13,7 @@
     <div v-else-if="report" class="app-card tl tex-a r-card">
       <span class="r-icon"><van-icon name="description" /></span>
       <div class="r-info">
-        <h1>学期成长报告</h1>
+        <h1>{{ titleOf(report.scopeType) }}</h1>
         <p>{{ report.termName ?? '本学期' }}<template v-if="report.genTime"> · 生成于 {{ fmtTime(report.genTime) }}</template></p>
       </div>
       <van-button round size="small" type="primary" :loading="opening" loading-text="打开中…"
@@ -43,7 +43,12 @@ import { api, fetchBlob } from '../../api/http'
 import { isNative, openFile } from '../../api/nativeShare'
 
 interface Kid { studentId: number; name: string }
-interface ReportMeta { reportId: number; termName?: string; genTime?: string }
+interface ReportMeta { reportId: number; termName?: string; scopeType?: string; genTime?: string }
+
+/** 批26：学年/在校报告与学期报告同走此入口，标题随类型 */
+function titleOf(scopeType?: string) {
+  return scopeType === 'YEAR' ? '学年成长报告' : scopeType === 'SCHOOL' ? '在校成长报告' : '学期成长报告'
+}
 
 const children = ref<Kid[]>([])
 const curId = ref<number>()

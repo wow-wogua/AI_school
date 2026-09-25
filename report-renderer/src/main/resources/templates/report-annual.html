@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"/>
+<title>成长报告（学年/在校）</title>
+<style>
+  /* ===== 学年/在校报告（批26）：跨学期纵向汇总，页面骨架与学期报告同源（.page/页眉页码 JS 注入） ===== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "HarmonyOS Sans SC", Arial, sans-serif; color: #000; background: #fff; }
+  .page { width: 210mm; height: 296.9mm; position: relative; overflow: hidden;
+          page-break-after: always; background: #fff; }
+  .page:last-child { page-break-after: auto; }
+  .z-o { --pnc: #A8232B; --lc: #EAD9B8; --chip: #F5EDDD; }
+  .z-b { --pnc: #1F2A44; --lc: #DDE2EC; --chip: #1F2A44; --chipop: 0.149; --tbox: #1F2A44; }
+  .z-g { --pnc: #2F6F5E; --lc: #E7F3ED; --chip: #2F6F5E; --tbox: #2F6F5E; }
+  .hdr { position: absolute; top: 21pt; height: 22pt; font-size: 9pt; white-space: nowrap;
+         display: flex; align-items: center; gap: 7pt; color: #1F2A44; }
+  .hdr img { width: 22pt; height: 22pt; flex: none; }
+  .hdr.r { right: 23pt; }
+  .hdr.l { left: 22pt; }
+  .hdr::after { content: ''; position: absolute; left: 0; right: 0; bottom: -6pt; height: .7pt;
+                background: linear-gradient(90deg, rgba(201,162,39,0), rgba(201,162,39,.75), rgba(201,162,39,0)); }
+  .pgnum { position: absolute; top: 810pt; left: 0; width: 100%; text-align: center;
+           font-size: 9pt; color: var(--pnc); }
+  .pline { position: absolute; top: 814.6pt; height: .7pt; background: var(--lc); }
+  .pl1 { left: 0; width: 278.8pt; }
+  .pl2 { left: 316.2pt; right: 0; }
+  .psq { position: absolute; top: 814.6pt; width: 3pt; height: 3pt; background: var(--pnc); }
+  .abs { position: absolute; }
+  :root { --serif: 'Noto Serif SC', 'Source Han Serif SC', 'STZhongsong', 'SimSun', serif; }
+  .sec-title { position: absolute; top: 60pt; left: 0; width: 100%; text-align: center;
+               font-family: var(--serif); font-size: 18pt; font-weight: bold; color: #1F2A44; }
+  .sec-title::before { content: ''; position: absolute; left: 50%; top: 36pt; transform: translateX(-50%);
+                       width: 46pt; height: .8pt; background: rgba(201,162,39,.7); }
+  .sec-sub { position: absolute; left: 0; width: 100%; text-align: center; font-size: 8pt;
+             color: #8A93A6; letter-spacing: 2pt; margin-right: -2pt; }
+  .card { background: #FFFFFF; border: 1pt solid #E3D5AE; border-radius: 8pt; }
+  table.dt { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  table.dt th { background: #1F2A44; color: #fff; font-weight: normal; padding: 6pt 4pt;
+                font-size: 8.5pt; letter-spacing: 1pt; }
+  table.dt td { border-bottom: .6pt solid #E8E2D2; padding: 6pt 4pt; text-align: center; color: #1F2A44; }
+  table.dt tr td:first-child { text-align: left; padding-left: 8pt; }
+  .empty { position: absolute; left: 0; width: 100%; text-align: center; font-size: 10pt;
+           color: #B0B0B0; letter-spacing: 2pt; padding-top: 30pt; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ p1 封面 ═══════════ -->
+<div class="page nohdr nonum" style="background:linear-gradient(180deg,#FDFCF9 0%,#F6F1E6 100%)">
+  <div class="abs" style="top:26pt;left:26pt;right:26pt;bottom:26pt;border:1.5pt solid rgba(201,162,39,.85);border-radius:2pt"></div>
+  <div class="abs" style="top:32pt;left:32pt;right:32pt;bottom:32pt;border:.5pt solid rgba(201,162,39,.5)"></div>
+  <div class="abs" style="top:26pt;left:26pt;width:66pt;height:1.5pt;background:#A8232B"></div>
+  <div class="abs" style="top:26pt;left:26pt;width:1.5pt;height:66pt;background:linear-gradient(180deg,#A8232B 0%,#C9A227 100%)"></div>
+  <div class="abs" style="bottom:26pt;right:26pt;width:66pt;height:1.5pt;background:#C9A227"></div>
+  <div class="abs" style="bottom:26pt;right:26pt;width:1.5pt;height:66pt;background:linear-gradient(180deg,#C9A227 0%,#A8232B 100%)"></div>
+  <div class="abs" style="top:712pt;left:472pt;width:58pt;height:58pt;border:2pt solid rgba(168,35,43,.8);border-radius:4pt;transform:rotate(4deg);display:flex;align-items:center;justify-content:center">
+    <div style="font-family:var(--serif);font-size:13pt;font-weight:bold;color:#A8232B;line-height:15pt;text-align:center">石实<br>SHINE</div>
+  </div>
+  <img class="abs" th:src="${imgLogo}" style="top:70pt;left:50%;transform:translateX(-50%);width:62pt;height:62pt" alt=""/>
+  <div class="abs" style="top:148pt;left:0;width:100%;text-align:center;font-size:20pt;font-weight:bold;color:#1F2A44;letter-spacing:3pt;margin-right:-3pt" th:text="${r.school.name}">佛山市南海区石实实验学校</div>
+  <div class="abs" style="top:182pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2.2pt;margin-right:-2.2pt">SHIMEN EXPERIMENTAL SCHOOL · EST. 2000</div>
+  <div class="abs" style="top:287pt;left:222.5pt;width:150pt;height:1pt;background:rgba(201,162,39,.55)"></div>
+  <div class="abs" style="top:297pt;left:0;width:100%;text-align:center;font-size:33pt;font-weight:bold;color:#1F2A44;letter-spacing:7pt;margin-right:-7pt"
+       th:text="${scopeLabel}">学年报告</div>
+  <div class="abs" style="top:355pt;left:0;width:100%;text-align:center;font-size:9.5pt;color:#B08A1E;letter-spacing:3.5pt;margin-right:-3.5pt">ANNUAL GROWTH REPORT</div>
+  <div class="abs" style="top:366pt;left:222.5pt;width:150pt;height:1pt;background:rgba(201,162,39,.55)"></div>
+  <div class="abs" style="top:406pt;left:0;width:100%;text-align:center;font-size:8pt;color:#8A93A6;letter-spacing:4pt;margin-right:-4pt">报 告 期</div>
+  <div class="abs" style="top:420pt;left:0;width:100%;text-align:center;font-size:13.5pt;color:#B08A1E;letter-spacing:2pt;margin-right:-2pt"
+       th:text="${r.school.termRange} + '（共 ' + ${r.school.termCount} + ' 个学期）'">2025-09-01 ~ 2026-06-30</div>
+  <div class="abs card" style="top:566pt;left:147.5pt;width:300pt;padding:24pt 0 20pt;box-shadow:0 3pt 10pt rgba(31,42,68,.12)">
+    <div style="display:flex;align-items:baseline;justify-content:center;margin-bottom:14pt">
+      <span style="width:70pt;text-align:right;font-size:11pt;color:#B08A1E;letter-spacing:2pt">姓　名</span>
+      <span style="width:150pt;margin-left:18pt;text-align:center;font-size:12pt;color:#1F2A44;border-bottom:.8pt solid rgba(201,162,39,.6);padding-bottom:3pt" th:text="${r.student.name}">陈小华</span>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:center;margin-bottom:14pt">
+      <span style="width:70pt;text-align:right;font-size:11pt;color:#B08A1E;letter-spacing:2pt">班　级</span>
+      <span style="width:150pt;margin-left:18pt;text-align:center;font-size:12pt;color:#1F2A44;border-bottom:.8pt solid rgba(201,162,39,.6);padding-bottom:3pt" th:text="${r.student.clazz}">初一(1)班</span>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:center">
+      <span style="width:70pt;text-align:right;font-size:11pt;color:#B08A1E;letter-spacing:2pt">学　号</span>
+      <span style="width:150pt;margin-left:18pt;text-align:center;font-size:12pt;color:#1F2A44;border-bottom:.8pt solid rgba(201,162,39,.6);padding-bottom:3pt" th:text="${r.student.studentNo}">20230001</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ p2 成长总览 ═══════════ -->
+<div class="page z-o">
+  <div class="sec-title">成长总览</div>
+  <div class="sec-sub" style="top:92pt">GROWTH OVERVIEW</div>
+  <!-- 学生信息条 -->
+  <div class="abs card" style="top:126pt;left:44pt;width:511pt;padding:14pt 18pt;display:flex;font-size:10pt;color:#1F2A44">
+    <div style="flex:1"><span style="color:#B08A1E">姓名　</span><span th:text="${r.student.name}">陈小华</span></div>
+    <div style="flex:1.4"><span style="color:#B08A1E">班级　</span><span th:text="${r.student.clazz}">初一(1)班</span></div>
+    <div style="flex:1.2"><span style="color:#B08A1E">班主任　</span><span th:text="${r.student.headTeacher}">李老师</span></div>
+  </div>
+  <!-- 五格统计：横向五等分 99pt×5 + 间隔 4pt -->
+  <th:block th:with="cells=${ {'日常评价','活动参与','获得荣誉','成长微光','成长币收入'} }">
+    <div class="abs card" th:each="i : ${#numbers.sequence(0,4)}"
+         th:style="|top:200pt;left:${44 + i * 103}pt;width:99pt;height:120pt;text-align:center|">
+      <div style="padding-top:24pt;font-size:8.5pt;color:#8A93A6;letter-spacing:1pt" th:text="${cells[i]}">日常评价</div>
+      <div style="padding-top:10pt;font-size:26pt;font-weight:bold;color:#1F2A44;font-family:var(--serif)"
+           th:text="${i==0? r.stats.evaluations : i==1? r.stats.activities : i==2? r.stats.honors : i==3? r.stats.moments : #numbers.formatDecimal(r.stats.coinTotal,1,0)}">12</div>
+      <div style="padding-top:8pt;font-size:7pt;color:#C9A227;letter-spacing:2pt">TIMES / COINS</div>
+    </div>
+  </th:block>
+  <!-- 报告期说明 -->
+  <div class="abs card" style="top:366pt;left:44pt;width:511pt;padding:16pt 20pt">
+    <div style="font-size:10.5pt;font-weight:bold;color:#1F2A44;font-family:var(--serif);margin-bottom:8pt">报告期说明</div>
+    <div style="font-size:9pt;color:#4A5468;line-height:16pt">
+      本<span th:text="${scopeLabel}">学年报告</span>覆盖
+      <span style="color:#B08A1E" th:text="${r.school.termRange}">2025-09-01 ~ 2026-06-30</span>
+      共 <span style="color:#B08A1E" th:text="${r.school.termCount}">2</span> 个学期的成长记录，
+      汇总期间的过程评价、九维积分、学业成绩、综合素质、荣誉与成长微光。
+      学业部分仅呈现个人成绩，不含班级与年级比较数据。
+    </div>
+  </div>
+  <!-- 各学期班主任 -->
+  <div class="abs" style="top:470pt;left:44pt;width:511pt;font-size:9pt;color:#8A93A6;text-align:center">
+    生成于 <span th:text="${#dates.format(#dates.createNow(),'yyyy-MM-dd')}">2026-09-25</span> · 石实SHINE 学生成长数字平台
+  </div>
+</div>
+
+<!-- ═══════════ p3 九维积分对比 ═══════════ -->
+<div class="page z-g">
+  <div class="sec-title">「扬长」九维积分对比</div>
+  <div class="sec-sub" style="top:92pt">NINE-DIMENSION RADAR</div>
+  <div class="abs" style="top:120pt;left:44pt;width:250pt;height:330pt">
+    <div id="radarMulti" style="width:250pt;height:330pt"></div>
+  </div>
+  <div class="abs" style="top:130pt;left:318pt;width:238pt;font-size:8pt;color:#4A5468;line-height:14pt">
+    雷达图叠加呈现各学期九维「扬长」积分形态；某维度某学期无记录时该角断开。
+    维度积分由日常评价累计折算，学期积分小计见下页明细表。
+  </div>
+  <div class="abs card" style="top:216pt;left:318pt;width:238pt;padding:10pt 12pt;font-size:9pt;color:#1F2A44">
+    <div style="font-weight:bold;font-family:var(--serif);margin-bottom:6pt">各学期积分小计</div>
+    <div style="display:flex;justify-content:space-between;border-bottom:.6pt solid #E8E2D2;padding:4pt 2pt"
+         th:each="s : ${r.nineGrid.series}">
+      <span th:text="${s.term}">2025学年第一学期</span>
+      <span style="color:#B08A1E;font-weight:bold" th:text="${s.points}">86</span>
+    </div>
+  </div>
+  <!-- 学期积分趋势 -->
+  <div class="abs card" style="top:470pt;left:44pt;width:511pt;height:270pt;padding:12pt">
+    <div style="font-size:10.5pt;font-weight:bold;color:#1F2A44;font-family:var(--serif);margin-bottom:4pt">学期积分趋势</div>
+    <div id="pointsLine" style="width:487pt;height:225pt"></div>
+  </div>
+</div>
+
+<!-- ═══════════ p4 九维明细表 ═══════════ -->
+<div class="page z-o">
+  <div class="sec-title">九维积分明细</div>
+  <div class="sec-sub" style="top:92pt">NINE-DIMENSION DETAIL</div>
+  <div class="abs" style="top:126pt;left:44pt;width:511pt" th:if="${!#lists.isEmpty(r.nineGrid.rows)}">
+    <table class="dt">
+      <tr>
+        <th style="text-align:left;padding-left:8pt;width:110pt">维度</th>
+        <th th:each="s : ${r.nineGrid.series}" th:text="${s.term}">第一学期</th>
+        <th>小计</th>
+      </tr>
+      <tr th:each="row : ${r.nineGrid.rows}">
+        <td th:text="${row.name}">品德修养</td>
+        <td th:each="v : ${row.values}" th:text="${v}">12</td>
+        <td style="color:#B08A1E;font-weight:bold" th:text="${row.sum}">24</td>
+      </tr>
+    </table>
+    <div style="padding-top:10pt;font-size:8pt;color:#8A93A6">空白表示该学期此维度暂无积分记录。</div>
+  </div>
+  <div class="abs" style="top:200pt;left:44pt;width:511pt" th:if="${#lists.isEmpty(r.nineGrid.rows)}">
+    <div class="empty">报告期内暂无九维积分记录</div>
+  </div>
+</div>
+
+<!-- ═══════════ p5 学业发展 ═══════════ -->
+<div class="page z-o">
+  <div class="sec-title">学业发展</div>
+  <div class="sec-sub" style="top:92pt">ACADEMIC PROGRESS · 个人成绩</div>
+  <div class="abs card" style="top:120pt;left:44pt;width:511pt;height:250pt;padding:12pt">
+    <div style="font-size:10.5pt;font-weight:bold;color:#1F2A44;font-family:var(--serif);margin-bottom:4pt">期末考试总分趋势</div>
+    <div id="totalLine" style="width:487pt;height:205pt"></div>
+  </div>
+  <th:block th:with="subjects=${r.academic.subjects}">
+    <div class="abs" style="top:400pt;left:44pt;width:511pt" th:if="${!#lists.isEmpty(subjects)}">
+      <div style="font-size:10.5pt;font-weight:bold;color:#1F2A44;font-family:var(--serif);margin-bottom:8pt">
+        最近一期期末各科成绩 <span style="font-size:8pt;color:#8A93A6;font-weight:normal" th:text="${'（' + r.academic.latestExamDate + '）'}">（2026-06-20）</span>
+      </div>
+      <table class="dt">
+        <tr><th style="text-align:left;padding-left:8pt">科目</th><th th:each="s : ${subjects}" th:text="${s.name}">语文</th></tr>
+        <tr><td>成绩</td><td th:each="s : ${subjects}" style="color:#B08A1E;font-weight:bold" th:text="${s.score}">98</td></tr>
+      </table>
+    </div>
+    <div class="abs" style="top:420pt;left:44pt;width:511pt" th:if="${#lists.isEmpty(subjects)}">
+      <div class="empty">报告期内暂无考试成绩记录</div>
+    </div>
+  </th:block>
+</div>
+
+<!-- ═══════════ p6 综合素质评定 + 寄语 ═══════════ -->
+<div class="page z-b">
+  <div class="sec-title">综合素质评定</div>
+  <div class="sec-sub" style="top:92pt">COMPREHENSIVE QUALITY</div>
+  <div class="abs" style="top:126pt;left:44pt;width:511pt" th:if="${!#lists.isEmpty(r.comprehensive)}">
+    <table class="dt">
+      <tr>
+        <th style="text-align:left;padding-left:8pt">学期</th><th>品德</th><th>能力</th><th>健康</th><th>审美</th><th>实践</th><th>综合等第</th>
+      </tr>
+      <tr th:each="c : ${r.comprehensive}">
+        <td th:text="${c.term}">第一学期</td>
+        <td th:text="${c.moral}">A</td><td th:text="${c.ability}">A</td><td th:text="${c.health}">A</td>
+        <td th:text="${c.aesthetic}">A</td><td th:text="${c.practice}">A</td>
+        <td style="color:#C9A227;font-weight:bold" th:text="${c.final}">A</td>
+      </tr>
+    </table>
+  </div>
+  <div class="abs" style="top:190pt;left:44pt;width:511pt" th:if="${#lists.isEmpty(r.comprehensive)}">
+    <div class="empty" style="color:#8A96B8">报告期内暂无综合素质评定记录</div>
+  </div>
+  <!-- 班主任寄语 -->
+  <div class="abs" style="top:300pt;left:44pt;width:511pt" th:if="${!#lists.isEmpty(r.comments)}">
+    <div style="font-size:10.5pt;font-weight:bold;color:#fff;font-family:var(--serif);margin-bottom:12pt">班主任寄语</div>
+    <div th:each="c : ${r.comments}" style="margin-bottom:16pt;background:rgba(255,255,255,.06);border-left:2pt solid #C9A227;border-radius:3pt;padding:10pt 14pt">
+      <div style="font-size:8pt;color:#C9A227;letter-spacing:1pt;margin-bottom:5pt" th:text="${c.term}">第一学期</div>
+      <div style="font-size:9.5pt;color:#E6EAF4;line-height:16pt" th:text="${c.content}">寄语内容</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ p7 荣誉记录 ═══════════ -->
+<div class="page z-o">
+  <div class="sec-title">荣誉记录</div>
+  <div class="sec-sub" style="top:92pt">HONORS</div>
+  <div class="abs" style="top:126pt;left:44pt;width:511pt" th:if="${!#lists.isEmpty(r.honors.rows)}">
+    <table class="dt">
+      <tr><th style="text-align:left;padding-left:8pt">荣誉名称</th><th>级别</th><th>颁发单位</th><th>日期</th></tr>
+      <tr th:each="h : ${r.honors.rows}">
+        <td th:text="${h.name}">三好学生</td>
+        <td th:text="${h.level}">校级</td>
+        <td th:text="${h.issuer}">学校</td>
+        <td th:text="${h.date}">2026-06-30</td>
+      </tr>
+    </table>
+    <div style="padding-top:10pt;font-size:8pt;color:#8A93A6" th:if="${r.honors.more}">仅列出最近 30 项荣誉。</div>
+  </div>
+  <div class="abs" style="top:200pt;left:44pt;width:511pt" th:if="${#lists.isEmpty(r.honors.rows)}">
+    <div class="empty">报告期内暂无荣誉记录</div>
+  </div>
+</div>
+
+<!-- ═══════════ p8 成长掠影 ═══════════ -->
+<div class="page z-o">
+  <div class="sec-title">成长掠影</div>
+  <div class="sec-sub" style="top:92pt">GROWTH MOMENTS</div>
+  <th:block th:if="${!#lists.isEmpty(r.moments)}">
+    <!-- 2×3 卡片墙：照片/文字卡 + 日期 + 场景 + 说明 -->
+    <div class="abs card" th:each="m, it : ${r.moments}"
+         th:style="|top:${126 + (it.index / 3) * 220}pt;left:${44 + (it.index % 3) * 172}pt;width:158pt;height:200pt;padding:8pt|">
+      <div style="width:142pt;height:112pt;border-radius:4pt;overflow:hidden;background:#F6F1E6;display:flex;align-items:center;justify-content:center">
+        <img th:if="${m.photo != ''}" th:src="${m.photo}" style="width:100%;height:100%;object-fit:cover" alt=""/>
+        <div th:if="${m.photo == ''}" style="font-size:8pt;color:#B0A98F;padding:8pt;line-height:12pt"
+             th:text="${#strings.abbreviate(m.note,60)}">微光文字</div>
+      </div>
+      <div style="padding-top:8pt;font-size:7pt;color:#C9A227" th:text="${m.date} + ' · ' + ${m.sceneTag}">2026-05-20 · 课堂</div>
+      <div style="padding-top:4pt;font-size:8pt;color:#4A5468;line-height:12pt" th:text="${#strings.abbreviate(m.note,48)}">说明文字</div>
+    </div>
+  </th:block>
+  <div class="abs" style="top:200pt;left:44pt;width:511pt" th:if="${#lists.isEmpty(r.moments)}">
+    <div class="empty">报告期内暂无成长微光</div>
+  </div>
+</div>
+
+<!-- ═══════════ p9 封底 ═══════════ -->
+<div class="page z-o nohdr nonum" style="background:linear-gradient(180deg,#F6F1E6 0%,#FDFCF9 100%)">
+  <div class="abs" style="top:26pt;left:26pt;right:26pt;bottom:26pt;border:1.5pt solid rgba(201,162,39,.85);border-radius:2pt"></div>
+  <div class="abs" style="top:392pt;left:0;width:100%;text-align:center;font-family:var(--serif);font-size:15pt;color:#B08A1E;letter-spacing:5pt;margin-right:-5pt">任重道远　毋忘奋斗</div>
+  <div class="abs" style="top:440pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2pt;margin-right:-2pt"
+       th:text="${r.school.name} + ' · ' + ${scopeLabel}">佛山市南海区石实实验学校</div>
+</div>
+
+<script th:utext="${echartsJs}"></script>
+<script th:inline="javascript">
+const DATA = JSON.parse(/*[[${dataJson}]]*/ '{}');
+const LOGO = /*[[${imgLogo}]]*/ '';
+const SCOPE = /*[[${scopeLabel}]]*/ '';
+function mk(id, opt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const c = echarts.init(el, null, { renderer: 'svg' });
+  opt.animation = false;
+  if (!opt.color) opt.color = ['#1F2A44', '#C9A227', '#A8232B', '#2F6F5E', '#3A4A6E', '#8A6D3B'];
+  opt.textStyle = { fontFamily: 'Arial, HarmonyOS Sans SC' };
+  c.setOption(opt);
+}
+const WRAP = (fs, color, w) => ({ fontSize: fs, color, width: w, overflow: 'break', interval: 0, lineHeight: fs });
+
+/* ── 页眉 / 页码注入（同 report.html） ── */
+document.querySelectorAll('.page').forEach((pg, i) => {
+  const n = i + 1;
+  if (!pg.classList.contains('nohdr')) {
+    const side = (i % 2) ? 'r' : 'l';
+    const h = document.createElement('div');
+    h.className = 'hdr ' + side;
+    const lg = document.createElement('img');
+    lg.src = LOGO;
+    lg.alt = '';
+    h.appendChild(lg);
+    h.appendChild(document.createTextNode(DATA.school.name + SCOPE));
+    pg.appendChild(h);
+  }
+  if (!pg.classList.contains('nonum')) {
+    const p = document.createElement('div');
+    p.className = 'pgnum';
+    p.textContent = n;
+    pg.appendChild(p);
+    ['pl1', 'pl2'].forEach(cl => { const l = document.createElement('div'); l.className = 'pline ' + cl; pg.appendChild(l); });
+    const one = String(n).length === 1;
+    ['ps1', 'ps2'].forEach((cl, k) => {
+      const s = document.createElement('div');
+      s.className = 'psq ' + cl;
+      s.style.left = one ? (k ? '305pt' : '287.8pt') : (k ? '307.2pt' : '284.8pt');
+      pg.appendChild(s);
+    });
+  }
+});
+
+try {
+  const NG = DATA.nineGrid;
+  const terms = NG.series.slice(0, 6);   // 在校最多 6 学期，超出截断保护
+  /* p3 九维雷达：每学期一系列（null 维断线） */
+  mk('radarMulti', {
+    legend: { data: terms.map(s => s.term), bottom: 0, textStyle: { fontSize: 7, color: '#1A1A1A' },
+              itemWidth: 8, itemHeight: 8, type: 'scroll', pageIconSize: 5, pageTextStyle: { fontSize: 6 } },
+    radar: {
+      indicator: NG.labels.map(n => ({ name: n, max: NG.radarMax })),
+      center: ['50%', '46%'], radius: '62%',
+      splitNumber: 2,
+      splitArea: { areaStyle: { color: ['#FDFCF9', '#EFEADB'] } },
+      splitLine: { lineStyle: { color: '#BBBBBB' } },
+      axisLine: { lineStyle: { color: '#D5CEB8' } },
+      axisName: { fontSize: 7, color: '#1A1A1A' }
+    },
+    series: [{ type: 'radar', symbolSize: 5,
+      data: terms.map(s => ({ name: s.term, value: s.values,
+        label: { show: false }, areaStyle: { opacity: 0.08 } })) }]
+  });
+  /* p3 学期积分趋势折线 */
+  mk('pointsLine', {
+    grid: { left: 40, right: 30, top: 26, bottom: 40, containLabel: true },
+    xAxis: { type: 'category', data: NG.series.map(s => s.term),
+             axisLabel: WRAP(7.5, '#1A1A1A', 64), axisTick: { show: false },
+             axisLine: { lineStyle: { color: '#C9BF9E' } } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 8, color: '#1A1A1A' },
+             axisLine: { show: false }, splitLine: { lineStyle: { color: '#E8E2D2' } } },
+    series: [{ type: 'line', data: NG.series.map(s => s.points), symbolSize: 7,
+               itemStyle: { color: '#2F6F5E' }, lineStyle: { color: '#2F6F5E', width: 1.5 },
+               label: { show: true, position: 'top', distance: 8, fontSize: 8, color: '#1A1A1A' },
+               areaStyle: { color: 'rgba(47,111,94,.12)' } }]
+  });
+  /* p5 期末总分趋势（非考试学期 null 断点，不断线误导） */
+  const AC = DATA.academic;
+  mk('totalLine', {
+    grid: { left: 40, right: 30, top: 26, bottom: 40, containLabel: true },
+    xAxis: { type: 'category', data: AC.trend.map(t => t.term),
+             axisLabel: WRAP(7.5, '#1A1A1A', 64), axisTick: { show: false },
+             axisLine: { lineStyle: { color: '#C9BF9E' } } },
+    yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 8, color: '#1A1A1A' },
+             axisLine: { show: false }, splitLine: { lineStyle: { color: '#E8E2D2' } } },
+    series: [{ type: 'line', connectNulls: false, symbolSize: 7,
+               itemStyle: { color: '#A8232B' }, lineStyle: { color: '#A8232B', width: 1.5 },
+               label: { show: true, position: 'top', distance: 8, fontSize: 8, color: '#1A1A1A',
+                        formatter: p => p.value == null ? '' : p.value },
+               data: AC.trend.map(t => t.hasExam ? t.total : null) }]
+  });
+} catch (e) {
+  window.__chartErr = String(e);
+} finally {
+  window.chartsReady = true;
+}
+</script>
+</body>
+</html>

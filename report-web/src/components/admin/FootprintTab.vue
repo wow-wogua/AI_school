@@ -13,6 +13,8 @@
       <el-select v-model="qType" clearable placeholder="全部类型" style="width: 140px" @change="load">
         <el-option v-for="s in SIX.filter((x) => x.key !== 'AWARD')" :key="s.key" :label="s.label" :value="s.key" />
       </el-select>
+      <el-button type="primary" :disabled="!qTeacher" :loading="exporting" @click="exportPdf">导出该教师 PDF</el-button>
+      <span v-if="!qTeacher" class="hint">先选择教师可导出其成长足迹报告</span>
     </div>
     <el-table :data="rows" size="small">
       <el-table-column prop="teacherName" label="教师" width="100" />
@@ -36,7 +38,9 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api } from '../../api/http'
+import { ElMessage } from 'element-plus'
+import { api, fetchBlob } from '../../api/http'
+import { saveFile } from '../../api/nativeShare'
 
 const SIX = [
   { key: 'OPEN_CLASS', label: '公开课' },
@@ -54,6 +58,20 @@ const qType = ref('')
 const teachers = ref<any[]>([])
 const rows = ref<any[]>([])
 const summary = ref<Record<string, number>>({})
+const exporting = ref(false)
+
+/** 导出所选教师的成长足迹 PDF（批26）：同步渲染约 10s */
+async function exportPdf() {
+  if (!qTeacher.value) return
+  exporting.value = true
+  try {
+    const blob = await fetchBlob(`/api/footprint/report?teacherId=${qTeacher.value}`)
+    const name = teachers.value.find((t: any) => t.id === qTeacher.value)
+    await saveFile(blob, `${name?.realName || name?.username || '教师'}-成长足迹.pdf`)
+  } catch (e: any) {
+    ElMessage.error(e?.message || '导出失败')
+  } finally { exporting.value = false }
+}
 
 async function load() {
   const p = new URLSearchParams()
@@ -84,5 +102,6 @@ onMounted(async () => {
   padding: 10px 0; text-align: center; }
 .cell b { display: block; font-size: 20px; color: var(--el-color-primary); }
 .cell span { font-size: 12px; color: var(--el-text-color-secondary); }
-.bar { display: flex; gap: 10px; margin-bottom: 12px; }
+.bar { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
+.hint { font-size: 12px; color: var(--el-text-color-secondary); }
 </style>

@@ -22,7 +22,9 @@
       <van-button round block type="primary" class="submit" :loading="submitting" @click="doSubmit">保存记录</van-button>
     </div>
 
-    <div class="app-sec">我的足迹<template v-if="filter"> · {{ filterLabel }}</template> · {{ rows.length }} 条</div>
+    <div class="app-sec fp-sec">我的足迹<template v-if="filter"> · {{ filterLabel }}</template> · {{ rows.length }} 条
+      <van-button size="small" plain round type="primary" :loading="exporting" class="exp" @click="exportPdf">导出 PDF</van-button>
+    </div>
     <div class="app-card list">
       <div v-if="!rows.length" class="empty">还没有足迹记录</div>
       <div v-for="r in rows" :key="r.id" class="row">
@@ -54,7 +56,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
-import { api } from '../api/http'
+import { api, fetchBlob } from '../api/http'
+import { saveFile } from '../api/nativeShare'
 
 interface Fp { id: number; type: string; title: string; footDate: string; place?: string; note?: string; createTime: string }
 
@@ -84,6 +87,18 @@ const dateOpen = ref(false)
 const place = ref('')
 const note = ref('')
 const submitting = ref(false)
+const exporting = ref(false)
+
+/** 成长足迹 PDF（批26）：同步渲染约 10s，落系统下载 */
+async function exportPdf() {
+  exporting.value = true
+  try {
+    const blob = await fetchBlob('/api/footprint/report')
+    await saveFile(blob, '教师成长足迹.pdf')
+  } catch (e: any) {
+    showToast(e?.message || '导出失败')
+  } finally { exporting.value = false }
+}
 
 const columns = SIX.filter((s) => s.key !== 'AWARD').map((s) => ({ text: s.label, value: s.key }))
 const typeLabel = computed(() => LABEL[fType.value] || '')
@@ -166,6 +181,8 @@ onMounted(load)
 .stat span { font-size: 11px; color: var(--app-text-3); white-space: nowrap; }
 
 .form { padding: 14px 12px; margin-top: 12px; }
+.fp-sec { display: flex; align-items: center; }
+.fp-sec .exp { margin-left: auto; flex: none; }
 .submit { margin-top: 14px; }
 
 .list { margin-top: 12px; padding: 6px 14px; }

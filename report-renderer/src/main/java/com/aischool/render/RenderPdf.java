@@ -19,15 +19,20 @@ import java.util.Map;
 
 /**
  * M5 最小验证：黄金学生 JSON → Thymeleaf HTML（页内 ECharts）→ Playwright 打印 A4 PDF。
- * 用法：java ... RenderPdf [数据json路径] [输出pdf路径] [parent]
- * 第三参 parent=家长版（批5 方案A：成绩板块 15 页与目录条目不渲染，页码由模板 JS 重排）。
+ * 用法：java ... RenderPdf [数据json路径] [输出pdf路径] [mode]
+ * mode=teacher（学期报告教师版，默认）/ parent（批5 家长版去成绩板块）
+ *     / year|school（批26 学年/在校报告，模板 report-annual，单版本）
+ *     / footprint（批26 教师足迹报告，模板 footprint）。
  */
 public class RenderPdf {
 
     public static void main(String[] args) throws Exception {
         Path jsonPath = Paths.get(args.length > 0 ? args[0] : "src/main/resources/golden_student.json");
         Path outPdf = Paths.get(args.length > 1 ? args[1] : "target/report.pdf");
-        boolean parentEdition = args.length > 2 && "parent".equals(args[2]);
+        String mode = args.length > 2 ? args[2] : "teacher";
+        boolean parentEdition = "parent".equals(mode);
+        boolean annual = "year".equals(mode) || "school".equals(mode);
+        boolean footprint = "footprint".equals(mode);
 
         // ① 读取报告数据
         ObjectMapper om = new ObjectMapper();
@@ -44,6 +49,7 @@ public class RenderPdf {
         Context ctx = new Context();
         ctx.setVariable("r", data);
         ctx.setVariable("parentEdition", parentEdition);
+        ctx.setVariable("scopeLabel", "school".equals(mode) ? "在校报告" : "学年报告");
         ctx.setVariable("dataJson", om.writeValueAsString(data));
         // echarts 内联进 HTML，避免 file:// 相对路径问题
         ctx.setVariable("echartsJs", resourceText("/static/echarts.min.js"));
@@ -60,7 +66,7 @@ public class RenderPdf {
         ctx.setVariable("imgIconL", dataUri("/static/img/img_icon_l.png"));
         ctx.setVariable("imgIconR", dataUri("/static/img/img_icon_r.png"));
         ctx.setVariable("imgLogo", dataUri("/static/img/img_logo.png"));
-        String html = engine.process("report", ctx);
+        String html = engine.process(footprint ? "footprint" : annual ? "report-annual" : "report", ctx);
 
         Files.createDirectories(outPdf.toAbsolutePath().getParent());
         Path htmlOut = outPdf.resolveSibling(

@@ -148,6 +148,8 @@ public class ParentController {
         m.put("reportId", report.getId());
         m.put("studentId", report.getStudentId());
         m.put("termName", term == null ? null : term.getName());
+        // 批26：学年/在校报告也走 parentFileUrl，前端据此显示正确标题
+        m.put("scopeType", report.getScopeType() == null ? "TERM" : report.getScopeType());
         m.put("genTime", report.getGenTime() == null ? null : report.getGenTime().toString());
         return ApiResponse.ok(m);
     }

@@ -1,6 +1,9 @@
 package com.aischool.server.service.report;
 
 import com.aischool.server.common.BizException;
+import com.aischool.server.entity.Term;
+import com.aischool.server.mapper.TermMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -15,11 +18,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -35,6 +40,9 @@ public class RenderService {
     public static final int PRIORITY_BATCH = 1;
 
     private final ReportDataBuilder dataBuilder;
+    private final AnnualDataBuilder annualDataBuilder;
+    private final FootprintReportBuilder footprintReportBuilder;
+    private final TermMapper termMapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${aischool.render.renderer-home}")
@@ -51,8 +59,12 @@ public class RenderService {
 
     private ThreadPoolExecutor pool;
 
-    public RenderService(ReportDataBuilder dataBuilder) {
+    public RenderService(ReportDataBuilder dataBuilder, AnnualDataBuilder annualDataBuilder,
+                         FootprintReportBuilder footprintReportBuilder, TermMapper termMapper) {
         this.dataBuilder = dataBuilder;
+        this.annualDataBuilder = annualDataBuilder;
+        this.footprintReportBuilder = footprintReportBuilder;
+        this.termMapper = termMapper;
     }
 
     @PostConstruct
@@ -67,12 +79,43 @@ public class RenderService {
         pool.shutdown();
     }
 
-    /** 提交一次渲染（聚合 JSON → 子进程渲染），返回产物 PDF 路径；parent=家长版（批5 去成绩板块） */
+    /** 学期报告（教师版/家长版，批5 双版并行） */
     public CompletableFuture<Path> submit(int priority, String batchKey, Long studentId, Long termId, boolean parent) {
+        String mode = parent ? "parent" : "teacher";
+        return submitData(priority, batchKey, String.valueOf(studentId), mode,
+                () -> dataBuilder.build(studentId, termId));
+    }
+
+    /** 学年/在校报告（批26）：单版本（学业仅个人成绩，教师/家长通用）；termIds 升序解析 */
+    public CompletableFuture<Path> submitAnnual(int priority, String batchKey, Long studentId,
+                                                List<Long> termIds, String mode) {
+        String label = "school".equals(mode) ? "在校报告" : "学年报告";
+        return submitData(priority, batchKey, String.valueOf(studentId), mode,
+                () -> annualDataBuilder.build(studentId, orderedTerms(termIds), label));
+    }
+
+    /** 教师足迹报告（批26）：教师本人或管理员导出，同步等待用（get） */
+    public CompletableFuture<Path> submitFootprint(Long teacherId) {
+        return submitData(PRIORITY_SINGLE, "footprint", String.valueOf(teacherId), "footprint",
+                () -> footprintReportBuilder.build(teacherId));
+    }
+
+    private List<Term> orderedTerms(List<Long> termIds) {
+        List<Term> terms = termMapper.selectList(new LambdaQueryWrapper<Term>()
+                .in(Term::getId, termIds).orderByAsc(Term::getId));
+        if (terms.size() != termIds.size()) {
+            throw new BizException(404, "学期不存在");
+        }
+        return terms;
+    }
+
+    /** 提交一次渲染（聚合 JSON → 子进程渲染），返回产物 PDF 路径 */
+    private CompletableFuture<Path> submitData(int priority, String batchKey, String dirKey, String mode,
+                                               Supplier<Map<String, Object>> dataSupplier) {
         CompletableFuture<Path> future = new CompletableFuture<>();
         pool.execute(new PriorityTask(priority, () -> {
             try {
-                future.complete(render(batchKey, studentId, termId, parent));
+                future.complete(render(batchKey, dirKey, mode, dataSupplier.get()));
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             }
@@ -80,10 +123,11 @@ public class RenderService {
         return future;
     }
 
-    private Path render(String batchKey, Long studentId, Long termId, boolean parent) throws Exception {
-        String suffix = parent ? "-parent" : ""; // 同目录双版并行：文件名分流防互删
-        Map<String, Object> data = dataBuilder.build(studentId, termId);
-        Path dir = Paths.get(workDir, batchKey, String.valueOf(studentId));
+    private Path render(String batchKey, String dirKey, String mode, Map<String, Object> data) throws Exception {
+        String suffix = "parent".equals(mode) ? "-parent"
+                : "year".equals(mode) ? "-year" : "school".equals(mode) ? "-school"
+                : "footprint".equals(mode) ? "-fp" : ""; // 同目录多版并行：文件名分流防互删
+        Path dir = Paths.get(workDir, batchKey, dirKey);
         Files.createDirectories(dir);
         Path json = dir.resolve("data" + suffix + ".json");
         Path pdf = dir.resolve("report" + suffix + ".pdf");
@@ -94,8 +138,7 @@ public class RenderService {
         Process process = new ProcessBuilder(javaExecutable(),
                         "-Dfile.encoding=UTF-8", "-Xmx512m", "-cp", rendererClasspath(),
                         "com.aischool.render.RenderPdf",
-                        json.toAbsolutePath().toString(), pdf.toAbsolutePath().toString(),
-                        parent ? "parent" : "teacher")
+                        json.toAbsolutePath().toString(), pdf.toAbsolutePath().toString(), mode)
                 .directory(new java.io.File(rendererHome))
                 .redirectErrorStream(true)
                 .start();
@@ -110,7 +153,7 @@ public class RenderService {
 
         if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
             process.destroyForcibly();
-            throw new BizException(500, "渲染超时（>" + timeoutSeconds + "s），学生 " + studentId);
+            throw new BizException(500, "渲染超时（>" + timeoutSeconds + "s）");
         }
         if (process.exitValue() != 0 || !Files.exists(pdf)) {
             throw new BizException(500, "渲染失败 exit=" + process.exitValue()
