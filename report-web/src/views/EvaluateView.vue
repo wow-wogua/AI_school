@@ -6,7 +6,8 @@
       <el-select v-model="classId" placeholder="班级" style="min-width: 140px" @change="loadStudents">
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
-      <el-select v-model="studentId" filterable placeholder="选择学生" style="min-width: 160px" @change="loadHistory">
+      <el-select v-model="studentIds" multiple collapse-tags collapse-tags-tooltip filterable
+        placeholder="选择学生（可多选批量）" style="min-width: 200px" @change="loadHistory">
         <el-option v-for="s in students" :key="s.id" :label="s.name" :value="s.id" />
       </el-select>
       <el-select v-model="termId" placeholder="学期" style="min-width: 160px" @change="loadHistory">
@@ -15,8 +16,13 @@
       <el-button v-if="classId && termId" @click="exportXlsx">导出本班学期评价</el-button>
     </div>
 
-    <el-card v-if="studentId">
-      <template #header>日常评价（一次评价同时写入九维 / 能量币 / 班年级均值，报告即时可见）</template>
+    <el-card v-if="studentIds.length">
+      <template #header>
+        日常评价（一次评价同时写入九维 / 能量币 / 班年级均值，报告即时可见）
+        <el-tag v-if="studentIds.length > 1" type="warning" size="small" style="margin-left: 8px">
+          已选 {{ studentIds.length }} 名学生，将为每人生成一条相同评价
+        </el-tag>
+      </template>
       <el-form label-width="90px">
         <el-form-item label="九维">
           <el-select v-model="gridId" style="width: 180px" @change="loadIndicators">
@@ -49,7 +55,8 @@
       </el-form>
     </el-card>
 
-    <el-card v-if="studentId" style="margin-top: 12px">
+    <!-- 多选批量时历史区隐藏（记录属单一学生，避免误读） -->
+    <el-card v-if="studentIds.length === 1" style="margin-top: 12px">
       <template #header>本学期评价记录（新录入在前）</template>
       <el-table :data="history" size="small" max-height="420">
         <el-table-column prop="evalTime" label="时间" width="160" />
@@ -90,7 +97,8 @@ const indicators = ref<{ id: number; name: string }[]>([])
 const history = ref<any[]>([])
 const classId = ref<number>()
 const termId = ref<number>()
-const studentId = ref<number>()
+/** 学生多选（批15：选学生支持批量评价）；单选时保留历史记录视图 */
+const studentIds = ref<number[]>([])
 const gridId = ref<number>()
 const indicatorId = ref<number>()
 const score = ref(1)
@@ -140,7 +148,7 @@ async function preselect() {
     if (s.classId && classes.value.some((c) => c.id === s.classId)) {
       classId.value = s.classId
       await loadStudents()
-      studentId.value = sid
+      studentIds.value = [sid]
       await loadHistory()
     }
   } catch { /* 深链失效则保持默认视图 */ }
@@ -151,7 +159,7 @@ async function loadStudents() {
   const d = await api<{ records: { id: number; name: string }[] }>(
     `/api/student/list?classId=${classId.value}&page=1&size=100`)
   students.value = d.records
-  studentId.value = undefined
+  studentIds.value = []
   history.value = []
 }
 
@@ -163,31 +171,41 @@ async function loadIndicators() {
 }
 
 async function loadHistory() {
-  if (!studentId.value || !termId.value) return
+  // 历史记录仅单选时展示（=该生的记录）
+  if (studentIds.value.length !== 1 || !termId.value) return
   if (!gridId.value && grids.value.length) {
     gridId.value = grids.value[0].id
     await loadIndicators()
   }
-  history.value = (await api<any[]>(`/api/evaluation/list?studentId=${studentId.value}&termId=${termId.value}`))
+  history.value = (await api<any[]>(`/api/evaluation/list?studentId=${studentIds.value[0]}&termId=${termId.value}`))
     .slice().reverse()
 }
 
+/** 提交：单选=现状；多选=同一评价逐生落库（写穿链逐条独立，银行/操行/微光联动全复用） */
 async function submit() {
-  if (!studentId.value || !indicatorId.value) return
+  if (!studentIds.value.length || !indicatorId.value) return
   saving.value = true
   try {
-    const r = await api<{ termId: number; weekNo: number }>('/api/evaluation', {
-      method: 'POST',
-      json: {
-        studentId: studentId.value,
-        indicatorId: indicatorId.value,
-        title: title.value,
-        score: score.value,
-        remark: remark.value || undefined,
-        evalTime: evalTime.value,
-      },
-    })
-    ElMessage.success(`已记录（第 ${r.weekNo} 周），报告单即时生效`)
+    let ok = 0, failed = 0, weekNo = 0
+    for (const sid of studentIds.value) {
+      try {
+        const r = await api<{ weekNo: number }>('/api/evaluation', {
+          method: 'POST',
+          json: {
+            studentId: sid,
+            indicatorId: indicatorId.value,
+            title: title.value,
+            score: score.value,
+            remark: remark.value || undefined,
+            evalTime: evalTime.value,
+          },
+        })
+        ok++
+        weekNo = r.weekNo
+      } catch { failed++ }
+    }
+    if (failed) ElMessage.warning(`成功 ${ok} 条，失败 ${failed} 条`)
+    else ElMessage.success(`已记录 ${ok} 条（第 ${weekNo} 周），报告单即时生效`)
     title.value = ''
     remark.value = ''
     await loadHistory()

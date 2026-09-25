@@ -24,6 +24,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -498,6 +499,89 @@ public class AdminUserController {
                 .eq(UserPermission::getUserId, id)); // 顺带清权限点
         approvalService.withdrawByUser(id);          // 连带撤回待审批请求（批2-5）
         return ApiResponse.ok();
+    }
+
+    // ───────── 批量操作（批15：批量操作全面覆盖收口，镜像家长账号批量） ─────────
+
+    @Data
+    public static class UserBatchStatusReq {
+        @NotEmpty(message = "ids 不能为空")
+        private List<Long> ids;
+        @NotNull(message = "status 不能为空")
+        private Integer status;
+    }
+
+    @Data
+    public static class UserBatchIdsReq {
+        @NotEmpty(message = "ids 不能为空")
+        private List<Long> ids;
+    }
+
+    /** 批量启停（不可含自己停用） */
+    @PutMapping("/user/batch/status")
+    public ApiResponse<Void> batchUpdateUserStatus(@Validated @RequestBody UserBatchStatusReq req) {
+        checkAdmin();
+        if (req.getStatus() != 0 && req.getStatus() != 1) {
+            throw new BizException(400, "status 必须是 0/1");
+        }
+        if (req.getStatus() == 0 && req.getIds().contains(AuthUtil.current().userId())) {
+            throw new BizException(400, "不能停用自己");
+        }
+        userMapper.update(null, new LambdaUpdateWrapper<User>()
+                .in(User::getId, req.getIds()).set(User::getStatus, req.getStatus()));
+        return ApiResponse.ok();
+    }
+
+    /** 批量重置为统一初始密码（重置后全部强制改密） */
+    @PutMapping("/user/batch/reset-password")
+    public ApiResponse<Map<String, Object>> batchResetPassword(@Validated @RequestBody UserBatchIdsReq req) {
+        checkAdmin();
+        userMapper.update(null, new LambdaUpdateWrapper<User>()
+                .in(User::getId, req.getIds())
+                .set(User::getPasswordHash, passwordEncoder.encode(INITIAL_PASSWORD))
+                .set(User::getMustChangePwd, 1));
+        return ApiResponse.ok(Map.of("initialPassword", INITIAL_PASSWORD));
+    }
+
+    /** 批量删除（逐个走单删护栏：任课/班主任前置；失败名单返回，其余成功） */
+    @DeleteMapping("/user/batch")
+    public ApiResponse<Map<String, Object>> batchDeleteUser(@Validated @RequestBody UserBatchIdsReq req) {
+        checkAdmin();
+        List<Map<String, String>> failed = new java.util.ArrayList<>();
+        int ok = 0;
+        for (Long id : req.getIds()) {
+            User u = userMapper.selectById(id);
+            if (u == null) {
+                failed.add(failRow(id, "", "账号不存在"));
+                continue;
+            }
+            if (AuthUtil.current().userId().equals(id)) {
+                failed.add(failRow(id, u.getRealName(), "不能删除自己"));
+                continue;
+            }
+            if (teachMapper.selectCount(new LambdaQueryWrapper<Teach>().eq(Teach::getTeacherId, id)) > 0) {
+                failed.add(failRow(id, u.getRealName(), "仍有任课关系，请先删除任课记录"));
+                continue;
+            }
+            if (clazzMapper.selectCount(new LambdaQueryWrapper<Clazz>().eq(Clazz::getHeadTeacherId, id)) > 0) {
+                failed.add(failRow(id, u.getRealName(), "仍是某班班主任，请先调整班级"));
+                continue;
+            }
+            userMapper.deleteById(id);
+            userPermissionMapper.delete(new LambdaQueryWrapper<UserPermission>()
+                    .eq(UserPermission::getUserId, id)); // 顺带清权限点
+            approvalService.withdrawByUser(id);          // 连带撤回待审批请求（批2-5）
+            ok++;
+        }
+        return ApiResponse.ok(Map.of("deleted", ok, "failed", failed));
+    }
+
+    private Map<String, String> failRow(Long id, String name, String reason) {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("id", String.valueOf(id));
+        m.put("name", name == null ? "" : name);
+        m.put("reason", reason);
+        return m;
     }
 
     /** 任课关系列表（teacherId 可选，附教师/班级/学科名） */

@@ -6,7 +6,8 @@
       <el-select v-model="classId" placeholder="班级" style="min-width: 140px" @change="loadStudents">
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
-      <el-select v-model="studentId" filterable placeholder="选择学生" style="min-width: 160px" @change="load">
+      <el-select v-model="studentIds" multiple collapse-tags collapse-tags-tooltip filterable
+        placeholder="选择学生（可多选批量）" style="min-width: 200px" @change="onStudentChange">
         <el-option v-for="s in students" :key="s.id" :label="s.name" :value="s.id" />
       </el-select>
       <el-select v-model="termId" placeholder="学期" style="min-width: 160px" @change="load">
@@ -14,9 +15,12 @@
       </el-select>
     </div>
 
-    <el-card v-if="studentId">
+    <el-card v-if="studentIds.length">
       <template #header>
         综合素质评价（五维 A–D；final 由系统按「众数并列取高」自动裁定，保存后进入报告单）
+        <el-tag v-if="studentIds.length > 1" type="warning" size="small" style="margin-left: 8px">
+          已选 {{ studentIds.length }} 名学生，将为每人写入相同五维等级
+        </el-tag>
       </template>
       <el-form label-width="90px" style="max-width: 560px">
         <el-form-item v-for="d in dims" :key="d.key" :label="d.label">
@@ -50,7 +54,17 @@ const terms = ref<any[]>([])
 const students = ref<{ id: number; name: string }[]>([])
 const classId = ref<number>()
 const termId = ref<number>()
-const studentId = ref<number>()
+/** 学生多选（批15）：单选=回显该生五维；多选=清空维度后统一评（防把上个学生的值误写给他人） */
+const studentIds = ref<number[]>([])
+
+/** 单选回显；切多选时清空五维 */
+function onStudentChange() {
+  if (studentIds.value.length === 1) {
+    load()
+  } else {
+    dims.value.forEach((d) => (d.value = ''))
+  }
+}
 const saving = ref(false)
 const dims = ref([
   { key: 'moral', label: '思想品德', value: '' },
@@ -102,7 +116,7 @@ async function preselect() {
     if (s.classId && classes.value.some((c) => c.id === s.classId)) {
       classId.value = s.classId
       await loadStudents()
-      studentId.value = sid
+      studentIds.value = [sid]
       await load()
     }
   } catch { /* 深链失效则保持默认视图 */ }
@@ -113,27 +127,34 @@ async function loadStudents() {
   const d = await api<{ records: { id: number; name: string }[] }>(
     `/api/student/list?classId=${classId.value}&page=1&size=100`)
   students.value = d.records
-  studentId.value = undefined
+  studentIds.value = []
+  dims.value.forEach((d) => (d.value = ''))
 }
 
 async function load() {
-  if (!studentId.value || !termId.value) return
+  if (studentIds.value.length !== 1 || !termId.value) return
   const c = await api<Record<string, string>>(
-    `/api/comprehensive?studentId=${studentId.value}&termId=${termId.value}`)
+    `/api/comprehensive?studentId=${studentIds.value[0]}&termId=${termId.value}`)
   dims.value.forEach((d) => (d.value = c[d.key] ?? ''))
 }
 
+/** 保存：单选=现状；多选=同组五维逐生写入 */
 async function save() {
-  if (!studentId.value || !termId.value) return
+  if (!studentIds.value.length || !termId.value) return
   saving.value = true
   try {
-    const body: Record<string, unknown> = {
-      studentId: studentId.value,
-      termId: termId.value,
+    let ok = 0, failed = 0, finalLevel = ''
+    for (const sid of studentIds.value) {
+      try {
+        const body: Record<string, unknown> = { studentId: sid, termId: termId.value }
+        dims.value.forEach((d) => (body[d.key] = d.value || ''))
+        const r = await api<{ finalLevel: string }>('/api/comprehensive', { method: 'PUT', json: body })
+        ok++
+        finalLevel = r.finalLevel
+      } catch { failed++ }
     }
-    dims.value.forEach((d) => (body[d.key] = d.value || ''))
-    const r = await api<{ finalLevel: string }>('/api/comprehensive', { method: 'PUT', json: body })
-    ElMessage.success(`已保存，综合等级 ${r.finalLevel}`)
+    if (failed) ElMessage.warning(`成功 ${ok} 人，失败 ${failed} 人`)
+    else ElMessage.success(`已保存 ${ok} 人，综合等级 ${finalLevel}`)
   } finally {
     saving.value = false
   }
