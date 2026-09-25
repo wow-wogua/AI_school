@@ -406,7 +406,7 @@ onMounted(load)
 
 <style scoped>
 .oa-tabs { margin-top: 12px; }
-.start { display: flex; gap: 10px; padding: 14px; margin-top: -36px; }
+.start { display: flex; gap: 10px; padding: 14px; margin-top: 12px; }
 .start-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 16px 0 12px; border-radius: 14px; border: none; color: #fff; font-size: 13px; font-weight: 600; }
 .start-btn .van-icon { font-size: 22px; }

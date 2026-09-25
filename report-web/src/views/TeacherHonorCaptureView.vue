@@ -34,7 +34,7 @@
           @click="levelOpen = true" />
         <van-field v-model="issuer" label="颁发单位" placeholder="选填" maxlength="100" />
         <van-field v-model="dateText" is-link readonly label="获奖日期" placeholder="选填"
-          @click="dateOpen = true" />
+          @click="openDate" />
       </div>
 
       <!-- ③ 我的成就（上传后即见，可删） -->
@@ -154,6 +154,14 @@ function onLevel(ev: { selectedOptions?: { value: string }[] }) {
 function onDate(ev: { selectedValues?: string[] }) {
   datePick.value = ev.selectedValues ?? []
   dateOpen.value = false
+}
+
+function openDate() {
+  if (datePick.value.length !== 3) { // 空 model 的 van-date-picker 会落 min-date（1980），须预置今天
+    const now = new Date()
+    datePick.value = [String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')]
+  }
+  dateOpen.value = true
 }
 
 async function loadMine() {

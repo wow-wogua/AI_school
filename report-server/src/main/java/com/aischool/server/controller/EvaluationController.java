@@ -4,6 +4,8 @@ import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.Exported;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.eval.EvaluationService;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -38,6 +40,8 @@ public class EvaluationController {
         @NotBlank(message = "title 不能为空")
         private String title;
         @NotNull(message = "score 不能为空")
+        @DecimalMin(value = "-10", message = "分值须在 -10 ~ 10 之间")
+        @DecimalMax(value = "10", message = "分值须在 -10 ~ 10 之间")
         private BigDecimal score;
         private String remark;
         @NotNull(message = "evalTime 不能为空")

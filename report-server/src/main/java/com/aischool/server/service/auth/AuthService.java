@@ -13,6 +13,7 @@ import com.aischool.server.security.JwtService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -86,6 +87,15 @@ public class AuthService {
         if (selfBound >= 2) {
             throw new BizException(400, "该学生的自助注册名额已满（上限 2 位），其余家长请联系班主任绑定");
         }
+        // 原子占用邀请码（status 0→1 条件 UPDATE）：防两位家长持同一码并发注册——
+        // 先读后写竞态会把一码绑两人并穿透自助上限。占码后建号失败则码作废，班主任可一键重发。
+        int taken = inviteCodeMapper.update(null, new LambdaUpdateWrapper<InviteCode>()
+                .eq(InviteCode::getId, code.getId())
+                .eq(InviteCode::getStatus, InviteCode.UNUSED)
+                .set(InviteCode::getStatus, InviteCode.USED));
+        if (taken == 0) {
+            throw new BizException(400, "邀请码已被使用，请向班主任重新获取");
+        }
         User u = new User();
         u.setUsername(phone);
         u.setPasswordHash(passwordEncoder.encode(password));
@@ -94,16 +104,20 @@ public class AuthService {
         u.setPhone(phone);
         u.setStatus(1);
         u.setMustChangePwd(0);
-        userMapper.insert(u);
+        try {
+            userMapper.insert(u);
+        } catch (DuplicateKeyException e) { // 并发撞手机号/登录名（前置查重在竞态窗口外的兜底）
+            throw new BizException(400, "该手机号已被使用，如忘记密码请联系班主任重置");
+        }
         ParentBinding b = new ParentBinding();
         b.setParentUserId(u.getId());
         b.setStudentId(student.getId());
         b.setRelation(relation == null || relation.isBlank() ? "家长" : relation.trim());
         b.setSource(1);
         parentBindingMapper.insert(b);
-        code.setStatus(InviteCode.USED);
-        code.setUsedBy(u.getId());
-        inviteCodeMapper.updateById(code);
+        inviteCodeMapper.update(null, new LambdaUpdateWrapper<InviteCode>()
+                .eq(InviteCode::getId, code.getId())
+                .set(InviteCode::getUsedBy, u.getId()));
 
         String token = jwtService.issue(u.getId(), u.getUsername(), u.getRealName(), u.getRole(), false);
         Map<String, Object> m = new LinkedHashMap<>();

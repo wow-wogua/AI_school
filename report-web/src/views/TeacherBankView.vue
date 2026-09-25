@@ -164,13 +164,16 @@ async function preselect(sid: number) {
   }
 }
 
+let walletSeq = 0
 async function loadWallet() {
   if (!student.value) return
   const sid = student.value.id
+  const my = ++walletSeq
   const [c, k] = await Promise.all([
     api<any>(`/api/conduct/student/${sid}`),
     api<any>(`/api/shop/account/${sid}`),
   ])
+  if (my !== walletSeq) return // 已切学生，丢弃晚到的旧学生余额/流水
   conduct.value = c
   coin.value = k
 }

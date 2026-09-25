@@ -57,12 +57,11 @@ const termId = ref<number>()
 /** 学生多选（批15）：单选=回显该生五维；多选=清空维度后统一评（防把上个学生的值误写给他人） */
 const studentIds = ref<number[]>([])
 
-/** 单选回显；切多选时清空五维 */
+/** 切学生先清五维（请求失败/晚到时上个学生的等级不残留，防误写给新选的学生）；单选再回显 */
 function onStudentChange() {
+  dims.value.forEach((d) => (d.value = ''))
   if (studentIds.value.length === 1) {
     load()
-  } else {
-    dims.value.forEach((d) => (d.value = ''))
   }
 }
 const saving = ref(false)
@@ -131,10 +130,13 @@ async function loadStudents() {
   dims.value.forEach((d) => (d.value = ''))
 }
 
+let loadSeq = 0
 async function load() {
   if (studentIds.value.length !== 1 || !termId.value) return
+  const my = ++loadSeq
   const c = await api<Record<string, string>>(
     `/api/comprehensive?studentId=${studentIds.value[0]}&termId=${termId.value}`)
+  if (my !== loadSeq) return // 已切走，丢弃晚到的旧响应
   dims.value.forEach((d) => (d.value = c[d.key] ?? ''))
 }
 

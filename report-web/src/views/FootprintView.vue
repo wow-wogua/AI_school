@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { api } from '../api/http'
 
@@ -151,12 +151,15 @@ function fmtTime(t: string) {
   return t.slice(0, 16).replace('T', ' ')
 }
 
+// 点统计格切换筛选维度：标题变了，列表也要跟着过滤
+watch(filter, () => load())
+
 onMounted(load)
 </script>
 
 <style scoped>
 /* 六维统计卡：上浮卡，六格横排（窄屏横滑） */
-.stats { display: flex; padding: 14px 6px; margin-top: -36px; overflow-x: auto; }
+.stats { display: flex; padding: 14px 6px; margin-top: 12px; overflow-x: auto; }
 .stat { flex: 1; min-width: 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; }
 .stat b { font-size: 20px; color: var(--app-text-1); }
 .stat b.dim { color: var(--app-text-3); font-weight: 400; }

@@ -152,7 +152,7 @@ onMounted(load)
 </script>
 
 <style scoped>
-.form { margin-top: -36px; padding: 6px 14px 14px; }
+.form { margin-top: 12px; padding: 6px 14px 14px; }
 .f-in { padding: 8px 0; }
 .photo-row { padding: 4px 0 2px; }
 .ph-lbl { font-size: 12px; color: var(--app-text-3); margin: 4px 0 8px; }

@@ -36,7 +36,7 @@
       <van-field v-model="form.teachingYears" type="digit" label="教龄（年）" placeholder="如 12"
         input-align="right" />
       <van-field v-model="hireText" is-link readonly label="入职年月" placeholder="选择"
-        input-align="right" @click="hireOpen = true" />
+        input-align="right" @click="openHire" />
       <van-field v-model="form.intro" type="textarea" rows="3" maxlength="500" show-word-limit
         label="简介" placeholder="个人教育理念、专长、荣誉等（选填）" />
     </div>
@@ -193,6 +193,14 @@ async function save() {
   } finally {
     saving.value = false
   }
+}
+
+function openHire() {
+  if (hirePick.value.length !== 2) { // 空 model 的 van-date-picker 会落 min-date（1980-01），须预置当前年月
+    const now = new Date()
+    hirePick.value = [String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0')]
+  }
+  hireOpen.value = true
 }
 
 onMounted(async () => {

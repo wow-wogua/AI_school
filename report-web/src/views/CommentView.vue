@@ -141,11 +141,17 @@ async function loadStudents() {
   status.value = '无'
 }
 
+let loadSeq = 0
 async function load() {
   if (!studentId.value || !termId.value) return
+  const my = ++loadSeq
+  // 先清上一学生的寄语：请求失败/晚到时不残留，防 A 的寄语误写进 B 的报告单
+  content.value = ''
+  status.value = '无'
   const c = await api<{ content: string; aiDraft: string; status: string }>(
     `/api/ai/comment?studentId=${studentId.value}&termId=${termId.value}`,
   )
+  if (my !== loadSeq) return // 已切走，丢弃晚到的旧响应
   // 已生效内容优先；没有生效内容时回显后台任务生成的草稿（切页/重开浏览器后仍可见）
   content.value = c.content || c.aiDraft || ''
   status.value = c.status ?? '无'

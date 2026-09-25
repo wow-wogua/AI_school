@@ -37,7 +37,7 @@
           <el-radio-group v-model="score">
             <el-radio-button v-for="v in [1, 2, 5, -1, -2]" :key="v" :value="v" :class="v > 0 ? 'is-pos' : 'is-neg'">{{ v > 0 ? '+' + v : v }}</el-radio-button>
           </el-radio-group>
-          <el-input-number v-model="score" :step="1" controls-position="right" style="width: 120px; margin-left: 8px" />
+          <el-input-number v-model="score" :step="1" :min="-10" :max="10" :precision="0" controls-position="right" style="width: 120px; margin-left: 8px" />
         </el-form-item>
         <el-form-item label="标题">
           <el-input v-model="title" placeholder="如：课堂发言精彩 / 作业未完成" style="max-width: 360px" />
@@ -107,15 +107,20 @@ const remark = ref('')
 const evalTime = ref('')
 const saving = ref(false)
 
+/** 本地时区日期（toISOString 是 UTC：北京时间 8 点前"今天"会落到昨天） */
+function localDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function defaultEvalTime() {
   // 今天在学期内→今天 12:00；否则当前学期末前一天 12:00（学期末日白天在可写窗口外）
   const cur = terms.value.find((t: any) => t.isCurrent === 1) ?? terms.value[0]
   if (!cur) return ''
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDate(new Date())
   if (today >= cur.startDate && today < cur.endDate) return today + 'T12:00:00'
   const d = new Date(cur.endDate)
   d.setDate(d.getDate() - 1)
-  return d.toISOString().slice(0, 10) + 'T12:00:00'
+  return localDate(d) + 'T12:00:00'
 }
 
 async function init() {
@@ -154,10 +159,13 @@ async function preselect() {
   } catch { /* 深链失效则保持默认视图 */ }
 }
 
+let listSeq = 0
 async function loadStudents() {
   if (!classId.value) return
+  const my = ++listSeq
   const d = await api<{ records: { id: number; name: string }[] }>(
     `/api/student/list?classId=${classId.value}&page=1&size=100`)
+  if (my !== listSeq) return // 已切班，丢弃晚到的旧班名单
   students.value = d.records
   studentIds.value = []
   history.value = []
@@ -170,15 +178,19 @@ async function loadIndicators() {
   if (indicators.value.length) indicatorId.value = indicators.value[0].id
 }
 
+let histSeq = 0
 async function loadHistory() {
   // 历史记录仅单选时展示（=该生的记录）
   if (studentIds.value.length !== 1 || !termId.value) return
+  const my = ++histSeq
+  history.value = [] // 先清：切换后不残留前一学生的记录
   if (!gridId.value && grids.value.length) {
     gridId.value = grids.value[0].id
     await loadIndicators()
   }
-  history.value = (await api<any[]>(`/api/evaluation/list?studentId=${studentIds.value[0]}&termId=${termId.value}`))
-    .slice().reverse()
+  const list = await api<any[]>(`/api/evaluation/list?studentId=${studentIds.value[0]}&termId=${termId.value}`)
+  if (my !== histSeq) return // 已切走，丢弃晚到的旧响应
+  history.value = list.slice().reverse()
 }
 
 /** 提交：单选=现状；多选=同一评价逐生落库（写穿链逐条独立，银行/操行/微光联动全复用） */

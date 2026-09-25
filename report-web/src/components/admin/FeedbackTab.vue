@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="toolbar">
-      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 130px" @change="load">
+      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 130px" @change="() => { page = 1; load() }">
         <el-option label="待处理" :value="0" />
         <el-option label="已处理" :value="1" />
       </el-select>

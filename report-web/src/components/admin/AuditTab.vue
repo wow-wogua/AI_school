@@ -1,8 +1,8 @@
 <template>
   <div>
     <div class="toolbar">
-      <el-input v-model="username" placeholder="操作人用户名" style="width: 160px" clearable @change="load" />
-      <el-input v-model="keyword" placeholder="接口/参数关键字" style="width: 200px" clearable @change="load" />
+      <el-input v-model="username" placeholder="操作人用户名" style="width: 160px" clearable @change="() => { page = 1; load() }" />
+      <el-input v-model="keyword" placeholder="接口/参数关键字" style="width: 200px" clearable @change="() => { page = 1; load() }" />
       <span class="hint">记录所有写操作（密码类接口不记参数）</span>
     </div>
 

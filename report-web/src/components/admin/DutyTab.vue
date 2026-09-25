@@ -37,7 +37,9 @@ import { api } from '../../api/http'
 
 const dutyCheck = ref(false)
 const cfgSaving = ref(false)
-const date = ref(new Date().toISOString().slice(0, 10))
+// 本地时区的今天（toISOString 是 UTC，早 8 点前"今天"会落到昨天）
+const today = new Date()
+const date = ref(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`)
 const teacherId = ref<number>()
 const note = ref('')
 const teachers = ref<any[]>([])

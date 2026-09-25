@@ -203,8 +203,13 @@ async function genInviteAll() {
 }
 
 async function copyInvite(row: any) {
-  await navigator.clipboard.writeText(row.code)
-  ElMessage.success(`已复制 ${row.name} 的邀请码`)
+  try {
+    await navigator.clipboard.writeText(row.code)
+    ElMessage.success(`已复制 ${row.name} 的邀请码`)
+  } catch {
+    // 非 HTTPS 环境无剪贴板权限：直接展示码兜底
+    ElMessage.info(`邀请码：${row.code}`)
+  }
 }
 
 const bindDialog = ref(false)

@@ -239,7 +239,7 @@ async function downloadTemplate() {
 async function exportXlsx() {
   const blob = await fetchBlob(`/api/score/export?examId=${examId.value}&subjectId=${subjectId.value}&classId=${classId.value}`)
   const ex = exams.value.find((e: any) => e.id === examId.value)?.name ?? ''
-  const sub = subjects.value.find((s: any) => s.id === subjectId.value)?.name ?? ''
+  const sub = subjects.value.find((s: any) => s.subjectId === subjectId.value)?.name ?? ''
   const cls = classes.value.find((c: any) => c.id === classId.value)?.name ?? ''
   await saveFile(blob, `成绩_${ex}_${sub}_${cls}.xlsx`)
 }

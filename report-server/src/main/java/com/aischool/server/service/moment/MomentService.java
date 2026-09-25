@@ -222,10 +222,12 @@ public class MomentService {
         Map<Long, List<MomentStudent>> byMoment = momentStudentMapper.selectList(
                         new LambdaQueryWrapper<MomentStudent>().in(MomentStudent::getMomentId, ids))
                 .stream().collect(Collectors.groupingBy(MomentStudent::getMomentId));
-        Map<Long, Student> stuById = studentMapper.selectBatchIds(
-                        byMoment.values().stream().flatMap(List::stream)
-                                .map(MomentStudent::getStudentId).distinct().toList())
-                .stream().collect(Collectors.toMap(Student::getId, Function.identity(), (a, b) -> a));
+        List<Long> studentIds = byMoment.values().stream().flatMap(List::stream)
+                .map(MomentStudent::getStudentId).distinct().toList();
+        // selectBatchIds 空集合生成 IN () 非法 SQL——全部微光都无学生关联时直接跳过
+        Map<Long, Student> stuById = studentIds.isEmpty() ? Map.of()
+                : studentMapper.selectBatchIds(studentIds).stream()
+                .collect(Collectors.toMap(Student::getId, Function.identity(), (a, b) -> a));
         Map<Long, String> teacherNames = userMapper.selectBatchIds(
                         moments.stream().map(Moment::getTeacherId).distinct().toList())
                 .stream().collect(Collectors.toMap(User::getId, User::getRealName, (a, b) -> a));

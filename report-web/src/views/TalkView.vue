@@ -163,7 +163,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.form { padding: 14px 12px; margin-top: -36px; }
+.form { padding: 14px 12px; margin-top: 12px; }
 .picker-card { display: flex; align-items: center; gap: 12px; padding: 8px 4px; cursor: pointer; }
 .ava { flex: none; width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center;
   justify-content: center; font-size: 18px; font-weight: 700; color: #fff; background: var(--app-text-3, #B7C0D2); }

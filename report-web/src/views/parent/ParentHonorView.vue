@@ -253,7 +253,7 @@ onMounted(async () => {
 .kids { display: flex; gap: 8px; margin: 12px 0 0; }
 .kid.on { background: var(--shine-navy); color: #fff; }
 
-.up { padding: 14px 12px; margin-top: -36px; }
+.up { padding: 14px 12px; margin-top: 12px; }
 .tip { margin: 10px 2px 0; font-size: 11px; color: var(--app-text-3); }
 
 .empty { padding: 26px 0; text-align: center; color: var(--app-text-3); font-size: 13px; }
