@@ -33,7 +33,13 @@ function netError(): Error & { status: number } {
   return httpError(NET_MSG, 0)
 }
 
-export async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
+/** 请求超时（fetch 默认无超时，经代理黑洞的挂起连接会让按钮转圈不止） */
+const TIMEOUT_MSG = '请求超时，请检查网络后重试'
+function isTimeout(e: unknown): boolean {
+  return (e as DOMException)?.name === 'TimeoutError'
+}
+
+export async function api<T>(path: string, init?: RequestInit & { json?: unknown; timeoutMs?: number }): Promise<T> {
   const auth = useAuthStore()
   const headers: Record<string, string> = {}
   if (auth.token) headers['Authorization'] = 'Bearer ' + auth.token
@@ -44,8 +50,9 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
   }
   let resp: Response
   try {
-    resp = await fetch(apiBase() + path, { ...init, headers, body })
-  } catch {
+    resp = await fetch(apiBase() + path, { ...init, headers, body, signal: AbortSignal.timeout(init?.timeoutMs ?? 30_000) })
+  } catch (e) {
+    if (isTimeout(e)) throw httpError(TIMEOUT_MSG, 0)
     throw netError()
   }
   if (resp.status === 401) {
@@ -73,7 +80,8 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
   return r.data
 }
 
-/** multipart 上传（浏览器自动带 boundary，勿手动设 Content-Type） */
+/** multipart 上传（浏览器自动带 boundary，勿手动设 Content-Type）。
+    默认 600s：名册整校导入 xlsx 服务端要跑数分钟（nginx 同上限），照片/APK 上传也在此内 */
 export async function apiForm<T>(path: string, form: FormData): Promise<T> {
   const auth = useAuthStore()
   let resp: Response
@@ -82,8 +90,10 @@ export async function apiForm<T>(path: string, form: FormData): Promise<T> {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + auth.token },
       body: form,
+      signal: AbortSignal.timeout(600_000),
     })
-  } catch {
+  } catch (e) {
+    if (isTimeout(e)) throw httpError(TIMEOUT_MSG, 0)
     throw netError()
   }
   if (resp.status === 401) {
@@ -104,8 +114,9 @@ export async function fetchBlob(path: string): Promise<Blob> {
   const auth = useAuthStore()
   let resp: Response
   try {
-    resp = await fetch(apiBase() + path, { headers: { Authorization: 'Bearer ' + auth.token } })
-  } catch {
+    resp = await fetch(apiBase() + path, { headers: { Authorization: 'Bearer ' + auth.token }, signal: AbortSignal.timeout(120_000) })
+  } catch (e) {
+    if (isTimeout(e)) throw httpError(TIMEOUT_MSG, 0)
     throw netError()
   }
   if (resp.status === 401) {
