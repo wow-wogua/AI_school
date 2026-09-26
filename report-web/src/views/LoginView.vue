@@ -38,7 +38,7 @@
 
       <!-- App 直连服务器地址（打包形态必配；浏览器形态留空走同源） -->
       <button class="srv-toggle" type="button" @click="srvOpen = !srvOpen">
-        <van-icon name="setting-o" /> 服务器地址{{ srvBase ? '' : '（未设置）' }}
+        <van-icon name="setting-o" /> 服务器地址{{ srvBase ? '' : '（默认，无需设置）' }}
         <van-icon :name="srvOpen ? 'arrow-up' : 'arrow-down'" />
       </button>
       <div v-if="srvOpen" class="srv-row">
@@ -68,7 +68,9 @@ const srvOpen = ref(false)
 const srvBase = ref(apiBase())
 const srvInput = ref(apiBase())
 function saveSrv() {
-  const v = srvInput.value.trim().replace(/\/+$/, '')
+  const raw = srvInput.value.trim().replace(/\/+$/, '')
+  // 无协议头自动补 http://：裸地址会被 fetch 当相对路径，拼坏所有请求
+  const v = raw && !/^https?:\/\//.test(raw) ? 'http://' + raw : raw
   if (v) localStorage.setItem('serverBase', v)
   else localStorage.removeItem('serverBase')
   srvBase.value = v
@@ -81,7 +83,11 @@ async function doLogin() {
   try {
     const data = await api<{ token: string; user: { realName: string; role: string; mustChangePassword?: boolean } }>('/api/auth/login', {
       method: 'POST',
-      json: { username: form.username, password: form.password },
+      // 手机输入法易带首尾空格/全角字符（全角字母数字→半角），静默清掉防"密码对的也 401"
+      json: {
+        username: form.username.trim().normalize('NFKC'),
+        password: form.password.trim(),
+      },
     })
     auth.set(data.token, data.user.realName, data.user.role, !!data.user.mustChangePassword)
     // 管理员设密/重置/批量导入的账号：首登强制先改密

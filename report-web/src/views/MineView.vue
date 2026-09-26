@@ -93,7 +93,9 @@ const srvOpen = ref(false)
 const srvBase = ref(apiBase())
 const srvInput = ref(apiBase())
 function saveSrv() {
-  const v = srvInput.value.trim().replace(/\/+$/, '')
+  const raw = srvInput.value.trim().replace(/\/+$/, '')
+  // 无协议头自动补 http://：裸地址会被 fetch 当相对路径，拼坏所有请求
+  const v = raw && !/^https?:\/\//.test(raw) ? 'http://' + raw : raw
   if (v) localStorage.setItem('serverBase', v)
   else localStorage.removeItem('serverBase')
   srvBase.value = v

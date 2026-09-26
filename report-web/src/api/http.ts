@@ -15,7 +15,12 @@ export interface ApiResp<T> {
  */
 export function apiBase(): string {
   const saved = localStorage.getItem('serverBase')
-  if (saved) return saved.replace(/\/+$/, '')
+  if (saved) {
+    // 防自伤：不带协议头的地址（如裸 IP）会让 fetch 当相对路径拼接，
+    // 所有请求路径被拼坏（405）。视为无效值，清掉回落默认
+    if (/^https?:\/\//.test(saved)) return saved.replace(/\/+$/, '')
+    localStorage.removeItem('serverBase')
+  }
   return ((import.meta.env.VITE_API_BASE as string) || '').replace(/\/+$/, '')
 }
 
