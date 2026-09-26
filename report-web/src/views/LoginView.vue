@@ -37,7 +37,7 @@
       </van-dialog>
 
       <!-- App 直连服务器地址（打包形态必配；浏览器形态留空走同源） -->
-      <button class="srv-toggle" type="button" @click="srvOpen = !srvOpen">
+      <button v-if="!isNative" class="srv-toggle" type="button" @click="srvOpen = !srvOpen">
         <van-icon name="setting-o" /> 服务器地址{{ srvBase ? '' : '（默认，无需设置）' }}
         <van-icon :name="srvOpen ? 'arrow-up' : 'arrow-down'" />
       </button>
@@ -55,6 +55,7 @@ import { useRouter } from 'vue-router'
 import { motion } from 'motion-v'
 import { showSuccessToast, showFailToast } from 'vant'
 import { api, apiBase } from '../api/http'
+import { isNative } from '../api/nativeShare'
 import { useAuthStore } from '../stores/auth'
 
 const form = reactive({ username: '', password: '' })

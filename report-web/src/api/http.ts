@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core'
 import { ElMessage } from 'element-plus'
 import router from '../router'
 import { useAuthStore } from '../stores/auth'
@@ -14,6 +15,10 @@ export interface ApiResp<T> {
  * （dev 走 vite 代理 / 线上 nginx 同源）。
  */
 export function apiBase(): string {
+  // App 形态页面本就从服务器加载（capacitor server.url），API 永远走页面同源。
+  // 「服务器地址」设置仅浏览器形态生效——App 里存的任何值都可能指向错端口黑洞
+  // （生产实测：http://ip 不带 :18086 → 80 端口黑洞 → 转圈到超时）
+  if (Capacitor.isNativePlatform()) return ''
   const saved = localStorage.getItem('serverBase')
   if (saved) {
     // 防自伤：不带协议头的地址（如裸 IP）会让 fetch 当相对路径拼接，

@@ -20,7 +20,7 @@
 
     <div class="app-card tex-e cells">
       <van-cell title="检查更新" icon="upgrade" is-link :value="appVersion" @click="onCheckUpdate" />
-      <van-cell title="服务器地址" icon="desktop-o" is-link :value="srvBase || '默认'" @click="srvOpen = true" />
+      <van-cell v-if="!isNative" title="服务器地址" icon="desktop-o" is-link :value="srvBase || '默认'" @click="srvOpen = true" />
       <van-cell title="关于" icon="info-o" is-link @click="aboutOpen = true" />
       <van-cell title="退出登录" icon="revoke" is-link class="logout" @click="logoutOpen = true" />
     </div>
