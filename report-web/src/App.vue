@@ -59,8 +59,8 @@
       </main>
     </div>
 
-    <!-- lhome 领导端（LEADER）：单页驾驶舱，页面自带头部（无 Tabbar） -->
-    <div v-else-if="layout === 'lhome'" class="app-sub shine-shell">
+    <!-- lhome 领导端（LEADER）/ gshell 门卫端（GUARD）：单页，页面自带头部（无 Tabbar） -->
+    <div v-else-if="layout === 'lhome' || layout === 'gshell'" class="app-sub shine-shell">
       <main class="sub-main">
         <router-view v-slot="{ Component }">
           <transition name="page-fade" mode="out-in">

@@ -29,6 +29,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final Set<String> MUST_CHANGE_PWD_ALLOW = Set.of(
             "/api/auth/password", "/api/auth/me", "/api/auth/login");
 
+    /** 门卫（批27）放行前缀：请假核验 + 认证 + App 版本更新；其余业务一律 403（前端路由锁之外的服务端兜底） */
+    private static boolean guardAllowed(String uri) {
+        return uri.startsWith("/api/student-leave") || uri.startsWith("/api/auth") || uri.startsWith("/api/app");
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
@@ -42,6 +47,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     response.setContentType("application/json;charset=UTF-8");
                     response.getOutputStream().write(objectMapper.writeValueAsBytes(
                             ApiResponse.error(403, "请先修改初始密码后再操作")));
+                    return;
+                }
+                // 门卫只开放请假核验（9-26 甲方口径：仅查看请假一个功能）
+                if ("GUARD".equals(user.role()) && !guardAllowed(request.getRequestURI())) {
+                    response.setStatus(403);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getOutputStream().write(objectMapper.writeValueAsBytes(
+                            ApiResponse.error(403, "门卫账号仅可使用请假核验功能")));
                     return;
                 }
                 var auth = new UsernamePasswordAuthenticationToken(

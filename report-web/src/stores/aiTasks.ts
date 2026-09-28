@@ -46,9 +46,10 @@ export const useAiTasksStore = defineStore('aiTasks', {
     },
   },
   actions: {
-    /** 登录后/组件挂载时启动轮询；已启动则幂等 */
+    /** 登录后/组件挂载时启动轮询；已启动则幂等（门卫在白名单外，跳过——批27） */
     start() {
-      if (!useAuthStore().token) return
+      const auth = useAuthStore()
+      if (!auth.token || auth.role === 'GUARD') return
       this.refresh()
       if (this.timer) return
       this.timer = setInterval(() => this.refresh(), 2000)

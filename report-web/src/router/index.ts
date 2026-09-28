@@ -47,6 +47,10 @@ const router = createRouter({
     { path: '/repair', component: () => import('../views/RepairView.vue'), meta: { layout: 'sub', title: '报修' } },
     // 谈心记录（批11）：教师对可见班级学生，管理端全量
     { path: '/talk', component: () => import('../views/TalkView.vue'), meta: { layout: 'sub', title: '谈心记录' } },
+    // 学生请假（批27）：家长替孩子提交，任意一位教师批即生效（本班优先）
+    { path: '/leave', component: () => import('../views/StudentLeaveView.vue'), meta: { layout: 'sub', title: '学生请假' } },
+    // 宿管查询（批27）：全体教师按宿舍楼/房/床查学生
+    { path: '/dorm', component: () => import('../views/DormView.vue'), meta: { layout: 'sub', title: '宿舍查询' } },
     { path: '/footprint', component: () => import('../views/FootprintView.vue'), meta: { layout: 'sub', title: '成长足迹' } },
     // 意见反馈（批8.5）：教师/家长共用组件，双路由分流（家长被锁 /p/*）
     { path: '/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'sub', title: '意见反馈' } },
@@ -71,6 +75,10 @@ const router = createRouter({
     { path: '/p/report', component: () => import('../views/parent/ParentReportView.vue'), meta: { layout: 'psub', title: '成长报告' } },
     // 意见反馈（批8.5）：家长入口
     { path: '/p/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'psub', title: '意见反馈' } },
+    // 学生请假（批27）：家长替绑定孩子提交+撤回
+    { path: '/p/leave', component: () => import('../views/parent/ParentLeaveView.vue'), meta: { layout: 'psub', title: '学生请假' } },
+    // 门卫端（批27 GUARD 分流）：仅此一页——当日有效请假核验+离校/返校登记
+    { path: '/g/home', component: () => import('../views/GuardHomeView.vue'), meta: { layout: 'gshell' } },
     // 领导端（LEADER 分流）：全校只读驾驶舱；成绩明细复用 /scores（LEADER 只读）；
     // 教师使用情况（批2）：六类行为按师聚合，psub 壳（第一版 sub-nav 形态+C 令牌）
     { path: '/l/home', component: () => import('../views/leader/LeaderHomeView.vue'), meta: { layout: 'lhome' } },
@@ -91,13 +99,15 @@ router.beforeEach((to) => {
   if (auth.mustChangePwd && to.path !== '/change-password' && to.path !== '/login') {
     return '/change-password'
   }
-  // 角色分流：PARENT 锁 /p/*；教师/管理员/领导走现状路由——批3.5 领导教师化：
-  // 领导不再锁 /l/*，教师功能全量可用（首页宫格进领导驾驶舱），/l/* 仅领导可进
+  // 角色分流：PARENT 锁 /p/*；GUARD 锁 /g/*（门卫仅开放请假核验，9-26 甲方口径）；
+  // 教师/管理员/领导走现状路由——批3.5 领导教师化：领导不再锁 /l/*，教师功能全量可用，/l/* 仅领导可进
   const role = auth.role
   // /p/register 免登开放（未登录 role 为空，不能被 /p/* 锁拦回）
   const free = to.path === '/login' || to.path === '/change-password' || to.path === '/p/register'
   if (role === 'PARENT' && !free && !to.path.startsWith('/p/')) return '/p/home'
   if (role !== 'PARENT' && !free && to.path.startsWith('/p/')) return '/'
+  if (role === 'GUARD' && !free && !to.path.startsWith('/g/')) return '/g/home'
+  if (role !== 'GUARD' && !free && to.path.startsWith('/g/')) return '/'
   if (role !== 'LEADER' && to.path.startsWith('/l/')) return '/'
 })
 
