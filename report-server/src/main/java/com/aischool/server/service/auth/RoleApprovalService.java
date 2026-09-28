@@ -8,6 +8,7 @@ import com.aischool.server.mapper.RoleRequestMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.mapper.UserPermissionMapper;
 import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.notify.NotificationService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class RoleApprovalService {
     private final UserMapper userMapper;
     private final UserPermissionMapper userPermissionMapper;
     private final PermissionService permissionService;
+    private final NotificationService notificationService;
 
     /** 触发审批的「高权角色」：升入此集合（新建或升级）即走双人审批 */
     public static boolean needsApproval(String targetRole) {
@@ -53,6 +55,13 @@ public class RoleApprovalService {
         r.setRequestedBy(requestedBy);
         r.setStatus(RoleRequest.ST_PENDING);
         requestMapper.insert(r);
+        // 批29：通知管理员/领导审批（含企微群）
+        User target = userMapper.selectById(userId);
+        if (target != null) {
+            boolean self = userId.equals(requestedBy);
+            notificationService.registerTodo(target.getRealName(), roleName(targetRole),
+                    self ? target.getRealName() : requesterName(requestedBy), self);
+        }
     }
 
     /** 教师原地升级登记（不动 t_user，通过后才改角色）；同账号新请求覆盖旧 PENDING */
@@ -109,6 +118,14 @@ public class RoleApprovalService {
         if (RoleRequest.TYPE_CREATE.equals(r.getReqType())) {
             userMapper.update(null, new LambdaUpdateWrapper<User>()
                     .eq(User::getId, r.getUserId()).set(User::getStatus, 1));
+            // 批29：教师自助注册通过后给本人一条欢迎通知（通知中心首条消息）
+            if ("TEACHER".equals(r.getTargetRole())) {
+                User target = userMapper.selectById(r.getUserId());
+                if (target != null) {
+                    notificationService.send(r.getUserId(), com.aischool.server.entity.Notification.SYSTEM,
+                            "注册已通过", "您的教师账号已开通，欢迎使用石实SHINE", null);
+                }
+            }
         } else {
             userMapper.update(null, new LambdaUpdateWrapper<User>()
                     .eq(User::getId, r.getUserId())
@@ -207,6 +224,12 @@ public class RoleApprovalService {
         return new LambdaQueryWrapper<RoleRequest>()
                 .eq(RoleRequest::getUserId, userId)
                 .eq(RoleRequest::getStatus, RoleRequest.ST_PENDING);
+    }
+
+    /** 发起人姓名（批29 通知文案用；账号已删则回退工号场景的占位） */
+    private String requesterName(Long userId) {
+        User u = userMapper.selectById(userId);
+        return u == null ? "(已删除)" : u.getRealName();
     }
 
     private String roleName(String role) {

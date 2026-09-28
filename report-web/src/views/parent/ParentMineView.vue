@@ -12,6 +12,7 @@
     </div>
 
     <div class="app-card overlap tl tex-f cells">
+      <van-cell title="消息通知" icon="volume-o" is-link :value="notifyBadge" @click="$router.push('/p/notify')" />
       <van-cell title="修改手机号" icon="phone-o" is-link @click="phoneOpen = true" />
       <van-cell title="修改密码" icon="lock" is-link @click="pwdOpen = true" />
       <van-cell title="意见反馈" icon="chat-o" is-link @click="$router.push('/p/feedback')" />
@@ -72,17 +73,22 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
 import { App as CapApp } from '@capacitor/app'
 import { useAuthStore } from '../../stores/auth'
+import { useNotifyStore } from '../../stores/notify'
 import { api, apiBase } from '../../api/http'
 import { isNative } from '../../api/nativeShare'
 import { checkForUpdate } from '../../utils/appUpdate'
 
 const auth = useAuthStore()
+const notifyStore = useNotifyStore()
 const router = useRouter()
+
+/** 通知未读角标（批29）：轮询由 App 壳维护 */
+const notifyBadge = computed(() => (notifyStore.unread ? `${notifyStore.unread} 条未读` : ''))
 
 const tipOpen = ref(false)
 const srvOpen = ref(false)

@@ -65,4 +65,13 @@ public class PdfStoreService {
             log.warn("MinIO 删除失败 {}: {}", objectName, e.getMessage());
         }
     }
+
+    /** 批29 探活：bucket 可达即 MinIO 服务正常 */
+    public boolean healthy() {
+        try {
+            return minioClient.bucketExists(io.minio.BucketExistsArgs.builder().bucket(bucket).build());
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }
