@@ -41,11 +41,16 @@ public class RoleApprovalService {
 
     /** 新建高权账号后登记（账号已插入且 status=0，通过后才启用） */
     public void submitCreate(Long userId, String targetRole) {
+        submitCreate(userId, targetRole, AuthUtil.current().userId());
+    }
+
+    /** 批28 教师自助注册：无登录态，发起人=账号本人（通过后启用/拒绝删号，语义同 CREATE） */
+    public void submitCreate(Long userId, String targetRole, Long requestedBy) {
         RoleRequest r = new RoleRequest();
         r.setUserId(userId);
         r.setReqType(RoleRequest.TYPE_CREATE);
         r.setTargetRole(targetRole);
-        r.setRequestedBy(AuthUtil.current().userId());
+        r.setRequestedBy(requestedBy);
         r.setStatus(RoleRequest.ST_PENDING);
         requestMapper.insert(r);
     }

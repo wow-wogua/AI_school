@@ -17,6 +17,8 @@ const router = createRouter({
     { path: '/change-password', component: () => import('../views/ChangePasswordView.vue'), meta: { layout: 'bare' } },
     // 家长自助注册（批8.6）：学号+邀请码绑定，免登录
     { path: '/p/register', component: () => import('../views/ParentRegisterView.vue'), meta: { layout: 'bare' } },
+
+    { path: '/t/register', component: () => import('../views/TeacherRegisterView.vue'), meta: { layout: 'bare' } },
     // 底部 Tab 一级页
     { path: '/', component: () => import('../views/HomeView.vue'), meta: { layout: 'tab', tab: 'home' } },
     { path: '/class', component: () => import('../views/ClassView.vue'), meta: { layout: 'tab', tab: 'class' } },
@@ -51,6 +53,7 @@ const router = createRouter({
     { path: '/leave', component: () => import('../views/StudentLeaveView.vue'), meta: { layout: 'sub', title: '学生请假' } },
     // 宿管查询（批27）：全体教师按宿舍楼/房/床查学生
     { path: '/dorm', component: () => import('../views/DormView.vue'), meta: { layout: 'sub', title: '宿舍查询' } },
+    { path: '/my-class', component: () => import('../views/MyClassView.vue'), meta: { layout: 'sub', title: '班级管理' } },
     { path: '/footprint', component: () => import('../views/FootprintView.vue'), meta: { layout: 'sub', title: '成长足迹' } },
     // 意见反馈（批8.5）：教师/家长共用组件，双路由分流（家长被锁 /p/*）
     { path: '/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'sub', title: '意见反馈' } },
@@ -94,7 +97,8 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  if (to.path !== '/login' && to.path !== '/change-password' && to.path !== '/p/register' && !auth.token) return '/login'
+  if (to.path !== '/login' && to.path !== '/change-password' && to.path !== '/p/register'
+    && to.path !== '/t/register' && !auth.token) return '/login'
   // 首登强制改密：未改密前一切页面都拦到改密页（改密页/登录页除外）
   if (auth.mustChangePwd && to.path !== '/change-password' && to.path !== '/login') {
     return '/change-password'
@@ -102,8 +106,9 @@ router.beforeEach((to) => {
   // 角色分流：PARENT 锁 /p/*；GUARD 锁 /g/*（门卫仅开放请假核验，9-26 甲方口径）；
   // 教师/管理员/领导走现状路由——批3.5 领导教师化：领导不再锁 /l/*，教师功能全量可用，/l/* 仅领导可进
   const role = auth.role
-  // /p/register 免登开放（未登录 role 为空，不能被 /p/* 锁拦回）
-  const free = to.path === '/login' || to.path === '/change-password' || to.path === '/p/register'
+  // /p/register、/t/register 免登开放（未登录 role 为空，不能被角色锁拦回）
+  const free = to.path === '/login' || to.path === '/change-password'
+    || to.path === '/p/register' || to.path === '/t/register'
   if (role === 'PARENT' && !free && !to.path.startsWith('/p/')) return '/p/home'
   if (role !== 'PARENT' && !free && to.path.startsWith('/p/')) return '/'
   if (role === 'GUARD' && !free && !to.path.startsWith('/g/')) return '/g/home'

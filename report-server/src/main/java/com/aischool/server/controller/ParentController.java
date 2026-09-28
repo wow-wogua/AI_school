@@ -117,9 +117,11 @@ public class ParentController {
                 .orderByDesc(Evaluation::getEvalTime)
                 .orderByDesc(Evaluation::getId)
                 .last("LIMIT " + Math.min(Math.max(limit, 1), 20)));
-        Map<Long, String> teacherNames = rows.isEmpty() ? Map.of()
-                : userMapper.selectBatchIds(rows.stream().map(Evaluation::getTeacherId)
-                        .filter(t -> t != null).distinct().toList()).stream()
+        // teacherId 可空：过滤后可能空列表，selectBatchIds(空) 生成 IN () 非法 SQL
+        List<Long> teacherIds = rows.stream().map(Evaluation::getTeacherId)
+                .filter(t -> t != null).distinct().toList();
+        Map<Long, String> teacherNames = teacherIds.isEmpty() ? Map.of()
+                : userMapper.selectBatchIds(teacherIds).stream()
                         .collect(Collectors.toMap(User::getId, User::getRealName));
         return ApiResponse.ok(rows.stream().map(e -> {
             Map<String, Object> m = new java.util.LinkedHashMap<>();

@@ -218,6 +218,43 @@ public class AuthService {
         return jwtService.issue(user.getId(), username, user.getRealName(), user.getRole(), false);
     }
 
+    /** 教师自助注册（批28）：工号+姓名+手机+密码，建 TEACHER 账号 status=0 并登记待审批；
+     *  管理员/领导审批通过后启用（拒绝=删号）。提交后未审批登录提示「账号待审批」。 */
+    public Map<String, Object> registerTeacher(String username, String password,
+                                               String realName, String phone) {
+        if (username == null || !username.matches("^[A-Za-z0-9@._-]{3,64}$")) {
+            throw new BizException(400, "工号须为 3-64 位字母/数字/符号(@._-)");
+        }
+        if (password == null || password.length() < 8) {
+            throw new BizException(400, "密码至少 8 位");
+        }
+        if (realName == null || realName.isBlank()) {
+            throw new BizException(400, "请填写真实姓名");
+        }
+        if (phone != null && !phone.isBlank() && !phone.matches("^1\\d{10}$")) {
+            throw new BizException(400, "手机号格式不正确");
+        }
+        if (userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, username)) > 0) {
+            throw new BizException(400, "该工号已存在，若是自己账号请联系管理员找回");
+        }
+        User u = new User();
+        u.setUsername(username);
+        u.setPasswordHash(passwordEncoder.encode(password));
+        u.setRealName(realName.trim());
+        u.setRole("TEACHER");
+        u.setPhone(phone == null || phone.isBlank() ? null : phone.trim());
+        u.setStatus(0); // 待审批：通过后启用（RoleApprovalService.approve CREATE 分支）
+        u.setMustChangePwd(0);
+        try {
+            userMapper.insert(u);
+        } catch (DuplicateKeyException e) {
+            throw new BizException(400, "该工号已存在，若是自己账号请联系管理员找回");
+        }
+        roleApprovalService.submitCreate(u.getId(), "TEACHER", u.getId());
+        return Map.of("userId", u.getId(), "username", u.getUsername());
+    }
+
     private void recordFail(String username) {
         long now = System.currentTimeMillis();
         FailCount f = loginFails.compute(username, (k, v) -> {

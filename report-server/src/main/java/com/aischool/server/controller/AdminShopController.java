@@ -134,9 +134,11 @@ public class AdminShopController {
                 : studentMapper.selectBatchIds(rows.stream().map(CoinExpense::getStudentId).distinct().toList())
                         .stream().collect(Collectors.toMap(Student::getId, s ->
                                 s.getName() == null ? "" : s.getName()));
-        Map<Long, String> teacherNames = rows.isEmpty() ? Map.of()
-                : userMapper.selectBatchIds(rows.stream().map(CoinExpense::getOperatorId)
-                        .filter(t -> t != null).distinct().toList())
+        // operatorId 可空（批量导入的旧记录）：过滤后可能为空列表，selectBatchIds(空) 生成 IN () 非法 SQL
+        List<Long> teacherIds = rows.stream().map(CoinExpense::getOperatorId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, String> teacherNames = teacherIds.isEmpty() ? Map.of()
+                : userMapper.selectBatchIds(teacherIds)
                         .stream().collect(Collectors.toMap(User::getId, User::getRealName));
         List<Map<String, Object>> records = rows.stream().map(e -> {
             Map<String, Object> m = new LinkedHashMap<>();

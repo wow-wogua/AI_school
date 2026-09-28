@@ -277,10 +277,12 @@ public class AdminOaController {
         List<GoodsFlow> rows = goodsFlowMapper.selectList(new LambdaQueryWrapper<GoodsFlow>()
                 .eq(goodsId != null, GoodsFlow::getGoodsId, goodsId)
                 .orderByDesc(GoodsFlow::getId).last("LIMIT 200"));
-        Map<Long, String> names = rows.isEmpty() ? Map.of()
-                : userMapper.selectBatchIds(rows.stream()
-                        .flatMap(r -> java.util.stream.Stream.of(r.getApplicantId(), r.getOperatorId()))
-                        .filter(java.util.Objects::nonNull).distinct().toList())
+        // 两个关联 id 都可空：过滤后可能空列表，selectBatchIds(空) 生成 IN () 非法 SQL
+        List<Long> userIds = rows.stream()
+                .flatMap(r -> java.util.stream.Stream.of(r.getApplicantId(), r.getOperatorId()))
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, String> names = userIds.isEmpty() ? Map.of()
+                : userMapper.selectBatchIds(userIds)
                         .stream().collect(Collectors.toMap(User::getId, User::getRealName, (a, b) -> a));
         return ApiResponse.ok(rows.stream().<Map<String, Object>>map(r -> {
             Map<String, Object> m = new LinkedHashMap<>();

@@ -101,4 +101,26 @@ public class AuthController {
                 "realName", user.realName(), "role", user.role(),
                 "mustChangePassword", user.mustChangePwd()));
     }
+
+    @Data
+    public static class TeacherRegisterReq {
+        @NotBlank(message = "工号不能为空")
+        private String username;
+        @NotBlank(message = "密码不能为空")
+        private String password;
+        @NotBlank(message = "姓名不能为空")
+        private String realName;
+        private String phone;
+    }
+
+    /** 教师自助注册（批28，免登录）：提交后待管理员/领导审批，通过即可登录 */
+    @PostMapping("/teacher/register")
+    public ApiResponse<Map<String, Object>> registerTeacher(@Validated @RequestBody TeacherRegisterReq req,
+                                                            HttpServletRequest request) {
+        Map<String, Object> result = authService.registerTeacher(
+                req.getUsername().trim(), req.getPassword(), req.getRealName(), req.getPhone());
+        request.setAttribute(AuditFilter.ATTR_USER_ID, ((Number) result.get("userId")).longValue());
+        request.setAttribute(AuditFilter.ATTR_USERNAME, req.getUsername().trim());
+        return ApiResponse.ok(result);
+    }
 }

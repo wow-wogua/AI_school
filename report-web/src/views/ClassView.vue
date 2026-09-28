@@ -12,6 +12,11 @@
           <button v-if="canInvite" class="class-pick invite-pick" type="button" @click="openInvite">
             <van-icon name="envelope" /> 邀请码
           </button>
+          <!-- 班主任自治（批28）：名单导入/任课/交接班，仅本班班主任可用 -->
+          <button v-if="auth.role === 'HEAD_TEACHER'" class="class-pick" type="button"
+            @click="$router.push({ path: '/my-class', query: { classId: String(classId ?? '') } })">
+            <van-icon name="setting-o" /> 班级管理
+          </button>
           <button class="class-pick" type="button" @click="pickOpen = true">
             {{ curClassName }} <van-icon name="arrow-down" />
           </button>

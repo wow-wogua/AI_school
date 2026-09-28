@@ -26,6 +26,7 @@
 
       <button class="forgot" type="button" @click="forgotOpen = true">忘记密码？</button>
       <button class="forgot reg" type="button" @click="$router.push('/p/register')">家长注册（凭邀请码绑定孩子）</button>
+      <button class="forgot reg" type="button" @click="$router.push('/t/register')">教师注册（新老师提交审批）</button>
 
       <!-- 忘记密码引导（批8.5）：无短信通道，线下找对应负责人重置 -->
       <van-dialog v-model:show="forgotOpen" title="忘记密码" :show-confirm-button="false">
