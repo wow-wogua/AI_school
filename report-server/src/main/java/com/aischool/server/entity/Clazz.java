@@ -18,4 +18,6 @@ public class Clazz {
     private Long headTeacherId;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    /** 批28 文件归档：该班文件包最近一次导出时间（导出过才允许清理学生照片） */
+    private LocalDateTime archivedTime;
 }

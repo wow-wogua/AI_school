@@ -38,6 +38,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
+        // 归档导出（批28）用 <a> 直链下载 zip 流，无法带 header：仅此 GET 端点允许 query token 兜底
+        if (header == null && "GET".equals(request.getMethod())
+                && "/api/admin/archive/export".equals(request.getRequestURI())) {
+            String t = request.getParameter("token");
+            if (t != null && !t.isBlank()) {
+                header = "Bearer " + t;
+            }
+        }
         if (header != null && header.startsWith("Bearer ") && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserPrincipal user = jwtService.parse(header.substring(7));
             if (user != null) {
