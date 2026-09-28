@@ -6,6 +6,7 @@
         <el-option label="领导" value="LEADER" />
         <el-option label="班主任" value="HEAD_TEACHER" />
         <el-option label="任课教师" value="TEACHER" />
+        <el-option label="门卫" value="GUARD" />
       </el-select>
       <el-input v-model="keyword" placeholder="账号/姓名搜索" style="width: 180px" clearable @change="loadUsers" />
       <el-button type="primary" @click="openCreate">新建账号</el-button>
@@ -181,6 +182,7 @@
             <el-option label="领导" value="LEADER" />
             <el-option label="班主任" value="HEAD_TEACHER" />
             <el-option label="任课教师" value="TEACHER" />
+            <el-option label="门卫（仅请假核验）" value="GUARD" />
           </el-select>
         </el-form-item>
         <el-form-item label="手机">
@@ -215,7 +217,7 @@ const form = ref<any>({})
 const teach = ref<{ teacherId?: number; classId?: number; subjectId?: number }>({})
 
 function roleName(r: string) {
-  return { ADMIN: '管理员', LEADER: '领导', HEAD_TEACHER: '班主任', TEACHER: '任课教师' }[r] ?? r
+  return { ADMIN: '管理员', LEADER: '领导', HEAD_TEACHER: '班主任', TEACHER: '任课教师', GUARD: '门卫' }[r] ?? r
 }
 
 async function loadUsers() {

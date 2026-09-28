@@ -2,9 +2,11 @@ package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.BizException;
+import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.ParentBinding;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.User;
+import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.ParentBindingMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.AuthUtil;
@@ -36,6 +38,7 @@ public class StudentController {
     private final DataScopeService dataScopeService;
     private final ParentBindingMapper bindingMapper;
     private final UserMapper userMapper;
+    private final ClazzMapper clazzMapper;
     private final PasswordEncoder passwordEncoder;
 
     @GetMapping("/list")
@@ -157,6 +160,78 @@ public class StudentController {
 
     private static String blankToNull(String v) {
         return v == null || v.isBlank() ? null : v.trim();
+    }
+
+    // ────────────────── 批27：宿管视图（全体教师按宿舍楼/房/床查学生） ──────────────────
+
+    /** 宿舍楼下拉数据源（在读学生有宿舍信息的去重楼名） */
+    @GetMapping("/dorm/buildings")
+    public ApiResponse<List<String>> dormBuildings() {
+        checkTeacherSide();
+        List<Student> rows = studentMapper.selectList(new LambdaQueryWrapper<Student>()
+                .select(Student::getDormBuilding)
+                .eq(Student::getStatus, "在读")
+                .isNotNull(Student::getDormBuilding)
+                .ne(Student::getDormBuilding, ""));
+        return ApiResponse.ok(rows.stream().map(Student::getDormBuilding).distinct().sorted().toList());
+    }
+
+    /** 宿舍查询（楼/房/床精确到床；q=姓名或学号；全体教师可查——宿管场景拍板 9-26） */
+    @GetMapping("/dorm")
+    public ApiResponse<Map<String, Object>> dorm(
+            @RequestParam(required = false) String building,
+            @RequestParam(required = false) String room,
+            @RequestParam(required = false) String bed,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "50") long size) {
+        checkTeacherSide();
+        // 条件值先归一（null→不参与）：MP 条件参是实参求值，null.trim() 会 NPE
+        String kw = q == null || q.isBlank() ? null : q.trim();
+        String bB = building == null || building.isBlank() ? null : building.trim();
+        String bR = room == null || room.isBlank() ? null : room.trim();
+        String bBed = bed == null || bed.isBlank() ? null : bed.trim();
+        LambdaQueryWrapper<Student> qw = new LambdaQueryWrapper<Student>()
+                .eq(Student::getStatus, "在读")
+                .like(bB != null, Student::getDormBuilding, bB)
+                .eq(bR != null, Student::getDormRoom, bR)
+                .eq(bBed != null, Student::getDormBed, bBed)
+                .and(kw != null,
+                        w -> w.like(Student::getName, kw).or().like(Student::getStudentNo, kw))
+                .orderByAsc(Student::getDormBuilding)
+                .orderByAsc(Student::getDormRoom)
+                .orderByAsc(Student::getDormBed)
+                .orderByAsc(Student::getStudentNo);
+        Page<Student> p = studentMapper.selectPage(Page.of(page, Math.min(size, 100)), qw);
+        Map<Long, String> classNames = p.getRecords().isEmpty() ? Map.of()
+                : clazzMapper.selectBatchIds(p.getRecords().stream()
+                        .map(Student::getClassId).filter(c -> c != null).distinct().toList()).stream()
+                        .collect(java.util.stream.Collectors.toMap(Clazz::getId, Clazz::getName, (a, b) -> a));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total", p.getTotal());
+        m.put("records", p.getRecords().stream().map(s -> {
+            Map<String, Object> r = new LinkedHashMap<>();
+            r.put("id", s.getId());
+            r.put("studentNo", s.getStudentNo());
+            r.put("name", s.getName());
+            r.put("gender", s.getGender());
+            r.put("className", s.getClassId() == null ? null : classNames.get(s.getClassId()));
+            r.put("dormBuilding", s.getDormBuilding());
+            r.put("dormRoom", s.getDormRoom());
+            r.put("dormBed", s.getDormBed());
+            r.put("guardianPhone", s.getGuardianPhone());
+            return r;
+        }).toList());
+        return ApiResponse.ok(m);
+    }
+
+    /** 宿舍查询放行全体教师侧角色（明确挡家长/门卫——不走 visibleClassIds 的班级隔离） */
+    private void checkTeacherSide() {
+        String role = AuthUtil.current().role();
+        if (!"TEACHER".equals(role) && !"HEAD_TEACHER".equals(role)
+                && !"LEADER".equals(role) && !"ADMIN".equals(role)) {
+            throw new BizException(403, "仅教师可查询宿舍");
+        }
     }
 
     // ────────────────── 批8.5：学生详情-家长账号（班主任可见+重置） ──────────────────

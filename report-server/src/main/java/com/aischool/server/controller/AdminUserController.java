@@ -73,7 +73,7 @@ public class AdminUserController {
     public static final String INITIAL_PASSWORD = "Shishi@2026";
 
     /** 本控制器管理的角色（家长 PARENT 走 AdminParentController） */
-    private static final List<String> ROLES = List.of("ADMIN", "LEADER", "HEAD_TEACHER", "TEACHER");
+    private static final List<String> ROLES = List.of("ADMIN", "LEADER", "HEAD_TEACHER", "TEACHER", "GUARD");
 
     private void checkAdmin() {
         permissionService.checkAdminAccess("只有管理员可操作系统管理");
@@ -173,7 +173,7 @@ public class AdminUserController {
     public ApiResponse<Map<String, Object>> createUser(@Validated @RequestBody UserReq req) {
         checkAdmin();
         if (!ROLES.contains(req.getRole())) {
-            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER");
+            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD");
         }
         if (userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getUsername, req.getUsername())) > 0) {
             throw new BizException(400, "用户名已存在");
@@ -216,8 +216,8 @@ public class AdminUserController {
                 .collect(Collectors.toMap(Subject::getName, Subject::getId, (a, b) -> a));
         Map<String, Long> classIds = clazzMapper.selectList(null).stream()
                 .collect(Collectors.toMap(Clazz::getName, Clazz::getId, (a, b) -> a));
-        Map<String, String> roleMap = Map.of("管理员", "ADMIN", "领导", "LEADER",
-                "班主任", "HEAD_TEACHER", "教师", "TEACHER");
+        Map<String, String> roleMap = java.util.Map.of("管理员", "ADMIN", "领导", "LEADER",
+                "班主任", "HEAD_TEACHER", "教师", "TEACHER", "门卫", "GUARD");
         Set<String> seen = new HashSet<>();
         List<Map<String, Object>> errors = new java.util.ArrayList<>();
         int inserted = 0;
@@ -238,7 +238,7 @@ public class AdminUserController {
             } else if (r.realName().isBlank()) {
                 reason = "姓名为空";
             } else if (!roleMap.containsKey(r.role())) {
-                reason = "角色只能填 管理员/领导/班主任/教师: " + (r.role().isBlank() ? "(空)" : r.role());
+                reason = "角色只能填 管理员/领导/班主任/教师/门卫: " + (r.role().isBlank() ? "(空)" : r.role());
             } else if (!r.gender().isBlank() && !"男".equals(r.gender()) && !"女".equals(r.gender())) {
                 reason = "性别只能填 男/女: " + r.gender();
             } else if (!r.subjectName().isBlank() && !subjectIds.containsKey(r.subjectName())) {
@@ -354,7 +354,7 @@ public class AdminUserController {
             throw new BizException(400, "不能修改自己的角色");
         }
         if (req.getRole() != null && !ROLES.contains(req.getRole())) {
-            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER");
+            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD");
         }
         String newRole = req.getRole() != null ? req.getRole() : u.getRole();
         // 换绑登录名（批8.5）：非空才改；唯一性+格式校验，改名后原 token 不受影响（按 userId 鉴权）
