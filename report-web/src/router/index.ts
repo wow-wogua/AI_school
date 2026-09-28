@@ -57,6 +57,8 @@ const router = createRouter({
     { path: '/footprint', component: () => import('../views/FootprintView.vue'), meta: { layout: 'sub', title: '成长足迹' } },
     // 意见反馈（批8.5）：教师/家长共用组件，双路由分流（家长被锁 /p/*）
     { path: '/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'sub', title: '意见反馈' } },
+    // 通知中心（批29）：审批/请假/注册待办与结果，点击直达处理页；同款双路由分流
+    { path: '/notify', component: () => import('../views/NotificationView.vue'), meta: { layout: 'sub', title: '通知中心' } },
     { path: '/profile', component: () => import('../views/ProfileView.vue'), meta: { layout: 'sub', title: '教师档案' } },
     { path: '/teacher-honor', component: () => import('../views/TeacherHonorView.vue'), meta: { layout: 'sub', title: '教师风采' } },
     { path: '/teacher-honor/new', component: () => import('../views/TeacherHonorCaptureView.vue'), meta: { layout: 'sub', title: '记录成就' } },
@@ -80,6 +82,8 @@ const router = createRouter({
     { path: '/p/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'psub', title: '意见反馈' } },
     // 学生请假（批27）：家长替绑定孩子提交+撤回
     { path: '/p/leave', component: () => import('../views/parent/ParentLeaveView.vue'), meta: { layout: 'psub', title: '学生请假' } },
+    // 通知中心（批29）：家长入口（审批结果/系统消息）
+    { path: '/p/notify', component: () => import('../views/NotificationView.vue'), meta: { layout: 'psub', title: '消息通知' } },
     // 门卫端（批27 GUARD 分流）：仅此一页——当日有效请假核验+离校/返校登记
     { path: '/g/home', component: () => import('../views/GuardHomeView.vue'), meta: { layout: 'gshell' } },
     // 领导端（LEADER 分流）：全校只读驾驶舱；成绩明细复用 /scores（LEADER 只读）；

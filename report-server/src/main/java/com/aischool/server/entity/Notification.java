@@ -1,0 +1,32 @@
+package com.aischool.server.entity;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+/** t_notification 通知中心（批29）：点对点待办/结果类消息，点击按 link 直达处理页 */
+@Data
+@TableName("t_notification")
+public class Notification {
+
+    public static final String OA_TODO = "OA_TODO";
+    public static final String OA_RESULT = "OA_RESULT";
+    public static final String LEAVE_TODO = "LEAVE_TODO";
+    public static final String LEAVE_RESULT = "LEAVE_RESULT";
+    public static final String REGISTER_TODO = "REGISTER_TODO";
+    public static final String SYSTEM = "SYSTEM";
+    public static final String ALERT = "ALERT";
+
+    @TableId(type = IdType.AUTO)
+    private Long id;
+    private Long userId;
+    private String type;
+    private String title;
+    private String content;
+    private String link;
+    private LocalDateTime readTime;
+    private LocalDateTime createTime;
+}

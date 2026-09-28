@@ -69,6 +69,7 @@
         <el-tab-pane :label="`意见反馈${feedbackPending ? '(' + feedbackPending + ')' : ''}`" name="feedback"><FeedbackTab @handled="loadFeedbackPending" /></el-tab-pane>
         <el-tab-pane :label="`数据体检${healthDanger ? '(' + healthDanger + ')' : ''}`" name="health"><HealthTab @scanned="onHealthScanned" /></el-tab-pane>
         <el-tab-pane label="文件归档" name="archive"><ArchiveTab /></el-tab-pane>
+        <el-tab-pane label="群机器人与告警" name="notify"><NotifyTab /></el-tab-pane>
         <el-tab-pane label="内容发布" name="content"><ContentTab /></el-tab-pane>
         <el-tab-pane label="教师档案" name="teacherProfile"><TeacherProfileTab /></el-tab-pane>
         <el-tab-pane label="年级与班级" name="org"><OrgTab /></el-tab-pane>
@@ -121,6 +122,7 @@ import TalkTab from '../components/admin/TalkTab.vue'
 import FootprintTab from '../components/admin/FootprintTab.vue'
 import SchoolYearTab from '../components/admin/SchoolYearTab.vue'
 import ArchiveTab from '../components/admin/ArchiveTab.vue'
+import NotifyTab from '../components/admin/NotifyTab.vue'
 
 const auth = useAuthStore()
 
@@ -142,6 +144,7 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   feedback: { label: '意见反馈', comp: markRaw(FeedbackTab), icon: ChatDotRound },
   health: { label: '数据体检', comp: markRaw(HealthTab), icon: FirstAidKit },
   archive: { label: '文件归档', comp: markRaw(ArchiveTab), icon: FolderOpened },
+  notify: { label: '群机器人与告警', comp: markRaw(NotifyTab), icon: Promotion },
   teacherProfile: { label: '教师档案', comp: markRaw(TeacherProfileTab), icon: Postcard },
   content: { label: '内容发布', comp: markRaw(ContentTab), icon: Promotion },
   appRelease: { label: '版本更新', comp: markRaw(AppReleaseTab), icon: Upload },
@@ -167,7 +170,7 @@ const groups = [
   { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile', 'footprint'] },
   { label: '内容运营', items: ['content', 'appRelease'] },
   { label: '基础数据', items: ['org', 'student', 'term', 'schoolYear', 'exam', 'duty', 'indicator', 'shop', 'goods', 'venue', 'template'] },
-  { label: '系统运维', items: ['oa', 'repair', 'talk', 'feedback', 'health', 'archive', 'audit', 'aiUsage'] },
+  { label: '系统运维', items: ['oa', 'repair', 'talk', 'feedback', 'health', 'archive', 'notify', 'audit', 'aiUsage'] },
 ].map((g) => ({ ...g, items: g.items.map((k) => ({ name: k, ...TABS[k] })) }))
 
 const current = computed(() => TABS[tab.value] ?? TABS.teacher)

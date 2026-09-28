@@ -5,14 +5,17 @@ import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.ParentBinding;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.StudentLeave;
+import com.aischool.server.entity.Teach;
 import com.aischool.server.entity.User;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.ParentBindingMapper;
 import com.aischool.server.mapper.StudentLeaveMapper;
 import com.aischool.server.mapper.StudentMapper;
+import com.aischool.server.mapper.TeachMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.UserPrincipal;
 import com.aischool.server.service.auth.DataScopeService;
+import com.aischool.server.service.notify.NotificationService;
 import com.aischool.server.service.report.PdfStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,8 +52,10 @@ public class StudentLeaveService {
     private final ClazzMapper clazzMapper;
     private final UserMapper userMapper;
     private final ParentBindingMapper bindingMapper;
+    private final TeachMapper teachMapper;
     private final DataScopeService dataScope;
     private final PdfStoreService pdfStore;
+    private final NotificationService notificationService;
 
     // ────────────────────────── 家长侧 ──────────────────────────
 
@@ -85,6 +90,7 @@ public class StudentLeaveService {
         l.setPhotos(objects.isEmpty() ? null : toJson(objects));
         l.setStatus(StudentLeave.PENDING);
         leaveMapper.insert(l);
+        notifyLeaveTodo(l);
         return Map.of("leaveId", l.getId());
     }
 
@@ -145,6 +151,8 @@ public class StudentLeaveService {
         l.setApproveNote(note == null || note.isBlank() ? null : note.trim());
         l.setApproveTime(LocalDateTime.now());
         leaveMapper.updateById(l);
+        // 批29：审批结果通知提交家长
+        notificationService.leaveResult(l.getParentId(), studentNameOf(l), true, user.realName(), l.getApproveNote());
     }
 
     /** 驳回（意见必填——家长须知道原因） */
@@ -162,6 +170,37 @@ public class StudentLeaveService {
         l.setApproveNote(note.trim());
         l.setApproveTime(LocalDateTime.now());
         leaveMapper.updateById(l);
+        notificationService.leaveResult(l.getParentId(), studentNameOf(l), false, user.realName(), l.getApproveNote());
+    }
+
+    /** 批29：提交后通知班主任+本班任课教师（通知失败不阻断提交） */
+    private void notifyLeaveTodo(StudentLeave l) {
+        try {
+            Student s = studentMapper.selectById(l.getStudentId());
+            if (s == null || s.getClassId() == null) {
+                return;
+            }
+            Clazz c = clazzMapper.selectById(s.getClassId());
+            List<Long> teachers = new ArrayList<>();
+            if (c != null && c.getHeadTeacherId() != null) {
+                teachers.add(c.getHeadTeacherId());
+            }
+            teachMapper.selectList(new LambdaQueryWrapper<Teach>().eq(Teach::getClassId, s.getClassId()))
+                    .forEach(t -> teachers.add(t.getTeacherId()));
+            List<Long> uniq = teachers.stream().distinct().toList();
+            if (!uniq.isEmpty()) {
+                notificationService.leaveTodo(uniq, s.getName(),
+                        c == null ? "" : c.getName(), l.getLeaveType(),
+                        l.getStartDate().toString(), l.getEndDate().toString());
+            }
+        } catch (Exception e) {
+            // 通知属旁路：查不到班级/任课也不影响请假单已落库
+        }
+    }
+
+    private String studentNameOf(StudentLeave l) {
+        Student s = studentMapper.selectById(l.getStudentId());
+        return s == null ? "(学生已删除)" : s.getName();
     }
 
     // ────────────────────────── 门卫侧 ──────────────────────────

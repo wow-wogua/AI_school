@@ -16,6 +16,7 @@ import com.aischool.server.mapper.SysConfigMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.mapper.VenueMapper;
 import com.aischool.server.security.AuthUtil;
+import com.aischool.server.service.notify.NotificationService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
@@ -48,6 +49,7 @@ public class OaService {
     private final SysConfigMapper sysConfigMapper;
     private final UserMapper userMapper;
     private final VenueMapper venueMapper;
+    private final NotificationService notificationService;
 
     // ---- 配置 ----
 
@@ -227,6 +229,11 @@ public class OaService {
         log.setNodeName(NODE_SUBMIT);
         log.setOperatorId(user.userId());
         logMapper.insert(log);
+        // 批29：通知第一级审批人（App 通知中心 + 企微群）
+        Long first = approverId(type, 1);
+        if (first != null) {
+            notificationService.oaTodo(first, typeName(type), form.getTitle(), form.getId(), user.realName());
+        }
         return form;
     }
 
@@ -328,6 +335,7 @@ public class OaService {
         if (OaFlowLog.REJECT.equals(action)) {
             writeLog(form, OaFlowLog.REJECT, user.userId(), req.getNote());
             finish(form, OaForm.REJECTED);
+            notificationService.oaResult(form.getApplicantId(), typeName(form.getFormType()), form.getTitle(), false, req.getNote());
             return;
         }
         if (!OaFlowLog.AGREE.equals(action)) {
@@ -339,9 +347,15 @@ public class OaService {
             if (OaForm.TYPE_GOODS.equals(form.getFormType())) {
                 issueGoods(form, user.userId()); // 扣库存+出库流水；库存不足抛错整体回滚（单据停在当前级）
             }
+            notificationService.oaResult(form.getApplicantId(), typeName(form.getFormType()), form.getTitle(), true, req.getNote());
         } else {
             form.setCurrentLevel(form.getCurrentLevel() + 1);
             formMapper.updateById(form);
+            // 批29：流转到下一级，通知下一级审批人
+            Long next = approverId(form.getFormType(), form.getCurrentLevel());
+            if (next != null) {
+                notificationService.oaTodo(next, typeName(form.getFormType()), form.getTitle(), form.getId(), user.realName());
+            }
         }
     }
 

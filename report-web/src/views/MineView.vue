@@ -12,6 +12,7 @@
     </div>
 
     <div class="app-card overlap tl tex-f cells">
+      <van-cell title="通知中心" icon="volume-o" is-link :value="notifyBadge" @click="$router.push('/notify')" />
       <van-cell title="教师档案" icon="contact" is-link :value="profileHint || '待完善'"
         @click="$router.push('/profile')" />
       <van-cell title="成长报告" icon="orders-o" is-link @click="$router.push('/reports')" />
@@ -77,15 +78,19 @@ import { showFailToast, showSuccessToast } from 'vant'
 import { App as CapApp } from '@capacitor/app'
 import { useAuthStore } from '../stores/auth'
 import { useAiTasksStore } from '../stores/aiTasks'
+import { useNotifyStore } from '../stores/notify'
 import { api, apiBase } from '../api/http'
 import { isNative } from '../api/nativeShare'
 import { checkForUpdate } from '../utils/appUpdate'
 
 const auth = useAuthStore()
 const aiTasks = useAiTasksStore()
+const notifyStore = useNotifyStore()
 const router = useRouter()
 
 const running = computed(() => aiTasks.runningCount)
+/** 通知中心未读角标（批29）：轮询由 App 壳维护，进页面即现值 */
+const notifyBadge = computed(() => (notifyStore.unread ? `${notifyStore.unread} 条未读` : ''))
 const avatarChar = computed(() => auth.realName?.charAt(0) || '师')
 const roleLabel = computed(() => ({ ADMIN: '管理员', LEADER: '领导', HEAD_TEACHER: '班主任', TEACHER: '任课教师', PARENT: '家长' }[auth.role] ?? auth.role))
 
