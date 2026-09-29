@@ -78,6 +78,7 @@
         <el-tab-pane label="学年滚动" name="schoolYear"><SchoolYearTab /></el-tab-pane>
         <el-tab-pane label="考试管理" name="exam"><ExamTab /></el-tab-pane>
         <el-tab-pane label="值班排班" name="duty"><DutyTab /></el-tab-pane>
+        <el-tab-pane label="文明班评比" name="civility"><CivilityTab /></el-tab-pane>
         <el-tab-pane label="育人指标" name="indicator"><IndicatorTab /></el-tab-pane>
         <el-tab-pane label="成长银行" name="shop"><ShopTab /></el-tab-pane>
         <el-tab-pane label="报告模板" name="template"><TemplateTab /></el-tab-pane>
@@ -108,6 +109,7 @@ import StudentTab from '../components/admin/StudentTab.vue'
 import TermTab from '../components/admin/TermTab.vue'
 import ExamTab from '../components/admin/ExamTab.vue'
 import DutyTab from '../components/admin/DutyTab.vue'
+import CivilityTab from '../components/admin/CivilityTab.vue'
 import IndicatorTab from '../components/admin/IndicatorTab.vue'
 import ShopTab from '../components/admin/ShopTab.vue'
 import TemplateTab from '../components/admin/TemplateTab.vue'
@@ -154,6 +156,7 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   schoolYear: { label: '学年滚动', comp: markRaw(SchoolYearTab), icon: Sunset },
   exam: { label: '考试管理', comp: markRaw(ExamTab), icon: TrendCharts },
   duty: { label: '值班排班', comp: markRaw(DutyTab), icon: AlarmClock },
+  civility: { label: '文明班评比', comp: markRaw(CivilityTab), icon: Medal },
   indicator: { label: '育人指标', comp: markRaw(IndicatorTab), icon: Aim },
   shop: { label: '成长银行', comp: markRaw(ShopTab), icon: Coin },
   template: { label: '报告模板', comp: markRaw(TemplateTab), icon: Document },
@@ -169,7 +172,7 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
 const groups = [
   { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile', 'footprint'] },
   { label: '内容运营', items: ['content', 'appRelease'] },
-  { label: '基础数据', items: ['org', 'student', 'term', 'schoolYear', 'exam', 'duty', 'indicator', 'shop', 'goods', 'venue', 'template'] },
+  { label: '基础数据', items: ['org', 'student', 'term', 'schoolYear', 'exam', 'duty', 'civility', 'indicator', 'shop', 'goods', 'venue', 'template'] },
   { label: '系统运维', items: ['oa', 'repair', 'talk', 'feedback', 'health', 'archive', 'notify', 'audit', 'aiUsage'] },
 ].map((g) => ({ ...g, items: g.items.map((k) => ({ name: k, ...TABS[k] })) }))
 

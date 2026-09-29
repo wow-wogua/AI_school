@@ -21,6 +21,10 @@ public class Talk {
     public static final String TYPE_OTHER = "其他";
     public static final List<String> TYPES = List.of(TYPE_ACAD, TYPE_MIND, TYPE_DISCIPLINE, TYPE_LIFE, TYPE_OTHER);
 
+    public static final int FOLLOW_NONE = 0;  // 无需随访
+    public static final int FOLLOW_PENDING = 1; // 待随访（到期提醒）
+    public static final int FOLLOW_DONE = 2;   // 已随访
+
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long teacherId;
@@ -28,5 +32,7 @@ public class Talk {
     private LocalDate talkDate;
     private String talkType;
     private String content;
+    private Integer followUp;  // 0/1/2（批30）
+    private LocalDate followDue;
     private LocalDateTime createTime;
 }

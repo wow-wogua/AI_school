@@ -59,6 +59,8 @@ const router = createRouter({
     { path: '/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'sub', title: '意见反馈' } },
     // 通知中心（批29）：审批/请假/注册待办与结果，点击直达处理页；同款双路由分流
     { path: '/notify', component: () => import('../views/NotificationView.vue'), meta: { layout: 'sub', title: '通知中心' } },
+    // 文明班评比 B 案（批30）：教师打分+自动汇总排名（细则见 /conduct-rules A 案静态页）
+    { path: '/civility', component: () => import('../views/CivilityView.vue'), meta: { layout: 'sub', title: '文明班评比' } },
     { path: '/profile', component: () => import('../views/ProfileView.vue'), meta: { layout: 'sub', title: '教师档案' } },
     { path: '/teacher-honor', component: () => import('../views/TeacherHonorView.vue'), meta: { layout: 'sub', title: '教师风采' } },
     { path: '/teacher-honor/new', component: () => import('../views/TeacherHonorCaptureView.vue'), meta: { layout: 'sub', title: '记录成就' } },

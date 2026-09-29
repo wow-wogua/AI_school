@@ -105,6 +105,7 @@ public class ShopController {
         row.setCoin(item.getPriceCoin());
         row.setItemId(item.getId());
         row.setOperatorId(AuthUtil.current().userId());
+        row.setStatus(0);                      // 批30：新兑换=待领取，发放后核销（领取二次确认）
         row.setCreateTime(LocalDateTime.now()); // 该列无默认值，见 t_coin_income 同款处理
         coinExpenseMapper.insert(row);
 
@@ -116,6 +117,24 @@ public class ShopController {
         m.put("coin", item.getPriceCoin());
         m.put("currentCoin", after != null ? after.getCurrentCoin() : BigDecimal.ZERO);
         return ApiResponse.ok(m);
+    }
+
+    /** 核销（批30 领取二次确认）：发放实物后确认领取；重复核销幂等成功。任意可见该学生的教师均可核销。 */
+    @PutMapping("/expense/{id}/confirm")
+    public ApiResponse<Map<String, Object>> confirm(@PathVariable Long id) {
+        CoinExpense e = coinExpenseMapper.selectById(id);
+        if (e == null || e.getItemId() == null) {
+            throw new BizException(404, "兑换记录不存在");
+        }
+        if (e.getStatus() != null && e.getStatus() == 1) {
+            return ApiResponse.ok(Map.of("status", 1)); // 已核销幂等
+        }
+        dataScope.checkStudentAccess(AuthUtil.current(), e.getStudentId());
+        e.setStatus(1);
+        e.setConfirmTime(LocalDateTime.now().withNano(0));
+        e.setConfirmBy(AuthUtil.current().userId());
+        coinExpenseMapper.updateById(e);
+        return ApiResponse.ok(Map.of("status", 1, "expenseId", id));
     }
 
     @Data

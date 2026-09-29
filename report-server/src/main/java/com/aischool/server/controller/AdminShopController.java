@@ -147,6 +147,8 @@ public class AdminShopController {
             m.put("studentName", studentNames.getOrDefault(e.getStudentId(), "(已删除)"));
             m.put("item", e.getItem());
             m.put("coin", e.getCoin());
+            m.put("status", e.getStatus() == null ? 1 : e.getStatus()); // 旧记录无值=已领取
+            m.put("confirmTime", e.getConfirmTime());
             m.put("operatorName", e.getOperatorId() == null ? null
                     : teacherNames.getOrDefault(e.getOperatorId(), "(已删除)"));
             m.put("createTime", e.getCreateTime());

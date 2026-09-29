@@ -20,16 +20,34 @@
         @click="typeOpen = true" />
       <van-field v-model="content" type="textarea" rows="3" autosize label="内容" maxlength="500" show-word-limit
         placeholder="谈心主题、学生状态与后续跟进（500 字内）" />
+      <div class="fu-row">
+        <van-field label="需要随访" label-width="70px">
+          <template #input>
+            <van-switch v-model="followUp" size="20" />
+          </template>
+        </van-field>
+        <van-field v-if="followUp" :model-value="followDue" is-link readonly label="到期日" label-width="70px"
+          placeholder="默认 14 天后" @click="openDue" />
+      </div>
+      <p v-if="followUp" class="fu-hint">标记后到期未随访会每日提醒您；该生下次谈心即自动闭环</p>
       <van-button round block type="primary" class="submit" :loading="submitting" @click="doSubmit">保存记录</van-button>
     </div>
 
     <div class="app-sec">我的谈心</div>
+    <div class="fu-chips">
+      <span class="fchip" :class="{ on: fuFilter === 'all' }" @click="fuFilter = 'all'">全部</span>
+      <span class="fchip" :class="{ on: fuFilter === 'pending' }" @click="fuFilter = 'pending'">
+        随访中{{ pendingCount ? `(${pendingCount})` : '' }}
+      </span>
+    </div>
     <div class="app-card list">
-      <div v-if="!rows.length" class="empty">还没有谈心记录</div>
-      <div v-for="r in rows" :key="r.id" class="row">
+      <div v-if="!shownRows.length" class="empty">{{ fuFilter === 'pending' ? '暂无待随访记录' : '还没有谈心记录' }}</div>
+      <div v-for="r in shownRows" :key="r.id" class="row">
         <div class="r-body">
           <p class="r-title">
             <van-tag plain type="primary" class="t-tag">{{ r.talkType }}</van-tag>
+            <van-tag v-if="r.followUp === 1" plain type="warning" class="t-tag">随访中·{{ r.followDue || '未定期' }}</van-tag>
+            <van-tag v-else-if="r.followUp === 2" plain type="success" class="t-tag">已随访</van-tag>
             {{ r.studentName }} <small class="r-cls">{{ r.className }}</small>
           </p>
           <p class="r-sub">{{ r.talkDate }} · 记录于 {{ fmtTime(r.createTime) }}</p>
@@ -53,6 +71,10 @@
     <van-popup v-model:show="dateOpen" position="bottom" round>
       <van-date-picker title="谈心日期" v-model="dateBuf" :columns-type="['year', 'month', 'day']"
         :min-date="minDate" :max-date="maxDate" @confirm="onDateOk" @cancel="dateOpen = false" />
+    </van-popup>
+    <van-popup v-model:show="dueOpen" position="bottom" round>
+      <van-date-picker title="随访到期日" v-model="dueBuf" :columns-type="['year', 'month', 'day']"
+        :min-date="minDate" :max-date="maxDate" @confirm="onDueOk" @cancel="dueOpen = false" />
     </van-popup>
   </div>
 </template>
@@ -82,6 +104,35 @@ const typeOpen = ref(false)
 const content = ref('')
 const submitting = ref(false)
 const rows = ref<any[]>([])
+
+// 批30 随访：需要随访开关+到期日（默认谈心日+14 天，服务端兜底同口径）
+const followUp = ref(false)
+const followDue = ref('')
+const dueBuf = ref<string[]>([])
+const dueOpen = ref(false)
+const fuFilter = ref<'all' | 'pending'>('all')
+
+const pendingCount = computed(() => rows.value.filter((r) => r.followUp === 1).length)
+const shownRows = computed(() =>
+  fuFilter.value === 'pending' ? rows.value.filter((r) => r.followUp === 1) : rows.value)
+
+function openDue() {
+  const base = followDue.value || plusDays(talkDate.value, 14)
+  dueBuf.value = base.split('-')
+  dueOpen.value = true
+}
+
+function onDueOk() {
+  followDue.value = dueBuf.value.join('-')
+  dueOpen.value = false
+}
+
+function plusDays(dateStr: string, days: number) {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + days)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
 
 /** Vant4 cascade 树：班级 → 该班学生（value=id） */
 const pickerColumns = computed(() => classes.value.map((c) => ({
@@ -126,10 +177,16 @@ async function doSubmit() {
   try {
     await api('/api/talk', {
       method: 'POST',
-      json: { studentId: student.value.id, talkDate: talkDate.value, talkType: talkType.value, content: content.value.trim() },
+      json: {
+        studentId: student.value.id, talkDate: talkDate.value, talkType: talkType.value,
+        content: content.value.trim(), followUp: followUp.value || undefined,
+        followDue: followUp.value ? (followDue.value || undefined) : undefined,
+      },
     })
     showSuccessToast('已保存')
     content.value = ''
+    followUp.value = false
+    followDue.value = ''
     await load()
   } catch (e: any) {
     showToast(e?.message || '保存失败')
@@ -181,4 +238,10 @@ onMounted(async () => {
 .r-sub { margin: 4px 0 0; font-size: 11px; color: var(--app-text-3); }
 .r-txt { margin: 6px 0 0; font-size: 13px; color: var(--app-text-2); line-height: 1.55; white-space: pre-wrap; }
 .empty { padding: 26px 0; text-align: center; font-size: 13px; color: var(--app-text-3); }
+.fu-row { display: flex; }
+.fu-hint { margin: 2px 16px 0; font-size: 11px; color: var(--app-text-3); line-height: 1.5; }
+.fu-chips { display: flex; gap: 8px; margin: 10px 0 0 2px; }
+.fchip { padding: 4px 14px; border-radius: 14px; font-size: 12px; color: var(--app-text-2);
+  background: var(--shine-card, #fff); border: 1px solid var(--app-card-border); }
+.fchip.on { color: #fff; background: var(--app-blue); border-color: var(--app-blue); }
 </style>
