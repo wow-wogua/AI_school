@@ -49,7 +49,7 @@ const router = createRouter({
     { path: '/repair', component: () => import('../views/RepairView.vue'), meta: { layout: 'sub', title: '报修' } },
     // 谈心记录（批11）：教师对可见班级学生，管理端全量
     { path: '/talk', component: () => import('../views/TalkView.vue'), meta: { layout: 'sub', title: '谈心记录' } },
-    // 学生请假（批27）：家长替孩子提交，任意一位教师批即生效（本班优先）
+    // 学生请假（批27/批31）：家长替孩子提交，本班班主任审批（领导/管理员可代批），任课教师只读
     { path: '/leave', component: () => import('../views/StudentLeaveView.vue'), meta: { layout: 'sub', title: '学生请假' } },
     // 宿管查询（批27）：全体教师按宿舍楼/房/床查学生
     { path: '/dorm', component: () => import('../views/DormView.vue'), meta: { layout: 'sub', title: '宿舍查询' } },

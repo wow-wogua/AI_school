@@ -173,7 +173,7 @@ async function doSubmit() {
     photos.value.forEach((p) => fd.append('photos', p.file))
     await apiForm('/api/student-leave', fd)
   } finally { submitting.value = false }
-  showSuccessToast('已提交，等待老师审批')
+  showSuccessToast('已提交，等待班主任审批')
   form.reason = ''
   photos.value.forEach((p) => URL.revokeObjectURL(p.url))
   photos.value = []
