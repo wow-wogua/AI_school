@@ -5,13 +5,11 @@ import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.ParentBinding;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.StudentLeave;
-import com.aischool.server.entity.Teach;
 import com.aischool.server.entity.User;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.ParentBindingMapper;
 import com.aischool.server.mapper.StudentLeaveMapper;
 import com.aischool.server.mapper.StudentMapper;
-import com.aischool.server.mapper.TeachMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.UserPrincipal;
 import com.aischool.server.service.auth.DataScopeService;
@@ -36,9 +34,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 学生请假（批27）：家长替孩子提交（照片凭证同报修模式），单级审批——任何一位教师
- * 批准/驳回即生效（本班老师优先不强制，教师端列表默认本班、可切全校）；门卫对已批准
- * 单登记离校/返校时间。独立于 OA 引擎（那是教职工口径）。
+ * 学生请假（批27）：家长替孩子提交（照片凭证同报修模式），单级审批——本班班主任
+ * 批准/驳回即生效，领导/管理员可代批兜底（验收反馈收紧：任课教师只读不可批，批31）；
+ * 门卫对已批准单登记离校/返校时间。独立于 OA 引擎（那是教职工口径）。
  */
 @Service
 @RequiredArgsConstructor
@@ -52,7 +50,6 @@ public class StudentLeaveService {
     private final ClazzMapper clazzMapper;
     private final UserMapper userMapper;
     private final ParentBindingMapper bindingMapper;
-    private final TeachMapper teachMapper;
     private final DataScopeService dataScope;
     private final PdfStoreService pdfStore;
     private final NotificationService notificationService;
@@ -119,9 +116,14 @@ public class StudentLeaveService {
 
     /**
      * 教师端列表：status 可筛；scope=my=本班（任课+班主任），scope=all=全校——
-     * 拍板（9-26）任何一位老师批即生效，故全校待审批对所有教师可见（默认本班防噪）。
+     * 仅领导/管理员可用（批31 收紧：教师侧隐藏全校视图）。行内 canApprove 标记
+     * 审批权（本班班主任=true，任课教师=false，领导/管理员恒 true）。
      */
     public List<Map<String, Object>> list(UserPrincipal user, String status, String scope) {
+        String role = user.role();
+        if ("all".equals(scope) && !"LEADER".equals(role) && !"ADMIN".equals(role)) {
+            throw new BizException(403, "全校视图仅领导/管理员可用");
+        }
         boolean all = "all".equals(scope);
         List<Long> visible = null;
         if (!all) {
@@ -136,13 +138,29 @@ public class StudentLeaveService {
         } else if (visible != null) { // 无任课无带班教师：本班口径下为空
             rows = List.of();
         }
-        return toRows(rows);
+        List<Map<String, Object>> list = toRows(rows);
+        // 批31：任课教师只读——行级审批权标记（班主任对本班、领导/管理员全量）
+        Map<Long, Student> students = studentsOf(rows);
+        Map<Long, Long> classHead = classHeadOf(students.values().stream().map(Student::getClassId).toList());
+        for (Map<String, Object> m : list) {
+            Student s = students.get(((Number) m.get("studentId")).longValue());
+            boolean can;
+            if ("LEADER".equals(role) || "ADMIN".equals(role)) {
+                can = true;
+            } else if ("HEAD_TEACHER".equals(role) && s != null && s.getClassId() != null) {
+                can = user.userId().equals(classHead.get(s.getClassId()));
+            } else {
+                can = false;
+            }
+            m.put("canApprove", can);
+        }
+        return list;
     }
 
-    /** 批准（单级：任何一位教师/领导/管理员） */
+    /** 批准（单级：本班班主任；领导/管理员可代批兜底——批31 收紧，任课教师不可批） */
     public void approve(Long id, UserPrincipal user, String note) {
-        requireTeacherSide(user);
         StudentLeave l = requirePending(id);
+        requireApprover(user, l);
         if (note != null && note.length() > 200) {
             throw new BizException(400, "审批意见不能超过 200 字");
         }
@@ -155,10 +173,10 @@ public class StudentLeaveService {
         notificationService.leaveResult(l.getParentId(), studentNameOf(l), true, user.realName(), l.getApproveNote());
     }
 
-    /** 驳回（意见必填——家长须知道原因） */
+    /** 驳回（意见必填——家长须知道原因；权限同批准） */
     public void reject(Long id, UserPrincipal user, String note) {
-        requireTeacherSide(user);
         StudentLeave l = requirePending(id);
+        requireApprover(user, l);
         if (note == null || note.isBlank()) {
             throw new BizException(400, "驳回时请填写原因");
         }
@@ -173,7 +191,7 @@ public class StudentLeaveService {
         notificationService.leaveResult(l.getParentId(), studentNameOf(l), false, user.realName(), l.getApproveNote());
     }
 
-    /** 批29：提交后通知班主任+本班任课教师（通知失败不阻断提交） */
+    /** 批29/批31：提交后通知本班班主任（审批人收紧后任课教师不再推送；通知失败不阻断提交） */
     private void notifyLeaveTodo(StudentLeave l) {
         try {
             Student s = studentMapper.selectById(l.getStudentId());
@@ -181,20 +199,14 @@ public class StudentLeaveService {
                 return;
             }
             Clazz c = clazzMapper.selectById(s.getClassId());
-            List<Long> teachers = new ArrayList<>();
-            if (c != null && c.getHeadTeacherId() != null) {
-                teachers.add(c.getHeadTeacherId());
+            if (c == null || c.getHeadTeacherId() == null) {
+                return;
             }
-            teachMapper.selectList(new LambdaQueryWrapper<Teach>().eq(Teach::getClassId, s.getClassId()))
-                    .forEach(t -> teachers.add(t.getTeacherId()));
-            List<Long> uniq = teachers.stream().distinct().toList();
-            if (!uniq.isEmpty()) {
-                notificationService.leaveTodo(uniq, s.getName(),
-                        c == null ? "" : c.getName(), l.getLeaveType(),
-                        l.getStartDate().toString(), l.getEndDate().toString());
-            }
+            notificationService.leaveTodo(List.of(c.getHeadTeacherId()), s.getName(),
+                    c.getName(), l.getLeaveType(),
+                    l.getStartDate().toString(), l.getEndDate().toString());
         } catch (Exception e) {
-            // 通知属旁路：查不到班级/任课也不影响请假单已落库
+            // 通知属旁路：查不到班级/班主任也不影响请假单已落库
         }
     }
 
@@ -311,12 +323,31 @@ public class StudentLeaveService {
         }
     }
 
-    private void requireTeacherSide(UserPrincipal user) {
+    /** 审批权（批31 收紧）：本班班主任；领导/管理员可代批兜底，任课教师只读 */
+    private void requireApprover(UserPrincipal user, StudentLeave l) {
         String role = user.role();
-        if (!"TEACHER".equals(role) && !"HEAD_TEACHER".equals(role)
-                && !"LEADER".equals(role) && !"ADMIN".equals(role)) {
-            throw new BizException(403, "仅教师可审批学生请假");
+        if ("LEADER".equals(role) || "ADMIN".equals(role)) {
+            return;
         }
+        if ("HEAD_TEACHER".equals(role)) {
+            Student s = studentMapper.selectById(l.getStudentId());
+            if (s != null && s.getClassId() != null) {
+                Clazz c = clazzMapper.selectById(s.getClassId());
+                if (c != null && user.userId().equals(c.getHeadTeacherId())) {
+                    return;
+                }
+            }
+        }
+        throw new BizException(403, "学生请假由该班班主任审批（领导/管理员可代批）");
+    }
+
+    /** 班级→班主任 id 映射（列表行级 canApprove 标记用；无班主任的班不入表） */
+    private Map<Long, Long> classHeadOf(List<Long> classIds) {
+        List<Long> ids = classIds.stream().filter(Objects::nonNull).distinct().toList();
+        return ids.isEmpty() ? Map.of()
+                : clazzMapper.selectBatchIds(ids).stream()
+                        .filter(c -> c.getHeadTeacherId() != null)
+                        .collect(Collectors.toMap(Clazz::getId, Clazz::getHeadTeacherId, (a, b) -> a));
     }
 
     private void requireParentBound(UserPrincipal parent, Long studentId) {

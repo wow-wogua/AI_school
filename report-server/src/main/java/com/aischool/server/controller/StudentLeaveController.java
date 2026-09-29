@@ -21,7 +21,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 学生请假（批27）：家长替孩子提交+单级审批（任意一位教师批即生效）+门卫离校/返校登记。
+ * 学生请假（批27）：家长替孩子提交+单级审批（本班班主任批即生效，领导/管理员可代批；
+ * 批31 收紧：任课教师只读）+门卫离校/返校登记。
  * 独立于 /api/oa（教职工口径）。GUARD 角色经 JwtAuthFilter 白名单仅可达本控制器与认证端点。
  */
 @RestController
@@ -65,7 +66,7 @@ public class StudentLeaveController {
         return ApiResponse.ok();
     }
 
-    /** 教师端列表：status 筛（PENDING/全部）；scope=my 本班（默认）/all 全校（任何老师可批口径） */
+    /** 教师端列表：status 筛（PENDING/全部）；scope=my 本班（默认）/all 全校（仅领导/管理员，批31 收紧） */
     @GetMapping("/list")
     public ApiResponse<List<Map<String, Object>>> list(@RequestParam(required = false) String status,
                                                         @RequestParam(defaultValue = "my") String scope) {
@@ -78,7 +79,7 @@ public class StudentLeaveController {
         return ApiResponse.ok(service.list(user, status, scope));
     }
 
-    /** 批准（单级，任何一位教师/领导/管理员） */
+    /** 批准（单级：本班班主任；领导/管理员可代批） */
     @PutMapping("/{id}/approve")
     public ApiResponse<Void> approve(@PathVariable Long id,
                                       @RequestParam(required = false) String note) {

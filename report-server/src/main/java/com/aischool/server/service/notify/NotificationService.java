@@ -67,7 +67,7 @@ public class NotificationService {
                         + (note == null || note.isBlank() ? "" : "，意见：" + note), "/oa");
     }
 
-    /** 学生请假提交：通知班主任+本班任课教师（拍板 9-26：任意教师可批，本班优先） */
+    /** 学生请假提交：通知本班班主任（批31 收紧后任课教师不再推送） */
     public void leaveTodo(List<Long> teacherIds, String studentName, String className,
                           String leaveType, String start, String end) {
         String range = start.equals(end) ? start : start + "~" + end;
@@ -76,7 +76,7 @@ public class NotificationService {
                     className + " " + studentName + " 家长提交了" + leaveType + "（" + range + "）", "/leave");
         }
         wecomService.pushApprovals("【学生请假】" + className + " " + studentName
-                + " 家长提交了" + leaveType + "（" + range + "），等待老师审批");
+                + " 家长提交了" + leaveType + "（" + range + "），等待班主任审批");
     }
 
     /** 学生请假审批结果：通知提交家长 */

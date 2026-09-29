@@ -1,17 +1,13 @@
 <template>
   <div class="app-page leave">
-    <!-- 状态/范围筛选 -->
+    <!-- 状态筛选（批31：全校视图仅领导/管理员后端全量，教师侧不再显示范围切换） -->
     <div class="app-card tex-b filters">
       <div class="f-row">
         <button v-for="t in tabs" :key="t.key" type="button" class="f-chip"
           :class="{ on: status === t.key }" @click="status = t.key">{{ t.label }}</button>
         <span class="spacer"></span>
-        <template v-if="scopeVisible">
-          <button type="button" class="f-chip" :class="{ on: scope === 'my' }" @click="scope = 'my'">本班</button>
-          <button type="button" class="f-chip" :class="{ on: scope === 'all' }" @click="scope = 'all'">全校</button>
-        </template>
       </div>
-      <p class="f-tip">{{ status === 'PENDING' ? '任何一位老师批准即生效；本班学生的请假优先处理' : '含已批准/已驳回/已撤回的历史记录' }}</p>
+      <p class="f-tip">{{ status === 'PENDING' ? '请假由本班班主任审批；领导/管理员可代批' : '含已批准/已驳回/已撤回的历史记录' }}</p>
     </div>
 
     <!-- 请假列表 -->
@@ -33,7 +29,7 @@
         </div>
         <div class="r-side">
           <span class="st" :class="stClass(r.status)">{{ stLabel(r.status) }}</span>
-          <template v-if="r.status === 'PENDING'">
+          <template v-if="r.status === 'PENDING' && r.canApprove">
             <button class="btn ok" type="button" @click.stop="doApprove(r)">批准</button>
             <button class="btn bad" type="button" @click.stop="askReject(r)">驳回</button>
           </template>
@@ -86,29 +82,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { showSuccessToast, showToast } from 'vant'
 import { api, fetchBlob } from '../api/http'
 import { relTime } from '../utils/fmt'
-import { useAuthStore } from '../stores/auth'
 
 interface LeaveRow {
   id: number; studentId: number; studentName: string; studentNo?: string; className?: string
   leaveType: string; startDate: string; endDate: string; reason: string; status: string
   approverName: string; approveNote: string; approveTime?: string
   leaveTime?: string; returnTime?: string; createTime: string
-  photoCount: number; photoUrls: string[]
+  photoCount: number; photoUrls: string[]; canApprove?: boolean
 }
 
-const auth = useAuthStore()
 const tabs = [
   { key: 'PENDING', label: '待审批' },
   { key: '', label: '全部记录' },
 ]
 const status = ref('PENDING')
-const scope = ref<'my' | 'all'>('my')
-/* ADMIN/LEADER 数据本就全量，「本班/全校」切换无意义，隐藏 */
-const scopeVisible = computed(() => auth.role === 'TEACHER' || auth.role === 'HEAD_TEACHER')
 const rows = ref<LeaveRow[]>([])
 const loaded = ref(false)
 const detail = ref<LeaveRow | null>(null)
@@ -121,12 +112,12 @@ const rejecting = ref<LeaveRow | null>(null)
 async function load() {
   const qs = new URLSearchParams()
   if (status.value) qs.set('status', status.value)
-  qs.set('scope', scope.value)
+  qs.set('scope', 'my') // ADMIN/LEADER 后端天然全量；教师=本班（批31 无全校视图）
   rows.value = await api<LeaveRow[]>(`/api/student-leave/list?${qs}`)
   loaded.value = true
 }
 
-watch([status, scope], () => { loaded.value = false; load() })
+watch(status, () => { loaded.value = false; load() })
 
 async function doApprove(r: LeaveRow) {
   await api(`/api/student-leave/${r.id}/approve`, { method: 'PUT' })
