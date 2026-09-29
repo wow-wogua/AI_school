@@ -39,15 +39,28 @@
       </el-table-column>
     </el-table>
 
-    <h4>兑换记录</h4>
+    <h4>兑换记录（批30：新兑换=待领取，实物发放后核销确认）</h4>
     <el-table :data="expenses" size="small">
-      <el-table-column prop="createTime" label="时间" width="160">
+      <el-table-column prop="createTime" label="时间" width="150">
         <template #default="{ row }">{{ (row.createTime || '').slice(0, 16).replace('T', ' ') }}</template>
       </el-table-column>
-      <el-table-column prop="studentName" label="学生" width="120" />
-      <el-table-column prop="item" label="商品" min-width="140" />
-      <el-table-column prop="coin" label="能量币" width="90" />
-      <el-table-column prop="operatorName" label="录入教师" width="120" />
+      <el-table-column prop="studentName" label="学生" width="100" />
+      <el-table-column prop="item" label="商品" min-width="130" />
+      <el-table-column prop="coin" label="能量币" width="85" />
+      <el-table-column label="领取" width="90">
+        <template #default="{ row }">
+          <el-tag v-if="(row.status ?? 1) === 0" type="warning" size="small">待领取</el-tag>
+          <el-tooltip v-else :content="(row.confirmTime || '').slice(0, 16).replace('T', ' ')" :disabled="!row.confirmTime">
+            <el-tag type="success" size="small">已核销</el-tag>
+          </el-tooltip>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="80">
+        <template #default="{ row }">
+          <el-button v-if="(row.status ?? 1) === 0" link type="warning" @click="confirmPick(row)">核销</el-button>
+        </template>
+      </el-table-column>
+      <el-table-column prop="operatorName" label="录入教师" width="100" />
     </el-table>
     <el-pagination v-if="expenseTotal > 10" layout="total, prev, pager, next" :total="expenseTotal"
       :page-size="10" :current-page="expensePage" style="margin-top: 10px" @current-change="loadExpenses" />
@@ -151,6 +164,13 @@ async function loadExpenses(page = 1) {
   const d = await api<{ records: any[]; total: number }>(`/api/admin/shop/expense/list?page=${page}&size=10`)
   expenses.value = d.records ?? []
   expenseTotal.value = d.total ?? 0
+}
+
+/** 核销（批30）：管理端代确认领取；幂等 */
+async function confirmPick(row: any) {
+  await api(`/api/shop/expense/${row.id}/confirm`, { method: 'PUT' })
+  ElMessage.success('已核销')
+  await loadExpenses(expensePage.value)
 }
 
 onMounted(async () => {

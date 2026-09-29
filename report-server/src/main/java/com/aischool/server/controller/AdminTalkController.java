@@ -22,8 +22,9 @@ public class AdminTalkController {
     private final PermissionService permissionService;
 
     @GetMapping("/list")
-    public ApiResponse<List<Map<String, Object>>> list(@RequestParam(required = false) Long classId) {
+    public ApiResponse<List<Map<String, Object>>> list(@RequestParam(required = false) Long classId,
+                                                       @RequestParam(required = false) Integer followUp) {
         permissionService.checkAdminAccess("只有管理员可查谈心记录");
-        return ApiResponse.ok(talkService.adminList(classId));
+        return ApiResponse.ok(talkService.adminList(classId, followUp));
     }
 }

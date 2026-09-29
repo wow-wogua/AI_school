@@ -117,6 +117,7 @@ const grids = computed(() => [
   { name: '成长足迹', icon: 'award-o', to: '/footprint', bg: '#0F766E' },
   { name: '学生请假', icon: 'clock-o', to: '/leave', bg: '#DC2626' },
   { name: '宿舍查询', icon: 'wap-home-o', to: '/dorm', bg: '#65A30D' },
+  { name: '文明班打分', icon: 'bookmark-o', to: '/civility', bg: '#B45309' },
 ])
 
 function chipClass(type: string) {

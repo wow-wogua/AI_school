@@ -60,14 +60,18 @@
         </div>
       </div>
 
-      <!-- 最近兑换 -->
+      <!-- 最近兑换（批30：待领取可核销=领取二次确认） -->
       <div v-if="coin.recentExpenses?.length" class="app-sec">最近兑换</div>
       <div v-if="coin.recentExpenses?.length" class="app-card tex-f logs">
         <div v-for="e in coin.recentExpenses" :key="e.id" class="log">
           <div class="l-main">
-            <b>{{ e.item }}</b>
-            <p>{{ e.createTime ? fmtTime(e.createTime) : '' }}</p>
+            <b>{{ e.item }}
+              <van-tag v-if="e.itemId && (e.status ?? 1) === 0" plain type="warning" class="pend">待领取</van-tag>
+            </b>
+            <p>{{ e.createTime ? fmtTime(e.createTime) : '' }}<template v-if="e.confirmTime"> · 已核销 {{ fmtTime(e.confirmTime) }}</template></p>
           </div>
+          <van-button v-if="e.itemId && (e.status ?? 1) === 0" size="small" plain color="#B07A1C"
+            :loading="confirming === e.id" @click="confirmPick(e)">核销</van-button>
           <b class="l-delta neg">-{{ e.coin }}</b>
         </div>
       </div>
@@ -121,6 +125,7 @@ const showAdjust = ref(false)
 const adjust = ref<{ delta: number | null; reason: string }>({ delta: null, reason: '' })
 const adjusting = ref(false)
 const redeeming = ref<number | null>(null)
+const confirming = ref<number | null>(null)
 const shelfRef = ref<HTMLElement>()
 
 /** Vant4 cascade 树：班级 → 该班学生（value=id） */
@@ -226,7 +231,7 @@ async function redeem(it: any) {
   redeeming.value = it.id
   try {
     const r = await api<any>('/api/shop/redeem', { method: 'POST', json: { studentId: student.value.id, itemId: it.id } })
-    showSuccessToast(`已兑换，余额 ${r.currentCoin}`)
+    showSuccessToast(`已兑换，余额 ${r.currentCoin}——待领取，发放后请核销`)
     await Promise.all([loadWallet(), loadItems()])
   } catch (e: any) {
     showToast(e?.message || '兑换失败')
@@ -235,6 +240,18 @@ async function redeem(it: any) {
 
 async function loadItems() {
   items.value = await api<any[]>('/api/shop/items').catch(() => [])
+}
+
+/** 核销（批30 领取二次确认）：实物发放后确认；幂等，重复点无副作用 */
+async function confirmPick(e: any) {
+  confirming.value = e.id
+  try {
+    await api(`/api/shop/expense/${e.id}/confirm`, { method: 'PUT' })
+    showSuccessToast('已核销')
+    await loadWallet()
+  } catch (err: any) {
+    showToast(err?.message || '核销失败')
+  } finally { confirming.value = null }
 }
 
 const palette = ['#A8232B', '#7C4DD8', '#0D9467', '#B07A1C', '#D6567A', '#3A7CA5']
@@ -281,6 +298,7 @@ onMounted(async () => {
 .l-main b { font-size: 14px; font-weight: 600; color: var(--app-text-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .l-main p { margin: 4px 0 0; font-size: 11px; color: var(--app-text-3); }
+.pend { margin-left: 6px; vertical-align: 1px; }
 .l-delta { font-size: 15px; font-weight: 700; }
 .l-delta.pos { color: #0D9467; }
 .l-delta.neg { color: var(--shine-red); }

@@ -20,5 +20,8 @@ public class CoinExpense {
     private BigDecimal coin;
     private Long itemId;      // 关联 t_shop_item（手动录入为 NULL，批3）
     private Long operatorId;  // 兑换录入教师（批3）
+    private Integer status;   // 0=待领取 1=已领取（核销，批30）
+    private LocalDateTime confirmTime; // 核销时间（批30）
+    private Long confirmBy;   // 核销教师（批30）
     private LocalDateTime createTime;
 }
