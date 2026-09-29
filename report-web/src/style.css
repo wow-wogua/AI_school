@@ -328,13 +328,13 @@ body {
 .app-card.tex-d {   /* 黑板图最深，多盖一层保文字对比 */
   background-image: linear-gradient(rgba(255,255,255,.85), rgba(255,255,255,.85)), var(--tex);
 }
-.tex-a { --tex: url('/textures/tex-1503676260728-1c00da094a0b.jpg'); }  /* 书本教室 */
-.tex-b { --tex: url('/textures/tex-1427504494785-3a9ca7044f45.jpg'); }  /* 课桌教室 */
-.tex-c { --tex: url('/textures/tex-1509062522246-3755977927d7.jpg'); }  /* 铅笔文具 */
-.tex-d { --tex: url('/textures/tex-1546410531-bb4caa6b424d.jpg'); }     /* 黑板板书 */
-.tex-e { --tex: url('/textures/tex-1571260899304-425eee4c7efc.jpg'); }  /* 校舍建筑 */
-.tex-f { --tex: url('/textures/tex-1577896851231-70ef18881754.jpg'); }  /* 校园绿植 */
-.tex-g { --tex: url('/textures/tex-1507842217343-583bb7270b66.jpg'); }  /* 图书馆长廊 */
+.tex-a { --tex: url('/textures/tex-1503676260728-1c00da094a0b.jpg'); }  /* 课堂师生互动（校方实拍） */
+.tex-b { --tex: url('/textures/tex-1427504494785-3a9ca7044f45.jpg'); }  /* 扬长课程课堂（校方实拍） */
+.tex-c { --tex: url('/textures/tex-1509062522246-3755977927d7.jpg'); }  /* 美术室（校方实拍） */
+.tex-d { --tex: url('/textures/tex-1546410531-bb4caa6b424d.jpg'); }     /* VEX机器人专训室（校方实拍） */
+.tex-e { --tex: url('/textures/tex-1571260899304-425eee4c7efc.jpg'); }  /* 校园建筑（校方实拍） */
+.tex-f { --tex: url('/textures/tex-1577896851231-70ef18881754.jpg'); }  /* 爱乐农场劳动（校方实拍） */
+.tex-g { --tex: url('/textures/tex-1507842217343-583bb7270b66.jpg'); }  /* 诗词大会书香（校方实拍） */
 
 /* 区块标题（图1「快捷功能」「最近动态」式小标题）：竖条 + 尾部虚线延伸 */
 .app-sec { display: flex; align-items: center; gap: 8px; margin: 18px 2px 10px;
