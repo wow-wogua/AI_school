@@ -89,6 +89,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast } from 'vant'
 import { api, fetchBlob } from '../api/http'
 import { useAuthStore } from '../stores/auth'
@@ -102,6 +103,7 @@ interface LeaveRow {
 }
 
 const auth = useAuthStore()
+const router = useRouter()
 const today = new Date()
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const date = ref(iso(today))
@@ -166,6 +168,7 @@ async function openDetail(r: LeaveRow) {
 
 function logout() {
   auth.logout()
+  router.push('/login')
 }
 
 function fmtTime(t?: string) {
