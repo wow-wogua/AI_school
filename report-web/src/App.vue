@@ -84,6 +84,7 @@ import { App as CapApp } from '@capacitor/app'
 import { useAuthStore } from './stores/auth'
 import { useAiTasksStore } from './stores/aiTasks'
 import { useNotifyStore } from './stores/notify'
+import { useAssetStore } from './stores/asset'
 import { isNative } from './api/nativeShare'
 import { checkForUpdate } from './utils/appUpdate'
 import AppTabbar from './components/AppTabbar.vue'
@@ -92,6 +93,7 @@ import ParentTabbar from './components/ParentTabbar.vue'
 const auth = useAuthStore()
 const aiTasks = useAiTasksStore()
 const notify = useNotifyStore()
+const asset = useAssetStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -104,6 +106,8 @@ const mq = window.matchMedia('(min-width: 1024px)')
 const onMq = (e: MediaQueryListEvent) => { desktop.value = e.matches }
 onMounted(() => mq.addEventListener('change', onMq))
 onUnmounted(() => mq.removeEventListener('change', onMq))
+/* 素材库远程优先（批35）：启动拉一次已自定义素材清单，失败静默全走内置 */
+onMounted(() => { asset.load() })
 
 /** 导航条返回：有上一页则回退，否则（深链直入）回首页 */
 function goBack() {
@@ -154,7 +158,7 @@ watch(() => auth.token, (t) => {
 }
 .sub-nav::before {                 /* 虚化校园底图（同 .app-hero） */
   content: ''; position: absolute; inset: -30px;
-  background: url('/campus-bg.jpg') center 42%/cover no-repeat;
+  background: var(--campus-bg, url('/campus-bg.jpg')) center 42%/cover no-repeat;
   opacity: .24; filter: blur(8px) saturate(1.15); pointer-events: none;
 }
 .sub-nav::after {                  /* 右上光斑（同 hero 装饰语言）；C 金光斑 */
@@ -191,7 +195,7 @@ watch(() => auth.token, (t) => {
 }
 .shine-nav::before {                 /* 虚化校园底图（同 .app-hero） */
   content: ''; position: absolute; inset: -30px;
-  background: url('/campus-bg.jpg') center 42%/cover no-repeat;
+  background: var(--campus-bg, url('/campus-bg.jpg')) center 42%/cover no-repeat;
   opacity: .24; filter: blur(8px) saturate(1.15); pointer-events: none;
 }
 .shine-nav::after {                  /* 右上光斑（C 金） */

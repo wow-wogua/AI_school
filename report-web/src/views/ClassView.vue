@@ -23,7 +23,7 @@
         </div>
       </div>
       <!-- 校园全景照片带（学校元素） -->
-      <img class="hero-photo" src="/campus-pano.jpg" alt="石实实验学校">
+      <img class="hero-photo" :src="asset.url('campus-pano', '/campus-pano.jpg')" alt="石实实验学校">
       <!-- 搜索（图4：搜索学生姓名） -->
       <div class="search">
         <van-icon name="search" />
@@ -117,6 +117,7 @@ import { computed, onMounted, ref } from 'vue'
 import { showSuccessToast, showToast } from 'vant'
 import { api } from '../api/http'
 import { useAuthStore } from '../stores/auth'
+import { useAssetStore } from '../stores/asset'
 import MomentPhoto from '../components/MomentPhoto.vue'
 import CampusSkyline from '../components/CampusSkyline.vue'
 import PhotoPreview from '../components/PhotoPreview.vue'
@@ -136,6 +137,7 @@ const pickOpen = ref(false)
 
 /* 家长邀请码（批8.6）：班主任/级长/管理员可见（后端按班硬校验） */
 const auth = useAuthStore()
+const asset = useAssetStore()
 const canInvite = computed(() => ['HEAD_TEACHER', 'LEADER', 'ADMIN'].includes(auth.role))
 interface InviteRow { studentId: number; studentNo: string; name: string; code: string; registered: boolean; boundCount: number }
 const inviteOpen = ref(false)

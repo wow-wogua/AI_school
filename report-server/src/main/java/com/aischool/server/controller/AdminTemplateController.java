@@ -102,6 +102,101 @@ public class AdminTemplateController {
         throw new BizException(400, "草稿模板不能自助启用（启用即变更契约基线），需 DBA 介入");
     }
 
+    // ==================== 常用文案（批35 学校自治）====================
+    // 文案字段（校名/简介/九格介绍/格言/理念）不属契约结构，白名单豁免锁定：
+    // 学校在「报告模板 → 常用文案」表单直改生效模板，无需编辑 JSON。
+
+    @GetMapping("/template/copy")
+    public ApiResponse<Map<String, Object>> copy() {
+        checkAdmin();
+        ReportTemplate t = enabledTemplate();
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        try {
+            var sections = objectMapper.readTree(t.getSections());
+            var radar = sections.path("radar");
+            m.put("schoolName", t.getSchoolName());
+            m.put("intro", sections.path("intro").asText(""));
+            m.put("nineGridIntro", sections.path("nineGridIntro").asText(""));
+            m.put("motto", radar.path("motto").asText(""));
+            m.put("mottoNote", radar.path("mottoNote").asText(""));
+            m.put("mottoSource", radar.path("mottoSource").asText(""));
+            List<List<String>> philosophy = new java.util.ArrayList<>();
+            sections.path("philosophy").forEach(pair -> {
+                List<String> p = new java.util.ArrayList<>();
+                pair.forEach(v -> p.add(v.asText()));
+                philosophy.add(p);
+            });
+            m.put("philosophy", philosophy);
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException(500, "模板解析失败: " + e.getMessage());
+        }
+        return ApiResponse.ok(m);
+    }
+
+    @PutMapping("/template/copy")
+    public ApiResponse<Void> updateCopy(@RequestBody CopyReq req) {
+        checkAdmin();
+        ReportTemplate t = enabledTemplate();
+        if (req.getSchoolName() == null || req.getSchoolName().isBlank()) {
+            throw new BizException(400, "学校名不能为空");
+        }
+        if (req.getPhilosophy() == null || req.getPhilosophy().isEmpty()
+                || req.getPhilosophy().size() > 8) {
+            throw new BizException(400, "办学理念须 1~8 行");
+        }
+        for (List<String> pair : req.getPhilosophy()) {
+            if (pair == null || pair.size() != 2 || pair.get(0).isBlank() || pair.get(1).isBlank()) {
+                throw new BizException(400, "办学理念每行须为「名称 + 说明」且不能为空");
+            }
+        }
+        try {
+            var sections = (com.fasterxml.jackson.databind.node.ObjectNode) objectMapper.readTree(t.getSections());
+            sections.put("intro", req.getIntro() == null ? "" : req.getIntro());
+            sections.put("nineGridIntro", req.getNineGridIntro() == null ? "" : req.getNineGridIntro());
+            var radar = (com.fasterxml.jackson.databind.node.ObjectNode) sections.with("radar");
+            radar.put("motto", req.getMotto() == null ? "" : req.getMotto());
+            radar.put("mottoNote", req.getMottoNote() == null ? "" : req.getMottoNote());
+            radar.put("mottoSource", req.getMottoSource() == null ? "" : req.getMottoSource());
+            var arr = objectMapper.createArrayNode();
+            for (List<String> pair : req.getPhilosophy()) {
+                arr.addArray().add(pair.get(0)).add(pair.get(1));
+            }
+            sections.set("philosophy", arr);
+            templateMapper.update(null, new LambdaUpdateWrapper<ReportTemplate>()
+                    .eq(ReportTemplate::getId, t.getId())
+                    .set(ReportTemplate::getSchoolName, req.getSchoolName().trim())
+                    .set(ReportTemplate::getSections, objectMapper.writeValueAsString(sections))
+                    .set(ReportTemplate::getUpdateTime, LocalDateTime.now()));
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException(500, "模板保存失败: " + e.getMessage());
+        }
+        return ApiResponse.ok();
+    }
+
+    private ReportTemplate enabledTemplate() {
+        ReportTemplate t = templateMapper.selectOne(new LambdaQueryWrapper<ReportTemplate>()
+                .eq(ReportTemplate::getStatus, STATUS_ON).last("LIMIT 1"));
+        if (t == null) {
+            throw new BizException(404, "无启用模板");
+        }
+        return t;
+    }
+
+    @Data
+    public static class CopyReq {
+        private String schoolName;
+        private String intro;
+        private String nineGridIntro;
+        private String motto;
+        private String mottoNote;
+        private String mottoSource;
+        private List<List<String>> philosophy;
+    }
+
     private ReportTemplate requireDraft(Long id) {
         ReportTemplate t = templateMapper.selectById(id);
         if (t == null) {

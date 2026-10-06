@@ -56,6 +56,9 @@ aischool:
     concurrency: 6          # Playwright 渲染进程池大小（4~8）
     timeout-seconds: 180    # 单份渲染超时
     work-dir: ./target/render-work
+  asset:
+    # 素材库（批35）PDF 渲染覆盖目录：server 与渲染子进程同容器共享；容器重建后启动同步自 MinIO
+    override-dir: ./target/asset-overrides
   ai:
     # OpenAI 兼容接口；api-key 留空 → AI 草稿降级为规则模板生成（硬数字仍由规则引擎计算）
     base-url: ""

@@ -2,7 +2,7 @@
   <div class="notify-tab">
     <el-alert type="info" :closable="false" show-icon
       title="不打开 App 也知道：新审批/新请假/教师注册/探活告警/体检周报 推到企业微信群机器人"
-      description="企业微信群 → 群设置 → 添加群机器人 → 复制 Webhook 地址填到下方。系统级厂商推送（灵动岛/状态栏）待校方注册极光/个推拿 AppKey 后另行接入。" />
+      description="企业微信群 → 群设置 → 添加群机器人 → 复制 Webhook 地址填到下方。系统级厂商推送（灵动岛/状态栏）在下方「厂商推送」登记 AppKey，接入后随新 APK 生效。" />
 
     <el-form label-width="130px" class="form" v-loading="loading">
       <div class="sec">企业微信群机器人</div>
@@ -36,6 +36,38 @@
           <el-option v-for="(d, i) in ['周一','周二','周三','周四','周五','周六','周日']" :key="i" :label="d" :value="i + 1" />
         </el-select>
         <span class="hint">每周当天 07:40 推送</span>
+      </el-form-item>
+
+      <div class="sec">厂商推送（预留）</div>
+      <el-form-item label="推送供应商">
+        <el-select v-model="cfg.pushProvider" style="width: 180px">
+          <el-option label="未接入" value="" />
+          <el-option label="极光推送" value="JPUSH" />
+          <el-option label="个推" value="GETUI" />
+        </el-select>
+        <span class="hint">灵动岛 / 状态栏系统级推送</span>
+      </el-form-item>
+      <template v-if="cfg.pushProvider === 'JPUSH'">
+        <el-form-item label="AppKey">
+          <el-input v-model="cfg.pushJpushAppkey" placeholder="极光控制台 → 应用详情 → AppKey" clearable />
+        </el-form-item>
+        <el-form-item label="Master Secret">
+          <el-input v-model="cfg.pushJpushMasterSecret" type="password" show-password clearable />
+        </el-form-item>
+      </template>
+      <template v-if="cfg.pushProvider === 'GETUI'">
+        <el-form-item label="AppID">
+          <el-input v-model="cfg.pushGetuiAppid" clearable />
+        </el-form-item>
+        <el-form-item label="AppKey">
+          <el-input v-model="cfg.pushGetuiAppkey" clearable />
+        </el-form-item>
+        <el-form-item label="Master Secret">
+          <el-input v-model="cfg.pushGetuiMasterSecret" type="password" show-password clearable />
+        </el-form-item>
+      </template>
+      <el-form-item v-if="cfg.pushProvider">
+        <span class="hint">AppKey 在厂商控制台实名注册后取得；登记后由开发方接入推送 SDK 读取此处配置，届时发布新 APK 即可收到系统级推送</span>
       </el-form-item>
 
       <el-form-item>

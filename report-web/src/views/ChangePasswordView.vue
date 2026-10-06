@@ -79,7 +79,7 @@ function doLogout() {
     radial-gradient(720px 420px at 85% -10%, rgba(91,133,232,.3), transparent 62%),
     radial-gradient(640px 480px at -6% 108%, rgba(201,138,45,.18), transparent 60%),
     linear-gradient(160deg, rgba(13,22,50,.72) 0%, rgba(22,38,90,.52) 45%, rgba(30,58,138,.64) 100%),
-    url('/campus-bg.jpg') center 42%/cover no-repeat;
+    var(--campus-bg, url('/campus-bg.jpg')) center 42%/cover no-repeat;
   filter: blur(2px);
 }
 .login-card {

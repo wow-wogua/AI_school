@@ -3,7 +3,7 @@
     <van-pull-refresh v-model="refreshing" @refresh="reload" success-text="已刷新">
     <!-- 头区（第一版结构：照片带+问候，C 藏蓝渐变；领导端无「我的」页，右上放退出） -->
     <div class="app-hero hero">
-      <img class="hero-photo" src="/campus-bg.jpg" alt="石实实验学校">
+      <img class="hero-photo" :src="asset.url('campus-bg', '/campus-bg.jpg')" alt="石实实验学校">
       <div class="hero-top">
         <div class="hello">
           <p class="hi">{{ greeting }}，{{ auth.realName }}</p>
@@ -71,9 +71,11 @@ import { useRouter } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import { api } from '../../api/http'
 import { useAuthStore } from '../../stores/auth'
+import { useAssetStore } from '../../stores/asset'
 import CampusSkyline from '../../components/CampusSkyline.vue'
 
 const auth = useAuthStore()
+const asset = useAssetStore()
 const router = useRouter()
 const ov = ref<any>({})
 const usage = ref<any[]>([])

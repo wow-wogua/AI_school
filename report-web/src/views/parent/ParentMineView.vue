@@ -58,7 +58,7 @@
     <!-- 关于（同教师端） -->
     <van-dialog v-model:show="aboutOpen" title="关于" :show-confirm-button="false">
       <div class="about">
-        <img src="/campus-pano.jpg" alt="石实实验学校" class="about-pano">
+        <img :src="asset.url('campus-pano', '/campus-pano.jpg')" alt="石实实验学校" class="about-pano">
         <img src="/badge.png" alt="" class="about-badge">
         <b>佛山市南海区石实实验学校</b>
         <p>石实SHINE · 中学素质报告平台</p>
@@ -78,12 +78,14 @@ import { useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
 import { App as CapApp } from '@capacitor/app'
 import { useAuthStore } from '../../stores/auth'
+import { useAssetStore } from '../../stores/asset'
 import { useNotifyStore } from '../../stores/notify'
 import { api, apiBase } from '../../api/http'
 import { isNative } from '../../api/nativeShare'
 import { checkForUpdate } from '../../utils/appUpdate'
 
 const auth = useAuthStore()
+const asset = useAssetStore()
 const notifyStore = useNotifyStore()
 const router = useRouter()
 

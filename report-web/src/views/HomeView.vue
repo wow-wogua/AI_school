@@ -3,7 +3,7 @@
     <van-pull-refresh v-model="refreshing" @refresh="reload" success-text="已刷新">
     <!-- 头区（图1）：顶部校园照片带 + 问候 + 铃铛/头像，渐变下垫虚化校园底图 -->
     <div class="app-hero hero">
-      <img class="hero-photo" src="/campus-bg.jpg" alt="石实实验学校">
+      <img class="hero-photo" :src="asset.url('campus-bg', '/campus-bg.jpg')" alt="石实实验学校">
       <div class="hero-top">
         <div class="hello">
           <p class="hi">{{ greeting }}，{{ auth.realName }}</p>
@@ -67,10 +67,12 @@ import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import CampusSkyline from '../components/CampusSkyline.vue'
 import { useAiTasksStore } from '../stores/aiTasks'
+import { useAssetStore } from '../stores/asset'
 import { api } from '../api/http'
 import { relTime } from '../utils/fmt'
 
 const auth = useAuthStore()
+const asset = useAssetStore()
 const aiTasks = useAiTasksStore()
 const running = computed(() => aiTasks.runningCount)
 

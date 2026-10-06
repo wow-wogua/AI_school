@@ -2,7 +2,7 @@
   <div class="app-page guard">
     <!-- 门卫单页：核验当日有效请假 + 离校/返校登记（GUARD 角色仅此一个功能） -->
     <div class="app-hero hero">
-      <img class="hero-photo" src="/campus-bg.jpg" alt="石实实验学校">
+      <img class="hero-photo" :src="asset.url('campus-bg', '/campus-bg.jpg')" alt="石实实验学校">
       <div class="hero-top">
         <div class="hello">
           <p class="hi">{{ greeting }}，{{ auth.realName }}</p>
@@ -93,6 +93,7 @@ import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast } from 'vant'
 import { api, fetchBlob } from '../api/http'
 import { useAuthStore } from '../stores/auth'
+import { useAssetStore } from '../stores/asset'
 
 interface LeaveRow {
   id: number; studentId: number; studentName: string; studentNo?: string; className?: string
@@ -103,6 +104,7 @@ interface LeaveRow {
 }
 
 const auth = useAuthStore()
+const asset = useAssetStore()
 const router = useRouter()
 const today = new Date()
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`

@@ -43,6 +43,7 @@ public class RenderService {
     private final AnnualDataBuilder annualDataBuilder;
     private final FootprintReportBuilder footprintReportBuilder;
     private final TermMapper termMapper;
+    private final com.aischool.server.service.asset.AssetService assetService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${aischool.render.renderer-home}")
@@ -60,11 +61,13 @@ public class RenderService {
     private ThreadPoolExecutor pool;
 
     public RenderService(ReportDataBuilder dataBuilder, AnnualDataBuilder annualDataBuilder,
-                         FootprintReportBuilder footprintReportBuilder, TermMapper termMapper) {
+                         FootprintReportBuilder footprintReportBuilder, TermMapper termMapper,
+                         com.aischool.server.service.asset.AssetService assetService) {
         this.dataBuilder = dataBuilder;
         this.annualDataBuilder = annualDataBuilder;
         this.footprintReportBuilder = footprintReportBuilder;
         this.termMapper = termMapper;
+        this.assetService = assetService;
     }
 
     @PostConstruct
@@ -138,7 +141,9 @@ public class RenderService {
         Process process = new ProcessBuilder(javaExecutable(),
                         "-Dfile.encoding=UTF-8", "-Xmx512m", "-cp", rendererClasspath(),
                         "com.aischool.render.RenderPdf",
-                        json.toAbsolutePath().toString(), pdf.toAbsolutePath().toString(), mode)
+                        json.toAbsolutePath().toString(), pdf.toAbsolutePath().toString(), mode,
+                        // 批35 素材库：PDF 图位覆盖目录（未自定义的 key 渲染器自动回 classpath 内置）
+                        assetService.overrideDir().toAbsolutePath().toString())
                 .directory(new java.io.File(rendererHome))
                 .redirectErrorStream(true)
                 .start();

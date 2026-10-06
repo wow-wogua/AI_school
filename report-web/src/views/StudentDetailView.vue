@@ -5,7 +5,7 @@
       <button class="back" type="button" aria-label="返回" @click="$router.back()">
         <van-icon name="arrow-left" />
       </button>
-      <img class="hero-photo" src="/campus-bg.jpg" alt="石实实验学校">
+      <img class="hero-photo" :src="asset.url('campus-bg', '/campus-bg.jpg')" alt="石实实验学校">
       <div class="stu-head">
         <span class="ava" :style="{ background: avaColor(stu.name) }">{{ stu.name?.charAt(0) }}</span>
         <div class="stu-brief">
@@ -99,7 +99,9 @@ import { showFailToast, showSuccessToast, showConfirmDialog } from 'vant'
 import { api } from '../api/http'
 import MomentPhoto from '../components/MomentPhoto.vue'
 import PhotoPreview from '../components/PhotoPreview.vue'
+import { useAssetStore } from '../stores/asset'
 
+const asset = useAssetStore()
 const route = useRoute()
 const router = useRouter()
 

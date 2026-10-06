@@ -83,7 +83,9 @@
         <el-tab-pane label="成长银行" name="shop"><ShopTab /></el-tab-pane>
         <el-tab-pane label="报告模板" name="template"><TemplateTab /></el-tab-pane>
         <el-tab-pane label="审计日志" name="audit"><AuditTab /></el-tab-pane>
-        <el-tab-pane label="AI 用量" name="aiUsage"><AiUsageTab /></el-tab-pane>
+        <el-tab-pane label="AI 设置" name="aiUsage"><AiSettingsTab /></el-tab-pane>
+        <el-tab-pane label="系统参数" name="sysParam"><SysParamTab /></el-tab-pane>
+        <el-tab-pane label="素材库" name="asset"><AssetTab /></el-tab-pane>
         <el-tab-pane label="版本更新" name="appRelease"><AppReleaseTab /></el-tab-pane>
       </el-tabs>
     </template>
@@ -94,7 +96,7 @@
 import { computed, markRaw, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { Aim, AlarmClock, Calendar, ChatDotRound, ChatLineRound, Coin, DataLine, Document, FirstAidKit, FolderOpened, Goods as GoodsIcon, Iphone, Medal, OfficeBuilding, Postcard, Promotion, School, Setting, Stamp, Sunset, Tickets, Tools, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
+import { Aim, AlarmClock, Calendar, ChatDotRound, ChatLineRound, Coin, DataLine, Document, FirstAidKit, FolderOpened, Goods as GoodsIcon, Iphone, Medal, OfficeBuilding, Picture, Postcard, Promotion, School, Setting, Stamp, Sunset, Tickets, Tools, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
 import { api } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import TeacherTab from '../components/admin/TeacherTab.vue'
@@ -114,7 +116,9 @@ import IndicatorTab from '../components/admin/IndicatorTab.vue'
 import ShopTab from '../components/admin/ShopTab.vue'
 import TemplateTab from '../components/admin/TemplateTab.vue'
 import AuditTab from '../components/admin/AuditTab.vue'
-import AiUsageTab from '../components/admin/AiUsageTab.vue'
+import AiSettingsTab from '../components/admin/AiSettingsTab.vue'
+import SysParamTab from '../components/admin/SysParamTab.vue'
+import AssetTab from '../components/admin/AssetTab.vue'
 import AppReleaseTab from '../components/admin/AppReleaseTab.vue'
 import OaTab from '../components/admin/OaTab.vue'
 import GoodsTab from '../components/admin/GoodsTab.vue'
@@ -161,7 +165,9 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   shop: { label: '成长银行', comp: markRaw(ShopTab), icon: Coin },
   template: { label: '报告模板', comp: markRaw(TemplateTab), icon: Document },
   audit: { label: '审计日志', comp: markRaw(AuditTab), icon: Tickets },
-  aiUsage: { label: 'AI 用量', comp: markRaw(AiUsageTab), icon: DataLine },
+  aiUsage: { label: 'AI 设置', comp: markRaw(AiSettingsTab), icon: DataLine },
+  sysParam: { label: '系统参数', comp: markRaw(SysParamTab), icon: Setting },
+  asset: { label: '素材库', comp: markRaw(AssetTab), icon: Picture },
   oa: { label: 'OA 审批', comp: markRaw(OaTab), icon: Stamp },
   goods: { label: '物资管理', comp: markRaw(GoodsTab), icon: GoodsIcon },
   repair: { label: '报修处理', comp: markRaw(RepairTab), icon: Tools },
@@ -171,9 +177,9 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
 }
 const groups = [
   { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile', 'footprint'] },
-  { label: '内容运营', items: ['content', 'appRelease'] },
+  { label: '内容运营', items: ['content', 'appRelease', 'asset'] },
   { label: '基础数据', items: ['org', 'student', 'term', 'schoolYear', 'exam', 'duty', 'civility', 'indicator', 'shop', 'goods', 'venue', 'template'] },
-  { label: '系统运维', items: ['oa', 'repair', 'talk', 'feedback', 'health', 'archive', 'notify', 'audit', 'aiUsage'] },
+  { label: '系统运维', items: ['oa', 'repair', 'talk', 'feedback', 'health', 'archive', 'notify', 'audit', 'aiUsage', 'sysParam'] },
 ].map((g) => ({ ...g, items: g.items.map((k) => ({ name: k, ...TABS[k] })) }))
 
 const current = computed(() => TABS[tab.value] ?? TABS.teacher)

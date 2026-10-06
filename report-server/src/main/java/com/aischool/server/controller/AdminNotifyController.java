@@ -48,8 +48,15 @@ public class AdminNotifyController {
     }
 
     private void set(String key, String value) {
-        sysConfigMapper.update(null, new LambdaUpdateWrapper<SysConfig>()
+        // 批35 起新键无种子行（push_*），update 0 行时补 insert
+        int n = sysConfigMapper.update(null, new LambdaUpdateWrapper<SysConfig>()
                 .eq(SysConfig::getCfgKey, key).set(SysConfig::getCfgValue, value));
+        if (n == 0) {
+            SysConfig c = new SysConfig();
+            c.setCfgKey(key);
+            c.setCfgValue(value);
+            sysConfigMapper.insert(c);
+        }
     }
 
     @GetMapping("/config")
@@ -64,6 +71,13 @@ public class AdminNotifyController {
         m.put("weeklyReportEnabled", "1".equals(cfg("weekly_report_enabled")));
         m.put("weeklyReportDay", num(cfg("weekly_report_day"), 5));
         m.put("wecomActive", wecomService.enabled());
+        // 批35 厂商推送预留（AppKey 注册到位、开发方接 SDK 后读取此处即用）
+        m.put("pushProvider", cfg("push_provider"));
+        m.put("pushJpushAppkey", cfg("push_jpush_appkey"));
+        m.put("pushJpushMasterSecret", cfg("push_jpush_master_secret"));
+        m.put("pushGetuiAppid", cfg("push_getui_appid"));
+        m.put("pushGetuiAppkey", cfg("push_getui_appkey"));
+        m.put("pushGetuiMasterSecret", cfg("push_getui_master_secret"));
         return ApiResponse.ok(m);
     }
 
@@ -83,6 +97,17 @@ public class AdminNotifyController {
         set("weekly_report_enabled", Boolean.TRUE.equals(req.getWeeklyReportEnabled()) ? "1" : "0");
         set("weekly_report_day", String.valueOf(Math.max(1, Math.min(7,
                 req.getWeeklyReportDay() == null ? 5 : req.getWeeklyReportDay()))));
+        // 厂商推送预留
+        String provider = req.getPushProvider() == null ? "" : req.getPushProvider().trim();
+        if (!provider.isEmpty() && !provider.equals("JPUSH") && !provider.equals("GETUI")) {
+            throw new BizException(400, "推送供应商仅支持极光（JPUSH）/个推（GETUI）");
+        }
+        set("push_provider", provider);
+        set("push_jpush_appkey", req.getPushJpushAppkey() == null ? "" : req.getPushJpushAppkey().trim());
+        set("push_jpush_master_secret", req.getPushJpushMasterSecret() == null ? "" : req.getPushJpushMasterSecret().trim());
+        set("push_getui_appid", req.getPushGetuiAppid() == null ? "" : req.getPushGetuiAppid().trim());
+        set("push_getui_appkey", req.getPushGetuiAppkey() == null ? "" : req.getPushGetuiAppkey().trim());
+        set("push_getui_master_secret", req.getPushGetuiMasterSecret() == null ? "" : req.getPushGetuiMasterSecret().trim());
         return ApiResponse.ok();
     }
 
@@ -125,6 +150,12 @@ public class AdminNotifyController {
         private Integer alertIntervalMin;
         private Boolean weeklyReportEnabled;
         private Integer weeklyReportDay;
+        private String pushProvider;
+        private String pushJpushAppkey;
+        private String pushJpushMasterSecret;
+        private String pushGetuiAppid;
+        private String pushGetuiAppkey;
+        private String pushGetuiMasterSecret;
     }
 
     @Data

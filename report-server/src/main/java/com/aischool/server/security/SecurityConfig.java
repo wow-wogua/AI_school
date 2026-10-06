@@ -49,6 +49,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/login", "/api/auth/parent/register",
                                 "/api/auth/teacher/register", "/api/ping", "/error").permitAll()
+                        // 素材库公共读取（批35）：web 远程优先，仅 GET；上传/删除走 /api/admin/asset
+                        .requestMatchers(HttpMethod.GET, "/api/asset/**").permitAll()
                         // 接口文档（公网生产建议 SPRINGDOC_API_DOCS_ENABLED=false 整体关闭）
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
