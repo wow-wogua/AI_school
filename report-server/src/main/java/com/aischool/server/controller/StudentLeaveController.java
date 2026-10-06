@@ -16,14 +16,17 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * 学生请假（批27）：家长替孩子提交+单级审批（本班班主任批即生效，领导/管理员可代批；
- * 批31 收紧：任课教师只读）+门卫离校/返校登记。
- * 独立于 /api/oa（教职工口径）。GUARD 角色经 JwtAuthFilter 白名单仅可达本控制器与认证端点。
+ * 学生请假（批32 重构）：家长不在 App 提交（微信/电话告知班主任，由教师代录 creator），家长只读+收通知；
+ * 按时长分级审批（≤3天录入即生效 / 3~7天级长 / 7~30天级长+学成中心主任 / 超限走纸质），
+ * 批准后门卫+生活老师自动抄送；任课教师不可见。独立于 /api/oa（教职工口径）。
+ * GUARD 角色经 JwtAuthFilter 白名单仅可达本控制器与认证端点。
  */
 @RestController
 @RequestMapping("/api/student-leave")
@@ -33,53 +36,56 @@ public class StudentLeaveController {
     private final StudentLeaveService service;
     private final PdfStoreService pdfStore;
 
-    /** 家长提交（multipart：类型+起止+事由+照片≤3，同报修模式；日期 YYYY-MM-DD） */
+    /** 教师代录（multipart：学生+类型+起止时间（yyyy-MM-dd HH:mm）+事由+照片≤3）；角色/范围门在服务层 */
     @PostMapping
     public ApiResponse<Map<String, Object>> create(@RequestParam Long studentId,
                                                     @RequestParam String leaveType,
-                                                    @RequestParam String startDate,
-                                                    @RequestParam String endDate,
+                                                    @RequestParam String startTime,
+                                                    @RequestParam String endTime,
                                                     @RequestParam String reason,
                                                     @RequestParam(value = "photos", required = false) List<MultipartFile> photos) {
-        var user = AuthUtil.current();
-        if (!"PARENT".equals(user.role())) {
-            throw new BizException(403, "学生请假由家长在家长端提交");
-        }
-        return ApiResponse.ok(service.create(user, studentId, leaveType,
-                parseDate(startDate), parseDate(endDate), reason, photos));
+        return ApiResponse.ok(service.create(AuthUtil.current(), studentId, leaveType,
+                parseDateTime(startTime), parseDateTime(endTime), reason, photos));
     }
 
-    /** 家长：我的请假记录 */
+    /** 录入表单：管辖范围内班级列表 */
+    @GetMapping("/classes")
+    public ApiResponse<List<Map<String, Object>>> classes() {
+        return ApiResponse.ok(service.classes(AuthUtil.current()));
+    }
+
+    /** 录入表单：班级内学生（q=学号/姓名可搜） */
+    @GetMapping("/students")
+    public ApiResponse<List<Map<String, Object>>> students(@RequestParam Long classId,
+                                                            @RequestParam(required = false) String q) {
+        return ApiResponse.ok(service.students(AuthUtil.current(), classId, q));
+    }
+
+    /** 家长只读：绑定孩子的请假记录（含回执/结果通知对应单据） */
     @GetMapping("/my")
     public ApiResponse<List<Map<String, Object>>> my() {
         var user = AuthUtil.current();
         if (!"PARENT".equals(user.role())) {
-            throw new BizException(403, "仅家长账号可查看自己的请假记录");
+            throw new BizException(403, "仅家长账号可查看孩子的请假记录");
         }
         return ApiResponse.ok(service.my(user));
     }
 
-    /** 家长撤回待审批请假单 */
+    /** 撤销待审批请假单（发起教师或主任/领导/管理员，服务层校验） */
     @PutMapping("/{id}/cancel")
     public ApiResponse<Void> cancel(@PathVariable Long id) {
         service.cancel(id, AuthUtil.current());
         return ApiResponse.ok();
     }
 
-    /** 教师端列表：status 筛（PENDING/全部）；scope=my 本班（默认）/all 全校（仅领导/管理员，批31 收紧） */
+    /** 教师端列表：status 筛（PENDING/APPROVED/REJECTED/CANCELLED/全部）；scope=my 管辖范围（默认）/all 全校（仅主任/领导/管理员） */
     @GetMapping("/list")
     public ApiResponse<List<Map<String, Object>>> list(@RequestParam(required = false) String status,
                                                         @RequestParam(defaultValue = "my") String scope) {
-        var user = AuthUtil.current();
-        String role = user.role();
-        if (!"TEACHER".equals(role) && !"HEAD_TEACHER".equals(role)
-                && !"LEADER".equals(role) && !"ADMIN".equals(role)) {
-            throw new BizException(403, "仅教师可查看学生请假列表");
-        }
-        return ApiResponse.ok(service.list(user, status, scope));
+        return ApiResponse.ok(service.list(AuthUtil.current(), status, scope));
     }
 
-    /** 批准（单级：本班班主任；领导/管理员可代批） */
+    /** 通过当前审批级（服务层按 current_step 校验审批人） */
     @PutMapping("/{id}/approve")
     public ApiResponse<Void> approve(@PathVariable Long id,
                                       @RequestParam(required = false) String note) {
@@ -87,9 +93,10 @@ public class StudentLeaveController {
         return ApiResponse.ok();
     }
 
-    /** 驳回（原因必填，缺参由服务层 400 带中文提示） */
+    /** 驳回（终态，原因必填，缺参由服务层 400 带中文提示） */
     @PutMapping("/{id}/reject")
-    public ApiResponse<Void> reject(@PathVariable Long id, @RequestParam(required = false) String note) {
+    public ApiResponse<Void> reject(@PathVariable Long id,
+                                      @RequestParam(required = false) String note) {
         service.reject(id, AuthUtil.current(), note);
         return ApiResponse.ok();
     }
@@ -116,7 +123,7 @@ public class StudentLeaveController {
         return ApiResponse.ok();
     }
 
-    /** 详情（提交家长本人/教师侧/门卫） */
+    /** 详情（含流转时间线；绑定家长/教师侧各角色/门卫可读） */
     @GetMapping("/{id}")
     public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
         return ApiResponse.ok(service.detail(id, AuthUtil.current()));
@@ -145,6 +152,22 @@ public class StudentLeaveController {
             return LocalDate.parse(s);
         } catch (Exception e) {
             throw new BizException(400, "日期格式应为 YYYY-MM-DD");
+        }
+    }
+
+    /** 兼容 yyyy-MM-dd HH:mm（el-date-picker）与 ISO yyyy-MM-ddTHH:mm */
+    private static LocalDateTime parseDateTime(String s) {
+        if (s != null && s.contains("T")) {
+            try {
+                return LocalDateTime.parse(s);
+            } catch (Exception e) {
+                // 走下面的格式化解析
+            }
+        }
+        try {
+            return LocalDateTime.parse(s, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        } catch (Exception e) {
+            throw new BizException(400, "时间格式应为 YYYY-MM-DD HH:mm");
         }
     }
 }

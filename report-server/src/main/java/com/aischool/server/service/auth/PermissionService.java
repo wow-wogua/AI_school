@@ -41,4 +41,15 @@ public class PermissionService {
             throw new BizException(403, message);
         }
     }
+
+    /**
+     * 招采工作台操作（批33 物资两段式）：招采角色，或管理员级（ADMIN/ADMIN_ACCESS）。
+     * 覆盖物资字典维护、入库、出入库流水与核销出库。
+     */
+    public void checkProcurementAccess(String message) {
+        var user = AuthUtil.current();
+        if (!"PROCUREMENT".equals(user.role()) && !hasAdminAccess(user)) {
+            throw new BizException(403, message);
+        }
+    }
 }

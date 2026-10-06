@@ -8,6 +8,7 @@ import com.aischool.server.entity.Comment;
 import com.aischool.server.entity.Comprehensive;
 import com.aischool.server.entity.Evaluation;
 import com.aischool.server.entity.Grade;
+import com.aischool.server.entity.GradeBinding;
 import com.aischool.server.entity.Honor;
 import com.aischool.server.entity.Score;
 import com.aischool.server.entity.Student;
@@ -18,6 +19,7 @@ import com.aischool.server.mapper.CommentMapper;
 import com.aischool.server.mapper.ComprehensiveMapper;
 import com.aischool.server.mapper.EvaluationMapper;
 import com.aischool.server.mapper.GradeMapper;
+import com.aischool.server.mapper.GradeBindingMapper;
 import com.aischool.server.mapper.HonorMapper;
 import com.aischool.server.mapper.ScoreMapper;
 import com.aischool.server.mapper.StudentMapper;
@@ -61,6 +63,7 @@ import java.util.stream.Collectors;
 public class AdminOrgController {
 
     private final GradeMapper gradeMapper;
+    private final GradeBindingMapper gradeBindingMapper;
     private final ClazzMapper clazzMapper;
     private final PermissionService permissionService;
     private final StudentMapper studentMapper;
@@ -127,6 +130,77 @@ public class AdminOrgController {
             throw new BizException(400, "该年级下仍有班级，不可删除");
         }
         gradeMapper.deleteById(id);
+        gradeBindingMapper.delete(new LambdaQueryWrapper<GradeBinding>().eq(GradeBinding::getGradeId, id));
+        return ApiResponse.ok();
+    }
+
+    // ───────────────── 级长-年级绑定（批32） ─────────────────
+
+    /** 全部级长绑定（含姓名/年级名，Org 页签表格回显） */
+    @GetMapping("/grade-binding")
+    public ApiResponse<List<Map<String, Object>>> gradeBindingList() {
+        checkAdmin();
+        List<GradeBinding> rows = gradeBindingMapper.selectList(new LambdaQueryWrapper<GradeBinding>()
+                .eq(GradeBinding::getDuty, GradeBinding.DUTY_GRADE_LEADER)
+                .orderByAsc(GradeBinding::getGradeId));
+        if (rows.isEmpty()) {
+            return ApiResponse.ok(List.of());
+        }
+        Map<Long, String> gradeNames = gradeMapper.selectBatchIds(rows.stream()
+                        .map(GradeBinding::getGradeId).distinct().toList()).stream()
+                .collect(Collectors.toMap(Grade::getId, Grade::getName, (a, b) -> a));
+        Map<Long, String> userNames = userMapper.selectBatchIds(rows.stream()
+                        .map(GradeBinding::getUserId).distinct().toList()).stream()
+                .collect(Collectors.toMap(User::getId, User::getRealName, (a, b) -> a));
+        return ApiResponse.ok(rows.stream().map(b -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", b.getId());
+            m.put("gradeId", b.getGradeId());
+            m.put("gradeName", gradeNames.getOrDefault(b.getGradeId(), ""));
+            m.put("userId", b.getUserId());
+            m.put("userName", userNames.getOrDefault(b.getUserId(), ""));
+            return m;
+        }).toList());
+    }
+
+    /** 绑定级长（同年级可多人=正副级长；同人同年级幂等） */
+    @PostMapping("/grade-binding")
+    public ApiResponse<Map<String, Object>> addGradeBinding(@Validated @RequestBody BindingReq req) {
+        checkAdmin();
+        if (gradeMapper.selectById(req.getGradeId()) == null) {
+            throw new BizException(404, "年级不存在");
+        }
+        User u = userMapper.selectById(req.getUserId());
+        if (u == null || !"GRADE_LEADER".equals(u.getRole())) {
+            throw new BizException(400, "请选择级长角色的账号（先在账号管理把该教师角色设为级长）");
+        }
+        GradeBinding exists = gradeBindingMapper.selectOne(new LambdaQueryWrapper<GradeBinding>()
+                .eq(GradeBinding::getUserId, req.getUserId())
+                .eq(GradeBinding::getGradeId, req.getGradeId())
+                .eq(GradeBinding::getDuty, GradeBinding.DUTY_GRADE_LEADER));
+        if (exists == null) {
+            GradeBinding b = new GradeBinding();
+            b.setUserId(req.getUserId());
+            b.setGradeId(req.getGradeId());
+            b.setDuty(GradeBinding.DUTY_GRADE_LEADER);
+            gradeBindingMapper.insert(b);
+            return ApiResponse.ok(Map.of("bindingId", b.getId()));
+        }
+        return ApiResponse.ok(Map.of("bindingId", exists.getId()));
+    }
+
+    @Data
+    public static class BindingReq {
+        @NotNull(message = "userId 不能为空")
+        private Long userId;
+        @NotNull(message = "gradeId 不能为空")
+        private Long gradeId;
+    }
+
+    @DeleteMapping("/grade-binding/{id}")
+    public ApiResponse<Void> removeGradeBinding(@PathVariable Long id) {
+        checkAdmin();
+        gradeBindingMapper.deleteById(id);
         return ApiResponse.ok();
     }
 

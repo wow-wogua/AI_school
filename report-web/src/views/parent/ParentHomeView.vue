@@ -93,7 +93,7 @@ const grids = [
   { name: '通知公告', icon: 'bell', to: '/p/notices', bg: '#F59E0B' },
   { name: '育儿课堂', icon: 'bookmark-o', to: '/p/parenting', bg: '#10B981' },
   { name: '成长报告', icon: 'description', to: '/p/report', bg: '#14B8A6' },
-  { name: '学生请假', icon: 'clock-o', to: '/p/leave', bg: '#DC2626' },
+  { name: '请假记录', icon: 'clock-o', to: '/p/leave', bg: '#DC2626' },
   { name: '修改密码', icon: 'lock', to: '/change-password', bg: '#6366F1' },
 ]
 

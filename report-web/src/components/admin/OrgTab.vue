@@ -7,10 +7,17 @@
     <el-table :data="grades" size="small">
       <el-table-column prop="name" label="名称" width="160" />
       <el-table-column prop="schoolYear" label="学年" width="130" />
-      <el-table-column label="操作" width="150">
+      <el-table-column label="级长" min-width="140">
+        <template #default="{ row }">
+          <span v-if="leadersOf(row.id).length">{{ leadersOf(row.id).map((b: any) => b.userName).join('、') }}</span>
+          <span v-else style="color: var(--el-text-color-placeholder)">未设置</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="200">
         <template #default="{ row }">
           <el-button link type="primary" @click="openGrade(row)">编辑</el-button>
           <el-button link type="danger" @click="removeGrade(row)">删除</el-button>
+          <el-button link type="primary" @click="openLeader(row)">级长</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -81,6 +88,31 @@
         <el-button type="primary" :disabled="!moveForm.targetClassId" @click="doMove">调班</el-button>
       </template>
     </el-dialog>
+
+    <!-- 级长-年级绑定（批32）：请假分级审批/年级数据权限的依据 -->
+    <el-dialog v-model="leaderDialog" :title="`级长设置：${leaderGrade?.name ?? ''}`" width="440px">
+      <div style="margin-bottom: 10px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6">
+        级长可审批/代录本年级学生请假，后续成绩按年级开放。同年级可绑多人（正副级长）。
+        账号角色须先设为「级长」（账号管理页）。
+      </div>
+      <el-table v-if="leaderRows.length" :data="leaderRows" size="small" style="margin-bottom: 12px">
+        <el-table-column prop="userName" label="姓名" />
+        <el-table-column label="操作" width="80">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="removeLeader(row)">移除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div v-else style="margin-bottom: 12px; color: var(--el-text-color-placeholder); font-size: 13px">该年级暂无级长</div>
+      <el-select v-model="leaderPick" placeholder="选择级长账号" filterable style="width: 100%">
+        <el-option v-for="u in gradeLeaders.filter((u: any) => !leaderRows.some((b: any) => b.userId === u.id))"
+          :key="u.id" :label="`${u.realName}（${u.username}）`" :value="u.id" />
+      </el-select>
+      <template #footer>
+        <el-button @click="leaderDialog = false">关闭</el-button>
+        <el-button type="primary" :disabled="!leaderPick" @click="addLeader">添加</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -98,12 +130,52 @@ const gradeForm = ref<any>({})
 const classForm = ref<any>({})
 const moveDialog = ref(false)
 const moveForm = ref<{ fromId: number; fromName: string; targetClassId?: number }>({ fromId: 0, fromName: '' })
+// 级长-年级绑定（批32）
+const leaderDialog = ref(false)
+const leaderGrade = ref<any>(null)
+const leaderRows = ref<any[]>([])
+const gradeLeaders = ref<any[]>([])
+const leaderPick = ref<number>()
+const bindings = ref<any[]>([])
 
 async function load() {
   grades.value = await api<any[]>('/api/admin/grade')
   classList.value = await api<any[]>('/api/admin/class/list')
   const d = await api<{ records: any[] }>('/api/admin/user/list?page=1&size=100')
   teachers.value = d.records.filter((u: any) => u.role === 'HEAD_TEACHER' || u.role === 'TEACHER')
+  bindings.value = await api<any[]>('/api/admin/grade-binding')
+  const gl = await api<{ records: any[] }>('/api/admin/user/list?role=GRADE_LEADER&page=1&size=1000')
+  gradeLeaders.value = gl.records
+}
+
+function leadersOf(gradeId: number) {
+  return bindings.value.filter((b: any) => b.gradeId === gradeId)
+}
+
+function openLeader(row: any) {
+  leaderGrade.value = row
+  leaderRows.value = leadersOf(row.id)
+  leaderPick.value = undefined
+  leaderDialog.value = true
+}
+
+async function addLeader() {
+  if (!leaderPick.value || !leaderGrade.value) return
+  await api('/api/admin/grade-binding', {
+    method: 'POST',
+    json: { userId: leaderPick.value, gradeId: leaderGrade.value.id },
+  })
+  ElMessage.success('已绑定')
+  leaderPick.value = undefined
+  await load()
+  leaderRows.value = leadersOf(leaderGrade.value.id)
+}
+
+async function removeLeader(row: any) {
+  await api(`/api/admin/grade-binding/${row.id}`, { method: 'DELETE' })
+  ElMessage.success('已移除')
+  await load()
+  leaderRows.value = leadersOf(leaderGrade.value?.id)
 }
 
 function openGrade(row?: any) {

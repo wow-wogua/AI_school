@@ -33,6 +33,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,8 +73,9 @@ public class AdminUserController {
     /** 批量导入的统一初始密码（导入后教师首登强制改密） */
     public static final String INITIAL_PASSWORD = "Shishi@2026";
 
-    /** 本控制器管理的角色（家长 PARENT 走 AdminParentController） */
-    private static final List<String> ROLES = List.of("ADMIN", "LEADER", "HEAD_TEACHER", "TEACHER", "GUARD");
+    /** 本控制器管理的角色（家长 PARENT 走 AdminParentController；批32 加级长/主任/生活老师/招采） */
+    private static final List<String> ROLES = List.of("ADMIN", "LEADER", "HEAD_TEACHER", "TEACHER", "GUARD",
+            "GRADE_LEADER", "DIRECTOR", "DORM", "PROCUREMENT");
 
     private void checkAdmin() {
         permissionService.checkAdminAccess("只有管理员可操作系统管理");
@@ -173,7 +175,7 @@ public class AdminUserController {
     public ApiResponse<Map<String, Object>> createUser(@Validated @RequestBody UserReq req) {
         checkAdmin();
         if (!ROLES.contains(req.getRole())) {
-            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD");
+            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD/GRADE_LEADER/DIRECTOR/DORM/PROCUREMENT");
         }
         if (userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getUsername, req.getUsername())) > 0) {
             throw new BizException(400, "用户名已存在");
@@ -216,8 +218,12 @@ public class AdminUserController {
                 .collect(Collectors.toMap(Subject::getName, Subject::getId, (a, b) -> a));
         Map<String, Long> classIds = clazzMapper.selectList(null).stream()
                 .collect(Collectors.toMap(Clazz::getName, Clazz::getId, (a, b) -> a));
-        Map<String, String> roleMap = java.util.Map.of("管理员", "ADMIN", "领导", "LEADER",
-                "班主任", "HEAD_TEACHER", "教师", "TEACHER", "门卫", "GUARD");
+        Map<String, String> roleMap = java.util.Map.ofEntries(
+                java.util.Map.entry("管理员", "ADMIN"), java.util.Map.entry("领导", "LEADER"),
+                java.util.Map.entry("班主任", "HEAD_TEACHER"), java.util.Map.entry("教师", "TEACHER"),
+                java.util.Map.entry("门卫", "GUARD"), java.util.Map.entry("级长", "GRADE_LEADER"),
+                java.util.Map.entry("学成中心主任", "DIRECTOR"), java.util.Map.entry("生活老师", "DORM"),
+                java.util.Map.entry("招采", "PROCUREMENT"));
         Set<String> seen = new HashSet<>();
         List<Map<String, Object>> errors = new java.util.ArrayList<>();
         int inserted = 0;
@@ -238,7 +244,8 @@ public class AdminUserController {
             } else if (r.realName().isBlank()) {
                 reason = "姓名为空";
             } else if (!roleMap.containsKey(r.role())) {
-                reason = "角色只能填 管理员/领导/班主任/教师/门卫: " + (r.role().isBlank() ? "(空)" : r.role());
+                reason = "角色只能填 管理员/领导/班主任/教师/门卫/级长/学成中心主任/生活老师/招采: "
+                        + (r.role().isBlank() ? "(空)" : r.role());
             } else if (!r.gender().isBlank() && !"男".equals(r.gender()) && !"女".equals(r.gender())) {
                 reason = "性别只能填 男/女: " + r.gender();
             } else if (!r.subjectName().isBlank() && !subjectIds.containsKey(r.subjectName())) {
@@ -354,7 +361,7 @@ public class AdminUserController {
             throw new BizException(400, "不能修改自己的角色");
         }
         if (req.getRole() != null && !ROLES.contains(req.getRole())) {
-            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD");
+            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD/GRADE_LEADER/DIRECTOR/DORM/PROCUREMENT");
         }
         String newRole = req.getRole() != null ? req.getRole() : u.getRole();
         // 换绑登录名（批8.5）：非空才改；唯一性+格式校验，改名后原 token 不受影响（按 userId 鉴权）
@@ -656,10 +663,17 @@ public class AdminUserController {
         return ApiResponse.ok();
     }
 
-    /** 任课关系批量导入（管理员，multipart）：教师列填登录账号或姓名（重名须改填账号）；逐行校验部分成功 */
+    /**
+     * 任课关系批量导入（管理员，multipart）：教师列填登录账号或姓名（重名须改填账号）。
+     * mode=append（默认）逐行校验部分成功；mode=replace 覆盖模式（换课表）：任一行有误整体拒绝，
+     * 事务内清空现有任课后按本表全量重插，不残留旧关系。
+     */
+    @Transactional(rollbackFor = Exception.class)
     @PostMapping("/teach/import")
-    public ApiResponse<Map<String, Object>> importTeaches(@RequestParam("file") MultipartFile file) {
+    public ApiResponse<Map<String, Object>> importTeaches(@RequestParam("file") MultipartFile file,
+            @RequestParam(value = "mode", defaultValue = "append") String mode) {
         checkAdmin();
+        boolean replace = "replace".equals(mode);
         if (file == null || file.isEmpty()) {
             throw new BizException(400, "请选择 Excel 文件");
         }
@@ -685,10 +699,11 @@ public class AdminUserController {
         Set<String> existing = teachMapper.selectList(null).stream()
                 .map(t -> t.getTeacherId() + "#" + t.getClassId() + "#" + t.getSubjectId())
                 .collect(Collectors.toSet());
+        // 先全量校验（append 部分成功；replace 任一行有误整体拒绝，避免清空后导不进）
         Set<String> seen = new HashSet<>();
         List<Map<String, Object>> errors = new java.util.ArrayList<>();
-        int inserted = 0;
-        int skipped = 0;
+        List<Teach> targets = new java.util.ArrayList<>();
+        int dupSkipped = 0;
         for (ExcelTeachHelper.TeachRow r : rows) {
             User teacher = byUsername.get(r.teacher());
             String reason = null;
@@ -719,8 +734,8 @@ public class AdminUserController {
                 continue;
             }
             String key = teacher.getId() + "#" + classId + "#" + subjectId;
-            if (seen.contains(key) || existing.contains(key)) {
-                skipped++; // 已有的任课关系静默跳过，不算失败
+            if (seen.contains(key)) { // 表内重复行去重（两模式同口径）
+                dupSkipped++;
                 continue;
             }
             seen.add(key);
@@ -728,11 +743,39 @@ public class AdminUserController {
             t.setTeacherId(teacher.getId());
             t.setClassId(classId);
             t.setSubjectId(subjectId);
+            targets.add(t);
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        if (replace) {
+            if (!errors.isEmpty()) {
+                Map<String, Object> first = errors.get(0);
+                throw new BizException(400, "覆盖模式任一行有误则整体不导入（第 " + first.get("row")
+                        + " 行：" + first.get("reason") + "），共 " + errors.size() + " 行问题");
+            }
+            long removedOld = teachMapper.selectCount(null);
+            teachMapper.delete(null); // 清空旧任课，本表即新课表全量
+            for (Teach t : targets) {
+                teachMapper.insert(t);
+            }
+            data.put("mode", "replace");
+            data.put("removedOld", removedOld);
+            data.put("inserted", targets.size());
+            data.put("skipped", dupSkipped);
+            data.put("failed", 0);
+            return ApiResponse.ok(data);
+        }
+        int inserted = 0;
+        int skipped = dupSkipped;
+        for (Teach t : targets) {
+            String key = t.getTeacherId() + "#" + t.getClassId() + "#" + t.getSubjectId();
+            if (existing.contains(key)) {
+                skipped++; // 已有的任课关系静默跳过，不算失败
+                continue;
+            }
             teachMapper.insert(t);
             existing.add(key);
             inserted++;
         }
-        Map<String, Object> data = new LinkedHashMap<>();
         data.put("inserted", inserted);
         data.put("skipped", skipped);
         data.put("failed", errors.size());

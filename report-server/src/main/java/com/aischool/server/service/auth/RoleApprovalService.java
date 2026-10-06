@@ -238,6 +238,10 @@ public class RoleApprovalService {
             case "LEADER" -> "领导";
             case "HEAD_TEACHER" -> "班主任";
             case "TEACHER" -> "教师";
+            case "GRADE_LEADER" -> "级长";
+            case "DIRECTOR" -> "学成中心主任";
+            case "DORM" -> "生活老师";
+            case "PROCUREMENT" -> "招采";
             default -> role;
         };
     }

@@ -276,7 +276,10 @@ public class OaService {
             boolean applicant = form.getApplicantId().equals(user.userId());
             boolean approver = form.getStatus().equals(OaForm.PENDING)
                     && user.userId().equals(approverId(form.getFormType(), form.getCurrentLevel()));
-            if (!applicant && !approver) {
+            // 批33：招采可看物资单（核销工作台进详情）
+            boolean procurement = OaForm.TYPE_GOODS.equals(form.getFormType())
+                    && "PROCUREMENT".equals(user.role());
+            if (!applicant && !approver && !procurement) {
                 throw new BizException(403, "仅申请人与当前审批人可查看该单据");
             }
         }
@@ -343,11 +346,11 @@ public class OaService {
         }
         writeLog(form, OaFlowLog.AGREE, user.userId(), req.getNote());
         if (form.getCurrentLevel() >= levels(form.getFormType())) {
+            // 批33 两段式：物资末级通过=待领取，招采核销时才扣库存出库（见 issue()）
             finish(form, OaForm.APPROVED);
-            if (OaForm.TYPE_GOODS.equals(form.getFormType())) {
-                issueGoods(form, user.userId()); // 扣库存+出库流水；库存不足抛错整体回滚（单据停在当前级）
-            }
-            notificationService.oaResult(form.getApplicantId(), typeName(form.getFormType()), form.getTitle(), true, req.getNote());
+            String note = OaForm.TYPE_GOODS.equals(form.getFormType())
+                    ? "审批通过，请到招采部门领取，领取后由招采核销出库" : req.getNote();
+            notificationService.oaResult(form.getApplicantId(), typeName(form.getFormType()), form.getTitle(), true, note);
         } else {
             form.setCurrentLevel(form.getCurrentLevel() + 1);
             formMapper.updateById(form);
@@ -359,14 +362,51 @@ public class OaService {
         }
     }
 
-    /** 末级通过后出库：逐行原子扣减+流水（「谁/何时/哪里/拿走了什么」全落在 OUT 行） */
+    /**
+     * 物资核销出库（批33 两段式第二段）：APPROVED（待领取）单在申请人领取后由招采/管理员核销，
+     * 此时才扣库存+写 OUT 流水；库存不足抛错整体回滚，单据停在待领取，招采入库后可重新核销。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void issue(Long formId) {
+        var user = AuthUtil.current();
+        if (!"PROCUREMENT".equals(user.role()) && !"ADMIN".equals(user.role())) {
+            throw new BizException(403, "仅招采部门可核销出库");
+        }
+        OaForm form = requireForm(formId);
+        if (!OaForm.TYPE_GOODS.equals(form.getFormType())) {
+            throw new BizException(400, "仅物资申领单需要核销出库");
+        }
+        if (!OaForm.APPROVED.equals(form.getStatus())) {
+            throw new BizException(400, "仅审批通过（待领取）的单据可核销");
+        }
+        issueGoods(form, user.userId());
+        OaFlowLog log = new OaFlowLog();
+        log.setFormId(form.getId());
+        log.setAction(OaFlowLog.ISSUE);
+        log.setLevel(form.getCurrentLevel());
+        log.setNodeName("核销出库");
+        log.setOperatorId(user.userId());
+        logMapper.insert(log);
+        finish(form, OaForm.ISSUED);
+        notificationService.goodsIssued(form.getApplicantId(), form.getTitle(), user.realName());
+    }
+
+    /** 招采工作台列表（批33）：GOODS 单按状态筛（APPROVED 待领取 / ISSUED 已核销；空=全部） */
+    public List<Map<String, Object>> procurementList(String status) {
+        return toRows(formMapper.selectList(new LambdaQueryWrapper<OaForm>()
+                .eq(OaForm::getFormType, OaForm.TYPE_GOODS)
+                .eq(status != null && !status.isBlank(), OaForm::getStatus, status)
+                .orderByDesc(OaForm::getId)));
+    }
+
+    /** 核销出库：逐行原子扣减+流水（「谁/何时/哪里/拿走了什么」全落在 OUT 行） */
     private void issueGoods(OaForm form, Long operatorId) {
         for (Map<String, Object> line : parseDetail(form.getDetail())) {
             Long goodsId = ((Number) line.get("goodsId")).longValue();
             int qty = ((Number) line.get("qty")).intValue();
             if (goodsMapper.deductStock(goodsId, qty) == 0) {
                 Goods g = goodsMapper.selectById(goodsId);
-                throw new BizException(409, "「" + line.get("name") + "」库存不足（剩 " + (g == null ? 0 : g.getStock()) + "），请先补库或调减数量后重审");
+                throw new BizException(409, "「" + line.get("name") + "」库存不足（剩 " + (g == null ? 0 : g.getStock()) + "），请先入库补足后再核销");
             }
             GoodsFlow flow = new GoodsFlow();
             flow.setGoodsId(goodsId);

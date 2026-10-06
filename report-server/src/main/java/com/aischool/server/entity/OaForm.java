@@ -21,6 +21,8 @@ public class OaForm {
     public static final String APPROVED = "APPROVED";
     public static final String REJECTED = "REJECTED";
     public static final String REVOKED = "REVOKED";
+    /** 批33：物资两段式第二段——APPROVED(待领取) 由招采核销出库后的终态 */
+    public static final String ISSUED = "ISSUED";
 
     @TableId(type = IdType.AUTO)
     private Long id;

@@ -6,6 +6,10 @@
         <el-option label="领导" value="LEADER" />
         <el-option label="班主任" value="HEAD_TEACHER" />
         <el-option label="任课教师" value="TEACHER" />
+        <el-option label="级长" value="GRADE_LEADER" />
+        <el-option label="学成中心主任" value="DIRECTOR" />
+        <el-option label="生活老师" value="DORM" />
+        <el-option label="招采" value="PROCUREMENT" />
         <el-option label="门卫" value="GUARD" />
       </el-select>
       <el-input v-model="keyword" placeholder="账号/姓名搜索" style="width: 180px" clearable @change="loadUsers" />
@@ -146,16 +150,25 @@
         先下载模板，从第 2 行开始填写。教师列填登录账号或姓名（重名须改填账号）；班级名称与学科名须和管理端完全一致。
         逐行校验：合法行入库，已存在的任课关系自动跳过，问题行列出原因。
       </div>
+      <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 13px">
+        <el-switch v-model="teachReplace" />
+        <span>覆盖模式（换课表用）：清空现有全部任课关系后，按本表全量导入；任一行有误则整体不导入</span>
+      </div>
       <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px">
         <el-button size="small" @click="downloadTeachTemplate">下载模板</el-button>
         <input type="file" accept=".xlsx"
           @change="(e: Event) => (teachImportFile = (e.target as HTMLInputElement).files?.[0] ?? null)" />
       </div>
       <el-alert v-if="teachImportResult" :type="teachImportResult.failed ? 'warning' : 'success'" :closable="false">
-        新增 {{ teachImportResult.inserted }} 条<template v-if="teachImportResult.skipped">，已存在跳过 {{ teachImportResult.skipped }} 条</template><template v-if="teachImportResult.failed">，失败 {{ teachImportResult.failed }} 行：
-          <div v-for="e in teachImportResult.errors" :key="e.row" style="font-size: 12px">
-            第 {{ e.row }} 行：{{ e.reason }}
-          </div>
+        <template v-if="teachImportResult.mode === 'replace'">
+          已清空旧任课 {{ teachImportResult.removedOld }} 条，导入 {{ teachImportResult.inserted }} 条<template v-if="teachImportResult.skipped">，表内重复跳过 {{ teachImportResult.skipped }} 条</template>
+        </template>
+        <template v-else>
+          新增 {{ teachImportResult.inserted }} 条<template v-if="teachImportResult.skipped">，已存在跳过 {{ teachImportResult.skipped }} 条</template><template v-if="teachImportResult.failed">，失败 {{ teachImportResult.failed }} 行：
+            <div v-for="e in teachImportResult.errors" :key="e.row" style="font-size: 12px">
+              第 {{ e.row }} 行：{{ e.reason }}
+            </div>
+          </template>
         </template>
       </el-alert>
       <template #footer>
@@ -182,6 +195,10 @@
             <el-option label="领导" value="LEADER" />
             <el-option label="班主任" value="HEAD_TEACHER" />
             <el-option label="任课教师" value="TEACHER" />
+            <el-option label="级长（需在组织架构绑年级）" value="GRADE_LEADER" />
+            <el-option label="学成中心主任" value="DIRECTOR" />
+            <el-option label="生活老师" value="DORM" />
+            <el-option label="招采（物资核销/库存）" value="PROCUREMENT" />
             <el-option label="门卫（仅请假核验）" value="GUARD" />
           </el-select>
         </el-form-item>
@@ -217,7 +234,10 @@ const form = ref<any>({})
 const teach = ref<{ teacherId?: number; classId?: number; subjectId?: number }>({})
 
 function roleName(r: string) {
-  return { ADMIN: '管理员', LEADER: '领导', HEAD_TEACHER: '班主任', TEACHER: '任课教师', GUARD: '门卫' }[r] ?? r
+  return {
+    ADMIN: '管理员', LEADER: '领导', HEAD_TEACHER: '班主任', TEACHER: '任课教师',
+    GRADE_LEADER: '级长', DIRECTOR: '学成中心主任', DORM: '生活老师', PROCUREMENT: '招采', GUARD: '门卫',
+  }[r] ?? r
 }
 
 async function loadUsers() {
@@ -311,6 +331,7 @@ const teachImportDialog = ref(false)
 const teachImportFile = ref<File | null>(null)
 const teachImporting = ref(false)
 const teachImportResult = ref<any>(null)
+const teachReplace = ref(false)
 
 function openTeachImport() {
   teachImportFile.value = null
@@ -329,6 +350,7 @@ async function doTeachImport() {
   try {
     const fd = new FormData()
     fd.append('file', teachImportFile.value)
+    fd.append('mode', teachReplace.value ? 'replace' : 'append')
     teachImportResult.value = await apiForm<any>('/api/admin/teach/import', fd)
     await loadTeaches()
   } finally {

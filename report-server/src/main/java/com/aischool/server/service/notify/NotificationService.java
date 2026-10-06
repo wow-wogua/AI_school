@@ -67,24 +67,62 @@ public class NotificationService {
                         + (note == null || note.isBlank() ? "" : "，意见：" + note), "/oa");
     }
 
-    /** 学生请假提交：通知本班班主任（批31 收紧后任课教师不再推送） */
-    public void leaveTodo(List<Long> teacherIds, String studentName, String className,
-                          String leaveType, String start, String end) {
-        String range = start.equals(end) ? start : start + "~" + end;
-        for (Long tid : teacherIds) {
-            send(tid, Notification.LEAVE_TODO, "待审批：学生请假",
-                    className + " " + studentName + " 家长提交了" + leaveType + "（" + range + "）", "/leave");
-        }
-        wecomService.pushApprovals("【学生请假】" + className + " " + studentName
-                + " 家长提交了" + leaveType + "（" + range + "），等待班主任审批");
+    /** 物资核销出库（批33 两段式）：通知申请人其物资已由招采核销 */
+    public void goodsIssued(Long applicantId, String title, String operatorName) {
+        send(applicantId, Notification.OA_RESULT, "物资已核销出库",
+                "您申领的「" + title + "」已由 " + operatorName + " 核销出库，请查收", "/oa");
     }
 
-    /** 学生请假审批结果：通知提交家长 */
-    public void leaveResult(Long parentId, String studentName, boolean approved, String approverName, String note) {
+    /**
+     * 学生请假待审批（批32 分级流）：通知当前级审批人（App 内 + 企微群）。
+     * stepName=级长/学成中心主任；无绑定级长时上级兜底（approverIds=主任+领导+管理员）。
+     */
+    public void leaveTodo(List<Long> approverIds, String stepName, String studentName, String className,
+                          String leaveType, String range) {
+        for (Long tid : approverIds) {
+            send(tid, Notification.LEAVE_TODO, "待审批：学生请假（" + stepName + "）",
+                    className + " " + studentName + " 的" + leaveType + "（" + range + "）等待您审批", "/leave");
+        }
+        wecomService.pushApprovals("【学生请假】" + className + " " + studentName
+                + " 的" + leaveType + "（" + range + "）等待" + stepName + "审批");
+    }
+
+    /** 请假登记回执（批32）：教师代录后通知全部绑定家长（家长只收通知、不操作） */
+    public void leaveRegister(List<Long> parentIds, String studentName, String className,
+                              String leaveType, String range, String creatorName) {
+        for (Long pid : parentIds) {
+            send(pid, Notification.LEAVE_NOTICE, "请假登记回执",
+                    className + " " + studentName + " 的" + leaveType + "（" + range
+                            + "）已由 " + creatorName + " 登记请假，请知悉", "/p/leave");
+        }
+    }
+
+    /** 请假审批结果：通知全部绑定家长 */
+    public void leaveResult(List<Long> parentIds, String studentName, boolean approved, String approverName, String note) {
         String verdict = approved ? "已批准" : "已被驳回";
         String extra = note == null || note.isBlank() ? "" : "，老师备注：" + note;
-        send(parentId, Notification.LEAVE_RESULT, "请假" + verdict,
-                studentName + " 的请假申请" + verdict + "（审批人：" + approverName + "）" + extra, "/p/leave");
+        for (Long pid : parentIds) {
+            send(pid, Notification.LEAVE_RESULT, "请假" + verdict,
+                    studentName + " 的请假申请" + verdict + "（审批人：" + approverName + "）" + extra, "/p/leave");
+        }
+    }
+
+    /** 请假信息同步（批32）：批准后自动抄送门卫（出校核验）与生活老师，无需选择 */
+    public void leaveSyncGuard(String studentName, String className, String leaveType, String range) {
+        sendToRoles(List.of("GUARD"), Notification.LEAVE_NOTICE, "请假批准·出校核验",
+                className + " " + studentName + " 的" + leaveType + "（" + range + "）已批准，离校请核验登记", "/g/home");
+        sendToRoles(List.of("DORM"), Notification.LEAVE_NOTICE, "请假同步（生活老师）",
+                className + " " + studentName + " 的" + leaveType + "（" + range + "）已批准，请知悉", "/leave");
+        wecomService.pushApprovals("【学生请假·门卫核验】" + className + " " + studentName
+                + " 的" + leaveType + "（" + range + "）已批准");
+    }
+
+    /** 撤销同步（批32）：撤单后通知全部绑定家长 */
+    public void leaveCancelled(List<Long> parentIds, String studentName, String operatorName) {
+        for (Long pid : parentIds) {
+            send(pid, Notification.LEAVE_NOTICE, "请假已撤销",
+                    studentName + " 的请假单已由 " + operatorName + " 撤销", "/p/leave");
+        }
     }
 
     /** 账号/注册待审批：通知全部启用中的管理员+领导（App 链接按角色分流）；self=教师自助注册 */

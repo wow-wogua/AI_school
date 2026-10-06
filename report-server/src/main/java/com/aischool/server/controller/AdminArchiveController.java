@@ -220,7 +220,7 @@ public class AdminArchiveController {
         for (StudentLeave l : leaveMapper.selectList(new LambdaQueryWrapper<StudentLeave>()
                 .in(StudentLeave::getStudentId, ids))) {
             if (l.getPhotos() != null && !l.getPhotos().isBlank() && !"[]".equals(l.getPhotos())) {
-                String title = l.getLeaveType() + "-" + l.getStartDate();
+                String title = l.getLeaveType() + "-" + l.getStartTime().toLocalDate();
                 for (String obj : parsePhotos(l.getPhotos())) {
                     b.leaves.add(new ArchiveFile(l.getStudentId().toString(), title, obj));
                 }

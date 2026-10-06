@@ -43,6 +43,29 @@
           </div>
         </div>
       </van-tab>
+      <!-- 招采工作台（批33 两段式）：待领取核销 + 字典/入库，仅招采与管理员可见 -->
+      <van-tab v-if="isProcurement" title="招采工作台">
+        <div class="app-card proc-filters">
+          <div class="f-row">
+            <button class="f-chip" :class="{ on: procTab === 'APPROVED' }" type="button" @click="procTab = 'APPROVED'">待领取核销</button>
+            <button class="f-chip" :class="{ on: procTab === 'ISSUED' }" type="button" @click="procTab = 'ISSUED'">已核销</button>
+            <span class="spacer"></span>
+            <button class="add-btn" type="button" @click="openManage">字典 / 入库</button>
+          </div>
+          <p class="f-tip">申请人领取物资后在此核销出库（核销时才扣库存）；库存不足时先入库再核销</p>
+        </div>
+        <div class="app-card list">
+          <div v-if="!procRows.length" class="empty">{{ procTab === 'APPROVED' ? '暂无待领取的物资单' : '暂无已核销记录' }}</div>
+          <div v-for="f in procRows" :key="f.id" class="row" @click="openDetail(f.id)">
+            <div class="r-body">
+              <p class="r-title">{{ f.applicantName }}：{{ f.title }}</p>
+              <p class="r-sub">{{ f.status === 'APPROVED' ? '已审批通过 · 待领取' : '已核销出库' }} · {{ relTime(f.createTime) }}</p>
+            </div>
+            <button v-if="f.status === 'APPROVED'" class="issue-btn" type="button" @click.stop="doIssue(f)">核销出库</button>
+            <span v-else class="st ok">已核销</span>
+          </div>
+        </div>
+      </van-tab>
     </van-tabs>
 
     <!-- 发起弹层 -->
@@ -146,6 +169,8 @@
           </div>
           <van-button v-else-if="canRevoke" round block plain type="default" class="submit"
             @click="doHandle('REVOKE')">撤回申请</van-button>
+          <van-button v-else-if="canIssueDetail" round block type="primary" class="submit"
+            @click="doIssueDetail">核销出库（已领取）</van-button>
           <p v-if="detail.status === 'PENDING'" class="node-tip">
             当前节点：<b>{{ detail.nodeName }}</b>（共 {{ detail.levels }} 级审批）
           </p>
@@ -170,12 +195,50 @@
         v-model="dateBuf" :columns-type="['year', 'month', 'day']"
         :min-date="minDate" :max-date="maxDate" @confirm="onDateOk" @cancel="dateOpen = false" />
     </van-popup>
+
+    <!-- 招采字典/入库/流水（批33；端点与管理端共用，招采已放行） -->
+    <van-popup v-model:show="manageOpen" position="bottom" round :style="{ maxHeight: '88%' }" class="pop">
+      <div class="p-head"><b>物资字典与库存</b><small>新增物资 · 入库登记 · 出入库流水</small></div>
+      <div class="p-body">
+        <div class="app-sec" style="margin: 0 0 4px">新增物资</div>
+        <van-field v-model="newGoods.name" label="名称" placeholder="例如：A4复印纸" input-align="right" />
+        <van-field v-model="newGoods.unit" label="单位" placeholder="例如：包（默认 件）" input-align="right" />
+        <van-field v-model="newGoods.location" label="存放位置" placeholder="例如：仓库A架2层（可选）" input-align="right" />
+        <van-button round block size="small" type="primary" plain class="mini-btn" :loading="savingGoods" @click="doAddGoods">保存新物资</van-button>
+
+        <div class="app-sec" style="margin: 14px 0 4px">入库登记</div>
+        <van-field :model-value="stockForm.name" is-link readonly label="物资" placeholder="选择物资"
+          input-align="right" @click="goodsPickOpen = true" />
+        <van-field v-model="stockForm.qty" type="digit" label="数量" placeholder="入库数量" input-align="right" />
+        <van-field v-model="stockForm.note" label="备注" placeholder="例如：10月采购到货（可选）" input-align="right" />
+        <van-button round block size="small" type="primary" class="mini-btn" :loading="stocking" @click="doStockIn">确认入库</van-button>
+
+        <div class="app-sec" style="margin: 14px 0 4px">库存字典</div>
+        <div class="dict">
+          <p v-for="g in goodsAdmin" :key="g.id">
+            <span>{{ g.name }}</span>
+            <b>{{ g.stock }} {{ g.unit }}<small v-if="g.location"> · {{ g.location }}</small></b>
+          </p>
+        </div>
+
+        <div class="app-sec" style="margin: 14px 0 4px">出入库流水（最近）</div>
+        <div class="dict">
+          <p v-for="r in flowRows" :key="r.id">
+            <span>{{ r.direction === 'IN' ? '入库' : '出库' }} {{ r.goodsName }} × {{ r.qty }}{{ r.unit }}</span>
+            <b class="flow-meta">{{ r.operatorName }} · {{ relTime(r.createTime) }}</b>
+          </p>
+        </div>
+      </div>
+    </van-popup>
+    <van-popup v-model:show="goodsPickOpen" position="bottom" round>
+      <van-picker title="选择物资" :columns="adminGoodsColumns" @confirm="onPickStockGoods" @cancel="goodsPickOpen = false" />
+    </van-popup>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { showSuccessToast, showToast } from 'vant'
+import { computed, onMounted, ref, watch } from 'vue'
+import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { api } from '../api/http'
 import { relTime } from '../utils/fmt'
 import { useAuthStore } from '../stores/auth'
@@ -384,21 +447,109 @@ async function doHandle(action: string) {
   load()
 }
 
+// ---- 招采工作台（批33 两段式：末级通过=待领取，领取后核销才出库） ----
+interface AdminGoods { id: number; name: string; unit: string; stock: number; location: string; status: number }
+interface FlowRow { id: number; goodsName: string; qty: number; unit: string; direction: string; operatorName: string; createTime: string }
+
+const isProcurement = computed(() => ['PROCUREMENT', 'ADMIN'].includes(auth.role))
+const procTab = ref('APPROVED')
+const procRows = ref<OaRow[]>([])
+
+async function loadProc() {
+  procRows.value = await api<OaRow[]>(`/api/oa/procurement/list?status=${procTab.value}`)
+}
+watch(procTab, loadProc)
+// 招采 tab 下标 2（仅招采/管理员有第三 tab），激活时加载
+watch(tab, (v) => { if (v === 2 && isProcurement.value) loadProc() })
+
+async function doIssue(f: OaRow) {
+  await showConfirmDialog({ title: '核销出库', message: `确认 ${f.applicantName} 已领取「${f.title}」？核销后将扣减库存并通知申请人。` })
+  await api(`/api/oa/${f.id}/issue`, { method: 'PUT' })
+  showSuccessToast('已核销出库')
+  loadProc()
+}
+
+const canIssueDetail = computed(() => isProcurement.value && !!detail.value
+  && detail.value.formType === 'GOODS' && detail.value.status === 'APPROVED')
+async function doIssueDetail() {
+  if (!detail.value) return
+  await showConfirmDialog({ title: '核销出库', message: '确认申请人已领取该批物资？核销后将扣减库存并通知申请人。' })
+  await api(`/api/oa/${detail.value.id}/issue`, { method: 'PUT' })
+  showSuccessToast('已核销出库')
+  detailOpen.value = false
+  loadProc()
+  load()
+}
+
+// 字典/入库/流水（与管理端共用端点，批33 起招采已放行）
+const manageOpen = ref(false)
+const goodsAdmin = ref<AdminGoods[]>([])
+const flowRows = ref<FlowRow[]>([])
+const newGoods = ref({ name: '', unit: '', location: '' })
+const stockForm = ref({ goodsId: 0, name: '', qty: '', note: '' })
+const goodsPickOpen = ref(false)
+const savingGoods = ref(false)
+const stocking = ref(false)
+const adminGoodsColumns = computed(() => goodsAdmin.value.map((g) => ({
+  text: `${g.name}（库存 ${g.stock}${g.unit}）`, value: g.id,
+})))
+
+async function openManage() {
+  manageOpen.value = true
+  if (!goodsAdmin.value.length) goodsAdmin.value = await api<AdminGoods[]>('/api/admin/goods')
+  if (!flowRows.value.length) flowRows.value = await api<FlowRow[]>('/api/admin/goods/flow')
+}
+
+async function doAddGoods() {
+  if (!newGoods.value.name.trim()) { showToast('请填写物资名称'); return }
+  savingGoods.value = true
+  try {
+    await api('/api/admin/goods', { method: 'POST', json: { name: newGoods.value.name.trim(), unit: newGoods.value.unit.trim(), location: newGoods.value.location.trim() } })
+    showSuccessToast('已添加新物资')
+    newGoods.value = { name: '', unit: '', location: '' }
+    goodsAdmin.value = await api<AdminGoods[]>('/api/admin/goods')
+  } finally { savingGoods.value = false }
+}
+
+function onPickStockGoods(ev: { selectedOptions: { text: string; value: number }[] }) {
+  const opt = ev.selectedOptions?.[0]
+  if (opt) {
+    stockForm.value.goodsId = opt.value
+    stockForm.value.name = goodsAdmin.value.find((g) => g.id === opt.value)?.name || opt.text
+  }
+  goodsPickOpen.value = false
+}
+
+async function doStockIn() {
+  if (!stockForm.value.goodsId) { showToast('请选择物资'); return }
+  if (!(Number(stockForm.value.qty) > 0)) { showToast('请填写入库数量'); return }
+  stocking.value = true
+  try {
+    await api('/api/admin/goods/stock', { method: 'POST', json: { goodsId: stockForm.value.goodsId, qty: Number(stockForm.value.qty), note: stockForm.value.note.trim() } })
+    showSuccessToast('已入库')
+    stockForm.value = { goodsId: 0, name: '', qty: '', note: '' }
+    goodsAdmin.value = await api<AdminGoods[]>('/api/admin/goods')
+    flowRows.value = await api<FlowRow[]>('/api/admin/goods/flow')
+  } finally { stocking.value = false }
+}
+
 // ---- 展示 ----
 function statusText(f: OaRow) {
   return f.status === 'PENDING' ? `${f.nodeName}中` : stLabel(f)
 }
 function stLabel(f: OaRow) {
-  return ({ PENDING: '待审', APPROVED: '已通过', REJECTED: '已驳回', REVOKED: '已撤回' } as Record<string, string>)[f.status] || f.status
+  if (f.formType === 'GOODS' && f.status === 'APPROVED') return '待领取' // 批33 两段式
+  return ({ PENDING: '待审', APPROVED: '已通过', REJECTED: '已驳回', REVOKED: '已撤回', ISSUED: '已核销' } as Record<string, string>)[f.status] || f.status
 }
 function stClass(f: OaRow) {
-  return ({ PENDING: 'pend', APPROVED: 'ok', REJECTED: 'bad', REVOKED: 'off' } as Record<string, string>)[f.status] || ''
+  if (f.formType === 'GOODS' && f.status === 'APPROVED') return 'pend'
+  return ({ PENDING: 'pend', APPROVED: 'ok', REJECTED: 'bad', REVOKED: 'off', ISSUED: 'ok' } as Record<string, string>)[f.status] || ''
 }
 function actLabel(a: string) {
-  return ({ SUBMIT: '提交了申请', AGREE: '通过', REJECT: '驳回', REVOKE: '撤回' } as Record<string, string>)[a] || a
+  return ({ SUBMIT: '提交了申请', AGREE: '通过', REJECT: '驳回', REVOKE: '撤回', ISSUE: '核销出库' } as Record<string, string>)[a] || a
 }
 function actClass(a: string) {
-  return ({ SUBMIT: 's', AGREE: 'ok', REJECT: 'bad', REVOKE: 'off' } as Record<string, string>)[a] || ''
+  return ({ SUBMIT: 's', AGREE: 'ok', REJECT: 'bad', REVOKE: 'off', ISSUE: 'ok' } as Record<string, string>)[a] || ''
 }
 
 onMounted(load)
@@ -463,4 +614,25 @@ onMounted(load)
 .acts .van-button { flex: 1; }
 .node-tip { margin: 10px 4px 4px; font-size: 11px; color: var(--app-text-3); }
 .node-tip b { color: var(--app-text-2); }
+
+/* 招采工作台（批33） */
+.proc-filters { margin-top: 12px; padding: 10px 14px; }
+.f-row { display: flex; align-items: center; gap: 8px; }
+.f-chip { flex: none; border: 1px solid var(--app-card-border); background: none; border-radius: 999px;
+  padding: 5px 16px; font-size: 13px; color: var(--app-text-2); }
+.f-chip.on { border-color: var(--app-blue); color: #fff; background: var(--app-blue); font-weight: 600; }
+.spacer { flex: 1; }
+.f-tip { margin: 8px 0 0; font-size: 11px; color: var(--app-text-3); }
+.add-btn { flex: none; border: none; border-radius: 999px; padding: 5px 16px; font-size: 13px; font-weight: 600;
+  background: var(--app-blue); color: #fff; }
+.issue-btn { flex: none; border: none; border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600;
+  background: var(--app-blue); color: #fff; }
+.mini-btn { margin: 10px 0 2px; }
+.dict { border: 1px solid var(--app-card-border); border-radius: 12px; padding: 4px 12px; }
+.dict p { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 9px 0; font-size: 13px; }
+.dict p + p { border-top: 1px solid var(--app-card-border); }
+.dict span { flex: none; color: var(--app-text-3); }
+.dict b { text-align: right; font-weight: 600; color: var(--app-text-1); }
+.dict b.flow-meta { font-weight: 400; color: var(--app-text-3); }
+.dict small { color: var(--app-text-3); font-weight: 400; }
 </style>

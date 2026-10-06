@@ -36,11 +36,12 @@ COPY --from=maven:3.9-eclipse-temurin-21 /opt/java/openjdk /opt/jdk21
 ENV JAVA_HOME=/opt/jdk21 PATH="/opt/jdk21/bin:${PATH}"
 # 中文字体：缺失则 PDF 全方块（apt 切清华 TUNA 源，国内构建快且稳——阿里云 CDN
 # 大文件 deb 偶发连接失败；兼容 noble 的 ubuntu.sources 新格式与旧 sources.list，
-# 其一不存在时 sed 报错由 || true 兜底）
+# 其一不存在时 sed 报错由 || true 兜底）。apt 重试抗宿主网络间歇抖动
+# （resolv.conf 在 BuildKit 容器内只读，无法直钉公共 DNS，勿再试）
 RUN sed -i 's|http://archive.ubuntu.com/ubuntu|https://mirrors.tuna.tsinghua.edu.cn/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://mirrors.tuna.tsinghua.edu.cn/ubuntu|g; s|archive.ubuntu.com|mirrors.tuna.tsinghua.edu.cn|g; s|security.ubuntu.com|mirrors.tuna.tsinghua.edu.cn|g' \
       /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list 2>/dev/null || true \
- && apt-get update \
- && apt-get install -y --no-install-recommends fontconfig fonts-noto-cjk \
+ && apt-get -o Acquire::Retries=5 update \
+ && apt-get install -y --no-install-recommends -o Acquire::Retries=5 fontconfig fonts-noto-cjk \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=server-build /build/target/*.jar server.jar
@@ -56,8 +57,12 @@ ENTRYPOINT ["java", "-jar", "server.jar"]
 FROM node:20-alpine AS web-build
 WORKDIR /web
 COPY report-web/package.json report-web/package-lock.json ./
-# npmmirror 加速国内构建
-RUN npm config set registry https://registry.npmmirror.com && npm ci
+# npmmirror 加速国内构建；npm 重试参数抗 CDN 抖动（ECONNRESET/EIDLETIMEOUT），
+# BuildKit 缓存挂载让失败重试从已下载的包续跑（resolv.conf 容器内只读，无法直钉 DNS）
+RUN --mount=type=cache,target=/root/.npm \
+    npm config set registry https://registry.npmmirror.com \
+ && npm config set fetch-retries 5 fetch-retry-mintimeout 20000 fetch-retry-maxtimeout 120000 fetch-timeout 600000 \
+ && npm ci
 COPY report-web/ ./
 RUN npm run build
 

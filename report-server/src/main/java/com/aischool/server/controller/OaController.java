@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,6 +58,19 @@ public class OaController {
     @PostMapping("/{id}/handle")
     public ApiResponse<Void> handle(@PathVariable Long id, @RequestBody OaService.HandleReq req) {
         oaService.handle(id, req);
+        return ApiResponse.ok();
+    }
+
+    /** 招采工作台：物资单列表（批33 两段式；status=APPROVED 待领取 / ISSUED 已核销，空=全部） */
+    @GetMapping("/procurement/list")
+    public ApiResponse<List<Map<String, Object>>> procurementList(@RequestParam(required = false) String status) {
+        return ApiResponse.ok(oaService.procurementList(status));
+    }
+
+    /** 物资核销出库（批33）：招采/管理员在申请人领取后核销，此时才扣库存出库 */
+    @PutMapping("/{id}/issue")
+    public ApiResponse<Void> issue(@PathVariable Long id) {
+        oaService.issue(id);
         return ApiResponse.ok();
     }
 

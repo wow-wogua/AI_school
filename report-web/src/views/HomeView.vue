@@ -115,7 +115,9 @@ const grids = computed(() => [
   { name: '报修', icon: 'brush-o', to: '/repair', bg: '#0891B2' },
   { name: '谈心记录', icon: 'chat-o', to: '/talk', bg: '#7C4DD8' },
   { name: '成长足迹', icon: 'award-o', to: '/footprint', bg: '#0F766E' },
-  { name: '学生请假', icon: 'clock-o', to: '/leave', bg: '#DC2626' },
+  // 批32：请假同步对象=班主任/生活老师/级长/学成中心主任/领导/管理员，任课教师不可见
+  ...(['HEAD_TEACHER', 'GRADE_LEADER', 'DIRECTOR', 'DORM', 'LEADER', 'ADMIN'].includes(auth.role)
+    ? [{ name: '学生请假', icon: 'clock-o', to: '/leave', bg: '#DC2626' }] : []),
   { name: '宿舍查询', icon: 'wap-home-o', to: '/dorm', bg: '#65A30D' },
   { name: '文明班打分', icon: 'bookmark-o', to: '/civility', bg: '#B45309' },
 ])

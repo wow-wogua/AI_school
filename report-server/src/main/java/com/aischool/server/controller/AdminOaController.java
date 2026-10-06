@@ -188,11 +188,11 @@ public class AdminOaController {
         private Integer capacity;
     }
 
-    // ---- 物资字典 ----
+    // ---- 物资字典（批33 起招采可维护：甲方自助添加新物资） ----
 
     @GetMapping("/goods")
     public ApiResponse<List<Map<String, Object>>> goods() {
-        permissionService.checkAdminAccess("只有管理员可管理物资");
+        permissionService.checkProcurementAccess("仅招采或管理员可管理物资");
         return ApiResponse.ok(goodsMapper.selectList(new LambdaQueryWrapper<Goods>().orderByAsc(Goods::getId))
                 .stream().<Map<String, Object>>map(g -> {
                     Map<String, Object> m = new LinkedHashMap<>();
@@ -209,7 +209,7 @@ public class AdminOaController {
     /** 新增/编辑（id 空=新增；名称唯一） */
     @PostMapping("/goods")
     public ApiResponse<Void> save(@Validated @RequestBody GoodsReq req) {
-        permissionService.checkAdminAccess("只有管理员可管理物资");
+        permissionService.checkProcurementAccess("仅招采或管理员可管理物资");
         Goods g = req.getId() == null ? new Goods() : goodsMapper.selectById(req.getId());
         if (g == null) {
             throw new BizException(404, "物资不存在");
@@ -235,7 +235,7 @@ public class AdminOaController {
 
     @PutMapping("/goods/{id}/status")
     public ApiResponse<Void> toggle(@PathVariable Long id) {
-        permissionService.checkAdminAccess("只有管理员可管理物资");
+        permissionService.checkProcurementAccess("仅招采或管理员可管理物资");
         Goods g = goodsMapper.selectById(id);
         if (g == null) {
             throw new BizException(404, "物资不存在");
@@ -248,7 +248,7 @@ public class AdminOaController {
     /** 入库（补库存）：stock+=qty + IN 流水 */
     @PostMapping("/goods/stock")
     public ApiResponse<Void> stockIn(@Validated @RequestBody StockReq req) {
-        permissionService.checkAdminAccess("只有管理员可管理物资");
+        permissionService.checkProcurementAccess("仅招采或管理员可管理物资");
         Goods g = goodsMapper.selectById(req.getGoodsId());
         if (g == null) {
             throw new BizException(404, "物资不存在");
@@ -273,7 +273,7 @@ public class AdminOaController {
     /** 出入库流水（goodsId 可选筛选；OUT 行=谁/何时/哪里/拿走什么） */
     @GetMapping("/goods/flow")
     public ApiResponse<List<Map<String, Object>>> flow(@RequestParam(required = false) Long goodsId) {
-        permissionService.checkAdminAccess("只有管理员可管理物资");
+        permissionService.checkProcurementAccess("仅招采或管理员可管理物资");
         List<GoodsFlow> rows = goodsFlowMapper.selectList(new LambdaQueryWrapper<GoodsFlow>()
                 .eq(goodsId != null, GoodsFlow::getGoodsId, goodsId)
                 .orderByDesc(GoodsFlow::getId).last("LIMIT 200"));

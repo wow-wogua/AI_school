@@ -33,7 +33,7 @@
       <div v-for="r in rows" :key="r.id" class="row">
         <div class="r-body" @click="openDetail(r)">
           <p class="r-title"><b>{{ r.studentName }}</b><span class="cls">{{ r.className }} · {{ r.studentNo }}</span></p>
-          <p class="r-meta">{{ r.leaveType }} · {{ r.startDate }}<template v-if="r.endDate !== r.startDate"> ~ {{ r.endDate }}</template></p>
+          <p class="r-meta">{{ r.leaveType }} · {{ r.startTime }} ~ {{ r.endTime }}</p>
           <p class="r-sub">
             <template v-if="r.returnTime">离校 {{ fmtTime(r.leaveTime) }} · 已返校 {{ fmtTime(r.returnTime) }}</template>
             <template v-else-if="r.leaveTime">已离校 {{ fmtTime(r.leaveTime) }}，返校后请登记</template>
@@ -67,7 +67,7 @@
         </div>
         <div class="p-body">
           <div class="detail-cells">
-            <p><span>请假日期</span><b>{{ detail.startDate }} ~ {{ detail.endDate }}</b></p>
+            <p><span>请假时间</span><b>{{ detail.startTime }} ~ {{ detail.endTime }}</b></p>
             <p><span>审批老师</span><b>{{ detail.approverName || '—' }}</b></p>
             <p v-if="detail.approveNote"><span>审批意见</span><b>{{ detail.approveNote }}</b></p>
             <p v-if="detail.leaveTime"><span>离校登记</span><b>{{ fmtTime(detail.leaveTime) }}</b></p>
@@ -96,7 +96,7 @@ import { useAuthStore } from '../stores/auth'
 
 interface LeaveRow {
   id: number; studentId: number; studentName: string; studentNo?: string; className?: string
-  leaveType: string; startDate: string; endDate: string; reason: string; status: string
+  leaveType: string; startTime: string; endTime: string; reason: string; status: string
   approverName: string; approveNote: string
   leaveTime?: string; returnTime?: string; createTime: string
   photoCount: number; photoUrls: string[]

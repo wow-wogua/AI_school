@@ -49,7 +49,7 @@ const router = createRouter({
     { path: '/repair', component: () => import('../views/RepairView.vue'), meta: { layout: 'sub', title: '报修' } },
     // 谈心记录（批11）：教师对可见班级学生，管理端全量
     { path: '/talk', component: () => import('../views/TalkView.vue'), meta: { layout: 'sub', title: '谈心记录' } },
-    // 学生请假（批27/批31）：家长替孩子提交，本班班主任审批（领导/管理员可代批），任课教师只读
+    // 学生请假（批32）：教师代录（家长微信/电话告知），按时长分级审批（级长/学成中心主任），任课教师不可见
     { path: '/leave', component: () => import('../views/StudentLeaveView.vue'), meta: { layout: 'sub', title: '学生请假' } },
     // 宿管查询（批27）：全体教师按宿舍楼/房/床查学生
     { path: '/dorm', component: () => import('../views/DormView.vue'), meta: { layout: 'sub', title: '宿舍查询' } },
@@ -82,8 +82,8 @@ const router = createRouter({
     { path: '/p/report', component: () => import('../views/parent/ParentReportView.vue'), meta: { layout: 'psub', title: '成长报告' } },
     // 意见反馈（批8.5）：家长入口
     { path: '/p/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'psub', title: '意见反馈' } },
-    // 学生请假（批27）：家长替绑定孩子提交+撤回
-    { path: '/p/leave', component: () => import('../views/parent/ParentLeaveView.vue'), meta: { layout: 'psub', title: '学生请假' } },
+    // 学生请假（批32）：家长只读（微信/电话联系班主任办理，App 收通知+查记录）
+    { path: '/p/leave', component: () => import('../views/parent/ParentLeaveView.vue'), meta: { layout: 'psub', title: '请假记录' } },
     // 通知中心（批29）：家长入口（审批结果/系统消息）
     { path: '/p/notify', component: () => import('../views/NotificationView.vue'), meta: { layout: 'psub', title: '消息通知' } },
     // 门卫端（批27 GUARD 分流）：仅此一页——当日有效请假核验+离校/返校登记
