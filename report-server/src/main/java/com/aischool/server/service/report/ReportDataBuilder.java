@@ -72,6 +72,7 @@ public class ReportDataBuilder {
     private final MomentMapper momentMapper;
     private final MomentStudentMapper momentStudentMapper;
     private final PdfStoreService pdfStore;
+    private final PortraitService portraitService;
 
     public Map<String, Object> build(Long studentId, Long termId) {
         Student student = studentMapper.selectById(studentId);
@@ -102,10 +103,14 @@ public class ReportDataBuilder {
         data.put("regularScores", buildRegularScores(student, term));
         Map<String, Object> radar = buildRadar(student, term, prevTerm, sections);
         data.put("radar", radar);
-        data.put("grids", buildGrids(student, term, prevTerm, clazz, grade));
+        List<Map<String, Object>> grids = buildGrids(student, term, prevTerm, clazz, grade);
+        data.put("grids", grids);
         data.put("activities", buildActivities(student, term));
         data.put("coin", buildCoin(student, term, sections));
-        data.put("growthSymbol", buildGrowthSymbol(student, term));
+        Map<String, Object> growthSymbol = buildGrowthSymbol(student, term);
+        data.put("growthSymbol", growthSymbol);
+        // 批36① AI 成长画像：等级+最强格 → 文生图（本地物化路径）；未配置/失败为 null → PDF 保持占位框
+        data.put("portraitFile", portraitService.materialize(growthSymbol, grids));
         data.put("comprehensive", buildComprehensive(student, term));
         data.put("improvement", buildImprovement(student, term, clazz));
         data.put("headTeacherComment", buildHeadTeacherComment(student, term));
