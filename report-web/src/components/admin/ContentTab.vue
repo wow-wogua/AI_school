@@ -3,7 +3,7 @@
     <div class="toolbar">
       <el-radio-group v-model="type" @change="load">
         <el-radio-button value="NOTICE">通知公告</el-radio-button>
-        <el-radio-button value="PARENTING">育儿课堂</el-radio-button>
+        <el-radio-button value="PARENTING">扬长课程</el-radio-button>
       </el-radio-group>
       <el-input v-model="keyword" placeholder="搜索标题" clearable style="width: 180px"
         @keyup.enter="load" @clear="load" />
@@ -13,7 +13,7 @@
     <el-alert type="info" :closable="false" class="tip">
       {{ type === 'NOTICE'
         ? '通知家长的学校公告。可见范围=全校或指定班级；家长端「通知公告」宫格查看。'
-        : '育儿课堂内容。支持图文、封面图+第三方平台视频外链（视频文件不直传，磁盘与流量吃不消）。' }}
+        : '扬长课程内容。支持图文、封面图+第三方平台视频外链（视频文件不直传，磁盘与流量吃不消）。' }}
     </el-alert>
 
     <div v-if="selected.length" class="batch-bar">
@@ -134,9 +134,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../../api/http'
 
-/* type=NOTICE 通知公告 / PARENTING 育儿课堂（同一张表一套 CRUD，管理端切换管理） */
+/* type=NOTICE 通知公告 / PARENTING 扬长课程（批37 正名，同一张表一套 CRUD，管理端切换管理） */
 const type = ref<'NOTICE' | 'PARENTING'>('NOTICE')
-const typeLabel = computed(() => (type.value === 'NOTICE' ? '通知公告' : '育儿课堂'))
+const typeLabel = computed(() => (type.value === 'NOTICE' ? '通知公告' : '扬长课程'))
 
 const rows = ref<any[]>([])
 const selected = ref<any[]>([])

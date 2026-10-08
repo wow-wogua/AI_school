@@ -12,11 +12,8 @@
     </div>
 
     <div class="app-card overlap tl tex-f cells">
-      <van-cell title="通知中心" icon="volume-o" is-link :value="notifyBadge" @click="$router.push('/notify')" />
-      <van-cell title="教师档案" icon="contact" is-link :value="profileHint || '待完善'"
-        @click="$router.push('/profile')" />
-      <van-cell title="成长报告" icon="orders-o" is-link @click="$router.push('/reports')" />
-      <van-cell title="德育规范" icon="bookmark-o" is-link value="量化考核标准" @click="$router.push('/conduct-rules')" />
+      <!-- 批37：教师档案/成长报告/德育规范已上首页宫格（我的成长/报告档案/成长激励），此处不再重复 -->
+      <van-cell title="消息通知" icon="volume-o" is-link :value="notifyBadge" @click="$router.push('/notify')" />
       <van-cell title="生成中心" icon="bell" is-link :value="running ? `${running} 进行中` : ''" @click="$router.push('/notice')" />
       <van-cell v-if="auth.role === 'ADMIN'" title="系统管理" icon="setting-o" is-link @click="$router.push('/admin')" />
     </div>
@@ -25,6 +22,7 @@
       <van-cell title="修改手机号" icon="phone-o" is-link @click="phoneOpen = true" />
       <van-cell title="修改密码" icon="lock" is-link @click="pwdOpen = true" />
       <van-cell title="意见反馈" icon="chat-o" is-link @click="$router.push('/feedback')" />
+      <van-cell title="使用帮助" icon="question-o" is-link @click="$router.push('/help')" />
       <van-cell title="检查更新" icon="upgrade" is-link :value="appVersion" @click="onCheckUpdate" />
       <van-cell v-if="!isNative" title="服务器地址" icon="desktop-o" is-link :value="srvBase || '默认'" @click="srvOpen = true" />
       <van-cell title="关于" icon="info-o" is-link @click="aboutOpen = true" />
@@ -91,7 +89,7 @@ const notifyStore = useNotifyStore()
 const router = useRouter()
 
 const running = computed(() => aiTasks.runningCount)
-/** 通知中心未读角标（批29）：轮询由 App 壳维护，进页面即现值 */
+/** 消息通知未读角标（批29）：轮询由 App 壳维护，进页面即现值 */
 const notifyBadge = computed(() => (notifyStore.unread ? `${notifyStore.unread} 条未读` : ''))
 const avatarChar = computed(() => auth.realName?.charAt(0) || '师')
 const roleLabel = computed(() => ({ ADMIN: '管理员', LEADER: '领导', HEAD_TEACHER: '班主任', TEACHER: '任课教师', PARENT: '家长' }[auth.role] ?? auth.role))
@@ -166,15 +164,6 @@ function onCheckUpdate() {
 }
 
 const logoutOpen = ref(false)
-
-/** 档案完善度提示（接口失败不阻塞页面） */
-const profileHint = ref('')
-onMounted(async () => {
-  try {
-    const d = await api<any>('/api/profile/me')
-    profileHint.value = d.hasProfile ? (d.employeeNo || d.subjectName || d.title || '已完善') : ''
-  } catch { /* 忽略 */ }
-})
 
 function logout() {
   auth.logout()

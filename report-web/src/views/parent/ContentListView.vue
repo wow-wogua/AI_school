@@ -1,16 +1,16 @@
 <template>
-  <div class="app-page p-contents">
+  <div class="app-page p-contents" :class="{ 'tab-page': isTabView }">
     <van-pull-refresh v-model="refreshing" @refresh="reload" success-text="已刷新">
     <div class="app-sec">{{ typeLabel }} · {{ rows.length }} 条</div>
 
     <van-skeleton v-if="loading" :row="6" style="padding: 14px" />
     <div v-else-if="!rows.length" class="app-card empty">
-      {{ type === 'NOTICE' ? '暂无通知公告' : '暂无育儿课堂内容' }}
+      {{ type === 'NOTICE' ? '暂无通知公告' : '暂无扬长课程内容' }}
     </div>
 
     <!-- 内容卡（第一版卡片语言：封面通栏图 + 标题 + 摘要，tex 纹理轮换） -->
     <div v-for="(it, i) in rows" :key="it.id" class="app-card item" :class="tex(i)"
-      @click="$router.push(`/p/content/${it.id}`)">
+      @click="$router.push(isParent ? `/p/content/${it.id}` : props.type === 'NOTICE' ? `/notices/${it.id}` : `/courses/${it.id}`)">
       <img v-if="coverCache[it.id]" class="cover" :src="coverCache[it.id]" alt="" />
       <div class="body">
         <p class="title">
@@ -30,11 +30,17 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { api, fetchBlob } from '../../api/http'
+import { useAuthStore } from '../../stores/auth'
 
-/* 通知公告 / 育儿课堂 共用列表页（路由 props 区分 type） */
+/* 通知公告 / 扬长课程 共用列表页（路由 props 区分 type）；
+   批37 教师端入口同组件双轨：家长走 /api/parent（含班级范围），其他角色走 /api/content/notices（全校范围）；
+   批37 追加：家长端两页升底部 Tab（ptab 壳无标题栏，自补状态栏安全间距） */
 const props = defineProps<{ type: 'NOTICE' | 'PARENTING' }>()
-const typeLabel = props.type === 'NOTICE' ? '通知公告' : '育儿课堂'
+const isParent = useAuthStore().role === 'PARENT'
+const isTabView = useRoute().meta.layout === 'ptab'
+const typeLabel = props.type === 'NOTICE' ? '通知公告' : '扬长课程'
 
 interface Item {
   id: number; title: string; coverUrl: string | null; videoUrl: string | null
@@ -56,7 +62,7 @@ function fmtDate(t?: string | null) {
 async function load() {
   loading.value = true
   try {
-    rows.value = await api<Item[]>(`/api/parent/contents?type=${props.type}`)
+    rows.value = await api<Item[]>(isParent ? `/api/parent/contents?type=${props.type}` : `/api/content/notices?type=${props.type}`)
     for (const it of rows.value) {
       if (it.coverUrl && !coverCache[it.id]) {
         try {
@@ -95,4 +101,6 @@ onMounted(load)
 .brief { margin: 6px 0 0; font-size: 12px; color: var(--app-text-3);
   line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .meta { margin: 8px 0 0; font-size: 11px; color: var(--app-text-3); }
+/* 底部 Tab 形态（ptab 壳无标题栏）：自补状态栏安全间距 */
+.tab-page { padding-top: calc(6px + var(--sat)); }
 </style>

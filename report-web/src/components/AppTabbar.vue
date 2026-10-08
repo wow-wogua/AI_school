@@ -12,7 +12,7 @@
     </button>
     <RouterLink to="/notice" class="tab" :class="{ on: tab === 'notice' }">
       <span v-if="running" class="badge">{{ running > 99 ? '99+' : running }}</span>
-      <van-icon name="bell" /><span>通知</span>
+      <van-icon name="underway-o" /><span>生成中心</span>
     </RouterLink>
     <RouterLink to="/mine" class="tab" :class="{ on: tab === 'mine' }">
       <van-icon :name="tab === 'mine' ? 'manager' : 'manager-o'" /><span>我的</span>

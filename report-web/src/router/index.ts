@@ -33,14 +33,16 @@ const router = createRouter({
     // 功能页：挂 App 壳（内容精改按页推进）；admin 保留石实红（管理端体系）
     { path: '/reports', component: () => import('../views/ReportsView.vue'), meta: { layout: 'sub', title: '成长报告' } },
     { path: '/reports/:id/preview', component: () => import('../views/PreviewView.vue'), meta: { layout: 'sub', title: '报告预览' } },
-    { path: '/comments', component: () => import('../views/CommentView.vue'), meta: { layout: 'sub', title: '班主任寄语' } },
+    // 批37 IA 重组：期末评语三合一（寄语/总结/综合素质同链）；旧三路由 redirect 兼容（通知深链+老师肌肉记忆）
+    { path: '/final-eval', component: () => import('../views/FinalEvalView.vue'), meta: { layout: 'sub', title: '期末评语' } },
+    { path: '/comments', redirect: () => ({ path: '/final-eval', query: { tab: 'comment' } }) },
+    { path: '/summary', redirect: () => ({ path: '/final-eval', query: { tab: 'summary' } }) },
     { path: '/activity', component: () => import('../views/ActivityView.vue'), meta: { layout: 'sub', title: '活动管理' } },
     { path: '/honor', component: () => import('../views/HonorView.vue'), meta: { layout: 'sub', title: '荣誉证书' } },
-    { path: '/timeline', component: () => import('../views/TimelineView.vue'), meta: { layout: 'sub', title: '成长时间轴' } },
+    { path: '/timeline', component: () => import('../views/TimelineView.vue'), meta: { layout: 'sub', title: '学生时间轴' } },
     { path: '/scores', component: () => import('../views/ScoreView.vue'), meta: { layout: 'sub', title: '成绩管理' } },
     { path: '/evaluate', component: () => import('../views/EvaluateView.vue'), meta: { layout: 'sub', title: '日常评价' } },
-    { path: '/summary', component: () => import('../views/SummaryView.vue'), meta: { layout: 'sub', title: '成长总结' } },
-    { path: '/comprehensive', component: () => import('../views/ComprehensiveView.vue'), meta: { layout: 'sub', title: '综合素质' } },
+    { path: '/comprehensive', redirect: () => ({ path: '/final-eval', query: { tab: 'comp' } }) },
     { path: '/bank', component: () => import('../views/TeacherBankView.vue'), meta: { layout: 'sub', title: '成长银行' } },
     { path: '/conduct-rules', component: () => import('../views/ConductRulesView.vue'), meta: { layout: 'sub', title: '德育规范' } },
     // 行政办公（批9）：公章三级审批+物资申领（OA 引擎）；批10 加教师请假
@@ -54,24 +56,34 @@ const router = createRouter({
     // 宿管查询（批27）：全体教师按宿舍楼/房/床查学生
     { path: '/dorm', component: () => import('../views/DormView.vue'), meta: { layout: 'sub', title: '宿舍查询' } },
     { path: '/my-class', component: () => import('../views/MyClassView.vue'), meta: { layout: 'sub', title: '班级管理' } },
-    { path: '/footprint', component: () => import('../views/FootprintView.vue'), meta: { layout: 'sub', title: '成长足迹' } },
     // 意见反馈（批8.5）：教师/家长共用组件，双路由分流（家长被锁 /p/*）
     { path: '/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'sub', title: '意见反馈' } },
-    // 通知中心（批29）：审批/请假/注册待办与结果，点击直达处理页；同款双路由分流
-    { path: '/notify', component: () => import('../views/NotificationView.vue'), meta: { layout: 'sub', title: '通知中心' } },
+    // 消息通知（批29，批37 由「通知中心」正名）：审批/请假/注册待办与结果，点击直达处理页；同款双路由分流
+    { path: '/notify', component: () => import('../views/NotificationView.vue'), meta: { layout: 'sub', title: '消息通知' } },
+    // 通知公告（批37 教师端入口）：家长版组件双轨复用（API/详情深链按角色分流），全校范围
+    { path: '/notices', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'NOTICE' }, meta: { layout: 'sub', title: '通知公告' } },
+    { path: '/notices/:id', component: () => import('../views/parent/ContentDetailView.vue'), meta: { layout: 'sub', title: '通知详情' } },
+    // App 内使用帮助（批37 生态补缺）：FAQ 按角色分流（教师/家长双路由共用组件）
+    { path: '/help', component: () => import('../views/HelpView.vue'), meta: { layout: 'sub', title: '使用帮助' } },
+    // 扬长课程（批37 追加，家长+教师双端可见）：教师版同组件双轨（type=PARENTING 全校范围）
+    { path: '/courses', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'PARENTING' }, meta: { layout: 'sub', title: '扬长课程' } },
+    { path: '/courses/:id', component: () => import('../views/parent/ContentDetailView.vue'), meta: { layout: 'sub', title: '课程详情' } },
     // 文明班评比 B 案（批30）：教师打分+自动汇总排名（细则见 /conduct-rules A 案静态页）
     { path: '/civility', component: () => import('../views/CivilityView.vue'), meta: { layout: 'sub', title: '文明班评比' } },
-    { path: '/profile', component: () => import('../views/ProfileView.vue'), meta: { layout: 'sub', title: '教师档案' } },
-    { path: '/teacher-honor', component: () => import('../views/TeacherHonorView.vue'), meta: { layout: 'sub', title: '教师风采' } },
+    // 批37 IA 重组：我的成长三合一（教师档案/风采/足迹）；旧三路由 redirect 兼容
+    { path: '/my-growth', component: () => import('../views/MyGrowthView.vue'), meta: { layout: 'sub', title: '我的成长' } },
+    { path: '/profile', redirect: () => ({ path: '/my-growth', query: { tab: 'profile' } }) },
+    { path: '/teacher-honor', redirect: () => ({ path: '/my-growth', query: { tab: 'honor' } }) },
     { path: '/teacher-honor/new', component: () => import('../views/TeacherHonorCaptureView.vue'), meta: { layout: 'sub', title: '记录成就' } },
+    { path: '/footprint', redirect: () => ({ path: '/my-growth', query: { tab: 'footprint' } }) },
     { path: '/admin', component: () => import('../views/AdminView.vue'), meta: { layout: 'sub', title: '系统管理', admin: true } },
     // 家长端（PARENT 分流，方案C 新中式风格 --shine-*）：孩子卡+评价动态；报告批5 家长版再开
     { path: '/p/home', component: () => import('../views/parent/ParentHomeView.vue'), meta: { layout: 'ptab', tab: 'phome' } },
     { path: '/p/child/:id', component: () => import('../views/parent/ParentChildView.vue'), meta: { layout: 'psub', title: '孩子成长' } },
     { path: '/p/mine', component: () => import('../views/parent/ParentMineView.vue'), meta: { layout: 'ptab', tab: 'pmine' } },
-    // 内容（批2）：通知公告/育儿课堂共用列表页（props 区分），详情按 id
-    { path: '/p/notices', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'NOTICE' }, meta: { layout: 'psub', title: '通知公告' } },
-    { path: '/p/parenting', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'PARENTING' }, meta: { layout: 'psub', title: '育儿课堂' } },
+    // 内容（批2；批37 升底部 Tab 一级入口）：通知公告/扬长课程共用列表页（props 区分），详情按 id
+    { path: '/p/notices', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'NOTICE' }, meta: { layout: 'ptab', tab: 'pnotice' } },
+    { path: '/p/parenting', component: () => import('../views/parent/ContentListView.vue'), props: { type: 'PARENTING' }, meta: { layout: 'ptab', tab: 'pparenting' } },
     { path: '/p/content/:id', component: () => import('../views/parent/ContentDetailView.vue'), meta: { layout: 'psub', title: '内容详情' } },
     // 家长微光信箱（批2-3 方案A）：拍照仅进孩子成长档案（家长+班主任可见）
     { path: '/p/moments', component: () => import('../views/parent/ParentMomentView.vue'), meta: { layout: 'psub', title: '微光信箱' } },
@@ -84,8 +96,10 @@ const router = createRouter({
     { path: '/p/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'psub', title: '意见反馈' } },
     // 学生请假（批32）：家长只读（微信/电话联系班主任办理，App 收通知+查记录）
     { path: '/p/leave', component: () => import('../views/parent/ParentLeaveView.vue'), meta: { layout: 'psub', title: '请假记录' } },
-    // 通知中心（批29）：家长入口（审批结果/系统消息）
+    // 消息通知（批29）：家长入口（审批结果/系统消息）
     { path: '/p/notify', component: () => import('../views/NotificationView.vue'), meta: { layout: 'psub', title: '消息通知' } },
+    // 使用帮助（批37）：家长入口
+    { path: '/p/help', component: () => import('../views/HelpView.vue'), meta: { layout: 'psub', title: '使用帮助' } },
     // 门卫端（批27 GUARD 分流）：仅此一页——当日有效请假核验+离校/返校登记
     { path: '/g/home', component: () => import('../views/GuardHomeView.vue'), meta: { layout: 'gshell' } },
     // 领导端（LEADER 分流）：全校只读驾驶舱；成绩明细复用 /scores（LEADER 只读）；

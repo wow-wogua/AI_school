@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <motion.h2 class="page-title" :initial="{ opacity: 0, x: -16 }" :animate="{ opacity: 1, x: 0 }"
-      :transition="{ type: 'spring', stiffness: 400, damping: 32 }"><el-icon><Timer /></el-icon>成长时间轴</motion.h2>
+      :transition="{ type: 'spring', stiffness: 400, damping: 32 }"><el-icon><Timer /></el-icon>学生时间轴</motion.h2>
     <div class="toolbar">
       <el-select v-model="classId" placeholder="班级" style="min-width: 140px" @change="loadStudents">
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />

@@ -16,6 +16,7 @@
       <van-cell title="修改手机号" icon="phone-o" is-link @click="phoneOpen = true" />
       <van-cell title="修改密码" icon="lock" is-link @click="pwdOpen = true" />
       <van-cell title="意见反馈" icon="chat-o" is-link @click="$router.push('/p/feedback')" />
+      <van-cell title="使用帮助" icon="question-o" is-link @click="$router.push('/p/help')" />
       <van-cell title="账号说明" icon="shield-o" is-link @click="tipOpen = true" />
     </div>
 

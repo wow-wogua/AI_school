@@ -3,8 +3,8 @@ import { api } from '../api/http'
 import { useAuthStore } from './auth'
 
 /**
- * 通知中心未读角标（批29）：登录后 2 分钟一轮拉未读数（GUARD 无通知中心跳过），
- * 「我的」页角标与通知中心页共用；静默失败不打扰。
+ * 消息通知未读角标（批29）：登录后 2 分钟一轮拉未读数（GUARD 无消息通知跳过），
+ * 「我的」页角标与消息通知页共用；静默失败不打扰。
  */
 export const useNotifyStore = defineStore('notify', {
   state: () => ({

@@ -11,9 +11,9 @@
           <p class="sub">记录成长的每一步</p>
         </div>
         <div class="hero-actions">
-          <RouterLink to="/notice" class="hero-btn" aria-label="通知">
+          <RouterLink to="/notify" class="hero-btn" aria-label="消息通知">
             <van-icon name="bell" />
-            <i v-if="running" class="dot"></i>
+            <i v-if="notifyStore.unread" class="dot"></i>
           </RouterLink>
           <RouterLink to="/mine" class="avatar" aria-label="我的">{{ avatarChar }}</RouterLink>
         </div>
@@ -27,14 +27,16 @@
       <div class="stat"><b :class="{ hot: running > 0 }">{{ running }}</b><span>进行中任务</span></div>
     </div>
 
-    <!-- 快捷功能宫格（微光信箱阶段2接入首位） -->
-    <div class="app-sec">快捷功能</div>
-    <div class="app-card tex-b grid">
-      <button v-for="g in grids" :key="g.to" class="g-item" type="button" @click="$router.push(g.to)">
-        <span class="g-icon" :style="{ background: g.bg }"><van-icon :name="g.icon" /></span>
-        <span>{{ g.name }}</span>
-      </button>
-    </div>
+    <!-- 快捷功能宫格（批37 IA 重组：5 分区替代扁平宫格，功能全量可直达） -->
+    <template v-for="sec in sections" :key="sec.label">
+      <div class="app-sec">{{ sec.label }}</div>
+      <div class="app-card tex-b grid">
+        <button v-for="g in sec.items" :key="g.to" class="g-item" type="button" @click="$router.push(g.to)">
+          <span class="g-icon" :style="{ background: g.bg }"><van-icon :name="g.icon" /></span>
+          <span>{{ g.name }}</span>
+        </button>
+      </div>
+    </template>
 
     <!-- 最近动态（图2 卡片样式缩略，查看全部 → 成长记录流） -->
     <div class="app-sec">最近动态<RouterLink class="more" to="/feed">查看全部 ›</RouterLink></div>
@@ -67,6 +69,7 @@ import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import CampusSkyline from '../components/CampusSkyline.vue'
 import { useAiTasksStore } from '../stores/aiTasks'
+import { useNotifyStore } from '../stores/notify'
 import { useAssetStore } from '../stores/asset'
 import { api } from '../api/http'
 import { relTime } from '../utils/fmt'
@@ -74,6 +77,7 @@ import { relTime } from '../utils/fmt'
 const auth = useAuthStore()
 const asset = useAssetStore()
 const aiTasks = useAiTasksStore()
+const notifyStore = useNotifyStore()
 const running = computed(() => aiTasks.runningCount)
 
 interface FeedItem {
@@ -96,33 +100,55 @@ const greeting = computed(() => {
 })
 const avatarChar = computed(() => auth.realName?.charAt(0) || '师')
 
-/* 宫格配色（图1/图4）：每格一色的实心圆角方底 + 白图标；
-   教师档案全员可见——老师进自己的档案页，管理员进全校总览页签；
-   批3.5 领导教师化：领导=教师功能全量，首位加「领导驾驶舱」入口 */
-const grids = computed(() => [
-  ...(auth.role === 'LEADER' ? [{ name: '领导驾驶舱', icon: 'chart-trending-o', to: '/l/home', bg: '#1F2A44' }] : []),
-  { name: '微光信箱', icon: 'photograph', to: '/moment/new', bg: '#F97316' },
-  { name: '成绩管理', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' },
-  { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
-  { name: '班主任寄语', icon: 'chat-o', to: '/comments', bg: '#F59E0B' },
-  { name: '成长总结', icon: 'notes-o', to: '/summary', bg: '#8B5CF6' },
-  { name: '综合素质', icon: 'gem-o', to: '/comprehensive', bg: '#0EA5E9' },
-  { name: '活动管理', icon: 'flag-o', to: '/activity', bg: '#F43F5E' },
-  { name: '荣誉证书', icon: 'medal-o', to: '/honor', bg: '#EAB308' },
-  { name: '成长时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1' },
-  { name: '成长报告', icon: 'orders-o', to: '/reports', bg: '#14B8A6' },
-  { name: '教师风采', icon: 'friends-o', to: '/teacher-honor', bg: '#EC4899' },
-  { name: '教师档案', icon: 'manager-o', to: auth.role === 'ADMIN' ? '/admin?tab=teacherProfile' : '/profile', bg: '#475569' },
-  { name: '行政办公', icon: 'todo-list-o', to: '/oa', bg: '#7C3AED' },
-  { name: '报修', icon: 'brush-o', to: '/repair', bg: '#0891B2' },
-  { name: '谈心记录', icon: 'chat-o', to: '/talk', bg: '#7C4DD8' },
-  { name: '成长足迹', icon: 'award-o', to: '/footprint', bg: '#0F766E' },
-  // 批32：请假同步对象=班主任/生活老师/级长/学成中心主任/领导/管理员，任课教师不可见
-  ...(['HEAD_TEACHER', 'GRADE_LEADER', 'DIRECTOR', 'DORM', 'LEADER', 'ADMIN'].includes(auth.role)
-    ? [{ name: '学生请假', icon: 'clock-o', to: '/leave', bg: '#DC2626' }] : []),
-  { name: '宿舍查询', icon: 'wap-home-o', to: '/dorm', bg: '#65A30D' },
-  { name: '文明班打分', icon: 'bookmark-o', to: '/civility', bg: '#B45309' },
-])
+/* 宫格分区（批37 IA 重组）：按「日常评价 → 成长激励 → 报告档案 → 校园事务 → 我的」心智排列；
+   前 4 高频图标保持原位序（微光/成绩/评价，降低老师适应成本）；
+   「期末评语」=寄语+成长总结+综合素质 三页合一（/final-eval）；
+   「我的成长」=教师档案+教师风采+成长足迹 三页合一（/my-growth）；
+   补全历史缺口：成长银行 / 德育规范 / 班级管理(班主任) / 系统管理(管理员)；
+   批32 口径：请假入口=班主任/生活老师/级长/学成中心主任/领导/管理员 */
+const sections = computed(() => {
+  const leave = ['HEAD_TEACHER', 'GRADE_LEADER', 'DIRECTOR', 'DORM', 'LEADER', 'ADMIN'].includes(auth.role)
+  return [
+    { label: '评价记录', items: [
+      { name: '微光信箱', icon: 'photograph', to: '/moment/new', bg: '#F97316' },
+      { name: '成绩管理', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' },
+      { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
+      ...(leave ? [{ name: '学生请假', icon: 'clock-o', to: '/leave', bg: '#DC2626' }] : []),
+      { name: '谈心记录', icon: 'chat-o', to: '/talk', bg: '#7C4DD8' },
+    ] },
+    { label: '成长激励', items: [
+      { name: '成长银行', icon: 'gold-coin-o', to: '/bank', bg: '#D97706' },
+      { name: '文明班打分', icon: 'bookmark-o', to: '/civility', bg: '#B45309' },
+      { name: '德育规范', icon: 'notes-o', to: '/conduct-rules', bg: '#059669' },
+    ] },
+    { label: '报告档案', items: [
+      { name: '成长报告', icon: 'orders-o', to: '/reports', bg: '#14B8A6' },
+      { name: '期末评语', icon: 'edit-square', to: '/final-eval', bg: '#F59E0B' },
+      { name: '学生时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1' },
+      { name: '荣誉证书', icon: 'medal-o', to: '/honor', bg: '#EAB308' },
+      { name: '活动管理', icon: 'flag-o', to: '/activity', bg: '#F43F5E' },
+    ] },
+    { label: '校园事务', items: [
+      { name: '行政办公', icon: 'todo-list-o', to: '/oa', bg: '#7C3AED' },
+      { name: '通知公告', icon: 'volume-o', to: '/notices', bg: '#CA8A04' },
+      { name: '扬长课程', icon: 'bookmark-o', to: '/courses', bg: '#8B5CF6' },
+      { name: '报修', icon: 'brush-o', to: '/repair', bg: '#0891B2' },
+      { name: '宿舍查询', icon: 'wap-home-o', to: '/dorm', bg: '#65A30D' },
+      ...(auth.role === 'HEAD_TEACHER' ? [{ name: '班级管理', icon: 'setting-o', to: '/my-class', bg: '#0EA5E9' }] : []),
+    ] },
+    { label: '我的成长', items: [
+      { name: '我的成长', icon: 'award-o', to: '/my-growth', bg: '#0F766E' },
+      ...(auth.role === 'LEADER' ? [{ name: '领导驾驶舱', icon: 'chart-trending-o', to: '/l/home', bg: '#1F2A44' }] : []),
+    ] },
+    /* 批37 追加：管理员直达分区——校方自助上传的内容发布/素材库一步可达
+       （?tab= 直达且自动展开所属分组）；系统管理从「校园事务」挪入 */
+    ...(auth.role === 'ADMIN' ? [{ label: '学校管理', items: [
+      { name: '内容发布', icon: 'promotion-o', to: '/admin?tab=content', bg: '#A8232B' },
+      { name: '素材库', icon: 'photo-o', to: '/admin?tab=asset', bg: '#64748B' },
+      { name: '系统管理', icon: 'setting-o', to: '/admin', bg: '#475569' },
+    ] }] : []),
+  ]
+})
 
 function chipClass(type: string) {
   return { 评价: 'c-eval', 荣誉: 'c-honor', 寄语: 'c-comment', 活动: 'c-act', 微光: 'c-moment' }[type] ?? ''

@@ -46,7 +46,7 @@
       </div>
     </template>
 
-    <!-- 窄屏 <1024：第一版 tabs 形态（手机/平板管理端不变） -->
+    <!-- 窄屏 <1024（批37）：两级形态——分组落地宫格 → 组内页签（替代 24 连 tabs） -->
     <template v-else>
       <motion.h2 class="page-title" :initial="{ opacity: 0, x: -16 }" :animate="{ opacity: 1, x: 0 }"
         :transition="{ type: 'spring', stiffness: 400, damping: 32 }"><el-icon><Setting /></el-icon>系统管理</motion.h2>
@@ -62,32 +62,28 @@
           <span class="who">在线名单</span>
         </el-tooltip>
       </div>
-      <el-tabs v-model="tab">
-        <el-tab-pane label="教师与任课" name="teacher"><TeacherTab /></el-tab-pane>
-        <el-tab-pane label="家长账号" name="parent"><ParentTab /></el-tab-pane>
-        <el-tab-pane :label="`账号审批${pendingCount ? '(' + pendingCount + ')' : ''}`" name="roleRequest"><RoleRequestTab @handled="loadPendingCount" /></el-tab-pane>
-        <el-tab-pane :label="`意见反馈${feedbackPending ? '(' + feedbackPending + ')' : ''}`" name="feedback"><FeedbackTab @handled="loadFeedbackPending" /></el-tab-pane>
-        <el-tab-pane :label="`数据体检${healthDanger ? '(' + healthDanger + ')' : ''}`" name="health"><HealthTab @scanned="onHealthScanned" /></el-tab-pane>
-        <el-tab-pane label="文件归档" name="archive"><ArchiveTab /></el-tab-pane>
-        <el-tab-pane label="群机器人与告警" name="notify"><NotifyTab /></el-tab-pane>
-        <el-tab-pane label="内容发布" name="content"><ContentTab /></el-tab-pane>
-        <el-tab-pane label="教师档案" name="teacherProfile"><TeacherProfileTab /></el-tab-pane>
-        <el-tab-pane label="年级与班级" name="org"><OrgTab /></el-tab-pane>
-        <el-tab-pane label="学生" name="student"><StudentTab /></el-tab-pane>
-        <el-tab-pane label="学期" name="term"><TermTab /></el-tab-pane>
-        <el-tab-pane label="学年滚动" name="schoolYear"><SchoolYearTab /></el-tab-pane>
-        <el-tab-pane label="考试管理" name="exam"><ExamTab /></el-tab-pane>
-        <el-tab-pane label="值班排班" name="duty"><DutyTab /></el-tab-pane>
-        <el-tab-pane label="文明班评比" name="civility"><CivilityTab /></el-tab-pane>
-        <el-tab-pane label="育人指标" name="indicator"><IndicatorTab /></el-tab-pane>
-        <el-tab-pane label="成长银行" name="shop"><ShopTab /></el-tab-pane>
-        <el-tab-pane label="报告模板" name="template"><TemplateTab /></el-tab-pane>
-        <el-tab-pane label="审计日志" name="audit"><AuditTab /></el-tab-pane>
-        <el-tab-pane label="AI 设置" name="aiUsage"><AiSettingsTab /></el-tab-pane>
-        <el-tab-pane label="系统参数" name="sysParam"><SysParamTab /></el-tab-pane>
-        <el-tab-pane label="素材库" name="asset"><AssetTab /></el-tab-pane>
-        <el-tab-pane label="版本更新" name="appRelease"><AppReleaseTab /></el-tab-pane>
-      </el-tabs>
+      <!-- 第一级：7 分组宫格（角标=组内待办合计） -->
+      <div v-if="!openGroup" class="grp-grid">
+        <button v-for="g in groups" :key="g.key" class="grp-card" type="button" @click="enterGroup(g.key)">
+          <i v-if="groupBadge(g)" class="n-badge">{{ groupBadge(g) > 99 ? '99+' : groupBadge(g) }}</i>
+          <el-icon><component :is="g.icon" /></el-icon>
+          <b>{{ g.label }}</b>
+          <span>{{ g.items.slice(0, 2).map((t) => t.label).join(' · ') }} 等 {{ g.items.length }} 项</span>
+        </button>
+      </div>
+
+      <!-- 第二级：返回行 + 本组页签（审批/反馈/体检计数标签与事件由 paneLabel/tabEvents 收拢） -->
+      <template v-else>
+        <div class="grp-back">
+          <button type="button" @click="openKey = null"><el-icon><ArrowLeftBold /></el-icon>全部分类</button>
+          <span>{{ openGroup.label }}</span>
+        </div>
+        <el-tabs v-model="tab">
+          <el-tab-pane v-for="t in openGroup.items" :key="t.name" :label="paneLabel(t)" :name="t.name">
+            <component :is="t.comp" v-bind="tabEvents(t.name)" />
+          </el-tab-pane>
+        </el-tabs>
+      </template>
     </template>
   </div>
 </template>
@@ -96,7 +92,7 @@
 import { computed, markRaw, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { Aim, AlarmClock, Calendar, ChatDotRound, ChatLineRound, Coin, DataLine, Document, FirstAidKit, FolderOpened, Goods as GoodsIcon, Iphone, Medal, OfficeBuilding, Picture, Postcard, Promotion, School, Setting, Stamp, Sunset, Tickets, Tools, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
+import { Aim, AlarmClock, ArrowLeftBold, Calendar, ChatDotRound, ChatLineRound, Coin, DataLine, Document, FirstAidKit, FolderOpened, Goods as GoodsIcon, Iphone, Medal, OfficeBuilding, Picture, Postcard, Promotion, School, Setting, Stamp, Sunset, Tickets, Tools, TrendCharts, Upload, User, Avatar } from '@element-plus/icons-vue'
 import { api } from '../api/http'
 import { useAuthStore } from '../stores/auth'
 import TeacherTab from '../components/admin/TeacherTab.vue'
@@ -135,7 +131,13 @@ const auth = useAuthStore()
 /* 支持 ?tab= 直达指定页签（首页快捷功能「教师档案」入口用）；已打开时 query 变化也跟随 */
 const route = useRoute()
 const tab = ref((route.query.tab as string) || 'teacher')
-watch(() => route.query.tab, (t) => { if (typeof t === 'string' && t !== tab.value) tab.value = t })
+watch(() => route.query.tab, (t) => {
+  if (typeof t === 'string' && t !== tab.value) {
+    tab.value = t
+    const g = groupOf(t)
+    if (g && openKey.value !== g.key) openKey.value = g.key   // 窄屏直达时展开所属分组
+  }
+})
 
 /* 桌面 ≥1024 切侧栏形态（与 style.css 三档断点一致；App 壳同条件隐藏返回条） */
 const desktop = ref(window.matchMedia('(min-width: 1024px)').matches)
@@ -175,12 +177,51 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   talk: { label: '谈心记录', comp: markRaw(TalkTab), icon: ChatLineRound },
   footprint: { label: '教师足迹', comp: markRaw(FootprintTab), icon: Medal },
 }
+/* 批37 IA 重组：30 页签按职能分 7 组（桌面侧栏=7 段；App 窄屏=两级「分组落地→组内页签」）；
+   原「基础数据/系统运维」两个杂物间拆散归位：物资/场地/归档→总务后勤，谈心/足迹→德育激励等 */
 const groups = [
-  { label: '账号与人员', items: ['teacher', 'parent', 'roleRequest', 'teacherProfile', 'footprint'] },
-  { label: '内容运营', items: ['content', 'appRelease', 'asset'] },
-  { label: '基础数据', items: ['org', 'student', 'term', 'schoolYear', 'exam', 'duty', 'civility', 'indicator', 'shop', 'goods', 'venue', 'template'] },
-  { label: '系统运维', items: ['oa', 'repair', 'talk', 'feedback', 'health', 'archive', 'notify', 'audit', 'aiUsage', 'sysParam'] },
+  { key: 'people', label: '人员账号', icon: User, items: ['teacher', 'parent', 'roleRequest', 'teacherProfile'] },
+  { key: 'edu', label: '教学教务', icon: School, items: ['org', 'student', 'term', 'schoolYear', 'exam', 'duty', 'template'] },
+  { key: 'moral', label: '德育激励', icon: Medal, items: ['civility', 'indicator', 'shop', 'talk', 'footprint'] },
+  { key: 'logi', label: '总务后勤', icon: OfficeBuilding, items: ['goods', 'repair', 'venue', 'archive'] },
+  { key: 'appr', label: '审批与反馈', icon: Stamp, items: ['oa', 'feedback'] },
+  { key: 'pub', label: '内容发布', icon: Promotion, items: ['content', 'appRelease', 'asset'] },
+  { key: 'ops', label: '系统运维', icon: Setting, items: ['health', 'notify', 'audit', 'aiUsage', 'sysParam'] },
 ].map((g) => ({ ...g, items: g.items.map((k) => ({ name: k, ...TABS[k] })) }))
+
+const openKey = ref<string | null>(null)
+/** 窄屏两级形态当前组；桌面端不用（侧栏全量展示） */
+const openGroup = computed(() => groups.find((g) => g.key === openKey.value) ?? null)
+function groupOf(name: string) { return groups.find((g) => g.items.some((t) => t.name === name)) }
+function enterGroup(key: string) {
+  openKey.value = key
+  const g = groups.find((x) => x.key === key)!
+  if (!g.items.some((t) => t.name === tab.value)) tab.value = g.items[0].name
+}
+/* ?tab= 直达时自动展开所属分组（如教师端「我的成长」跳 /admin?tab=teacherProfile） */
+if (route.query.tab) { const g0 = groupOf(route.query.tab as string); if (g0) openKey.value = g0.key }
+/* 落地页角标：组内待办合计（账号审批/意见反馈/数据体检） */
+function groupBadge(g: { items: { name: string }[] }) {
+  let n = 0
+  if (g.items.some((t) => t.name === 'roleRequest')) n += pendingCount.value
+  if (g.items.some((t) => t.name === 'feedback')) n += feedbackPending.value
+  if (g.items.some((t) => t.name === 'health')) n += healthDanger.value
+  return n
+}
+/* 组内页签事件透传（v-bind 展开 onXxx 即监听器；处理完即时刷新徽标） */
+function tabEvents(name: string) {
+  if (name === 'roleRequest') return { onHandled: loadPendingCount }
+  if (name === 'feedback') return { onHandled: loadFeedbackPending }
+  if (name === 'health') return { onScanned: onHealthScanned }
+  return {}
+}
+/* 计数页签标签（原三处动态 label 收拢到一处） */
+function paneLabel(t: { name: string; label: string }) {
+  if (t.name === 'roleRequest' && pendingCount.value) return `账号审批(${pendingCount.value})`
+  if (t.name === 'feedback' && feedbackPending.value) return `意见反馈(${feedbackPending.value})`
+  if (t.name === 'health' && healthDanger.value) return `数据体检(${healthDanger.value})`
+  return t.label
+}
 
 const current = computed(() => TABS[tab.value] ?? TABS.teacher)
 
@@ -303,4 +344,23 @@ onUnmounted(() => {
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='9'%3E%3Cpath d='M1 1h7v7M21 1h-7v7' fill='none' stroke='%23C9A227' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat; }
 .pt h1 { margin: 0; font-family: 'Noto Serif SC', 'Source Han Serif SC', 'STZhongsong', 'SimSun', serif;
   font-size: 21px; color: var(--shine-navy); font-weight: 700; letter-spacing: 2px; }
+
+/* ────────── 窄屏分组落地页（批37 两级形态第一级） ────────── */
+.grp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 600px) { .grp-grid { grid-template-columns: repeat(3, 1fr); } }
+.grp-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 14px; border: 1px solid #EDEFF4; border-radius: 14px; background: var(--shine-card, #fff);
+  cursor: pointer; text-align: left; }
+.grp-card:active { opacity: .75; }
+.grp-card .el-icon { font-size: 22px; color: var(--app-blue, #3E7BFA); }
+.grp-card b { font-size: 14px; color: var(--shine-navy, #1B2A4A); }
+.grp-card span { font-size: 11px; color: #8A93A6; line-height: 1.4; }
+.n-badge { position: absolute; top: 10px; right: 10px; font-style: normal; min-width: 16px; height: 16px;
+  padding: 0 4px; border-radius: 8px; background: var(--shine-red, #EF4444); color: #fff;
+  font-size: 10px; line-height: 16px; text-align: center; }
+/* 第二级返回行 */
+.grp-back { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.grp-back button { display: flex; align-items: center; gap: 4px; border: none; background: none;
+  color: var(--app-blue, #3E7BFA); font-size: 13px; font-weight: 600; cursor: pointer; padding: 4px 0; }
+.grp-back span { font-size: 12px; color: #8A93A6; }
 </style>

@@ -35,9 +35,12 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, fetchBlob } from '../../api/http'
+import { useAuthStore } from '../../stores/auth'
 
-/* 内容详情：通知公告/育儿课堂共用（type 由接口数据自带） */
+/* 内容详情：通知公告/扬长课程共用（type 由接口数据自带）；
+   批37 教师端双轨：家长走 /api/parent（含已读回执），教师走 /api/content/notices */
 const route = useRoute()
+const isParent = useAuthStore().role === 'PARENT'
 const item = ref<any>(null)
 const coverSrc = ref('')
 const loading = ref(true)
@@ -48,9 +51,9 @@ function fmtTime(t?: string | null) {
 
 onMounted(async () => {
   try {
-    item.value = await api<any>(`/api/parent/contents/${route.params.id}`)
-    // 通知已读回执（批9）：打开即打点（幂等；失败不阻塞阅读）
-    if (item.value.type === 'NOTICE') {
+    item.value = await api<any>(isParent ? `/api/parent/contents/${route.params.id}` : `/api/content/notices/${route.params.id}`)
+    // 通知已读回执（批9，家长端统计口径）：打开即打点（幂等；失败不阻塞阅读）
+    if (isParent && item.value.type === 'NOTICE') {
       api(`/api/parent/notice/${route.params.id}/read`, { method: 'POST' }).catch(() => {})
     }
     if (item.value.coverUrl) {
