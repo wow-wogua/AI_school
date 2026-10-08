@@ -69,18 +69,6 @@ public class RenderPdf {
         ctx.setVariable("imgIconL", dataUri("/static/img/img_icon_l.png"));
         ctx.setVariable("imgIconR", dataUri("/static/img/img_icon_r.png"));
         ctx.setVariable("imgLogo", dataUri("/static/img/img_logo.png"));
-        // 批36① AI 成长画像：服务端物化的本地图片内联为 dataUri（null/读不到 → 模板保持虚线占位框）；
-        // 渲染器不依赖 server 模块，魔数判 mime 就地写一份
-        String portraitUri = null;
-        Object portraitFile = data.get("portraitFile");
-        if (portraitFile instanceof String p && !p.isBlank()) {
-            byte[] b = Files.readAllBytes(Paths.get(p));
-            if (b.length > 4) {
-                String mime = (b[0] & 0xFF) == 0x89 && (b[1] & 0xFF) == 0x50 ? "image/png" : "image/jpeg";
-                portraitUri = "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(b);
-            }
-        }
-        ctx.setVariable("portraitUri", portraitUri);
         String html = engine.process(footprint ? "footprint" : annual ? "report-annual" : "report", ctx);
 
         Files.createDirectories(outPdf.toAbsolutePath().getParent());

@@ -545,11 +545,6 @@
 <div class="page z-g">
   <div class="t16v" style="top:58pt"><span>成长画像</span></div>
   <div class="abs" style="top:150pt;left:150pt;width:300pt;height:440pt;border:1pt dashed rgba(47,111,94,.5);border-radius:6pt;background:#F4F9F7"></div>
-  <!-- 批36① AI 成长画像：有图盖在占位框上（实线细框+角标），无图保持原虚线框零变化 -->
-  <img th:if="${portraitUri != null}" class="abs" th:src="${portraitUri}" alt="AI 成长画像"
-       style="top:150pt;left:150pt;width:300pt;height:440pt;object-fit:contain;border:1pt solid rgba(47,111,94,.35);border-radius:6pt;background:#F4F9F7">
-  <div th:if="${portraitUri != null}" class="abs"
-       style="top:561pt;left:397pt;font-size:7.5pt;color:#2F6F5E;background:rgba(244,249,247,.9);border:1pt solid rgba(47,111,94,.3);border-radius:3pt;padding:2pt 7pt">AI 生成</div>
   <div class="abs" style="top:607pt;left:60.7pt;width:355.2pt;height:108pt;background:#F0E7C8;border:1pt solid rgba(201,162,39,.55);border-radius:4pt"></div>
   <div class="abs" style="top:634.8pt;left:63.7pt;width:345.9pt;display:flex;text-align:center">
     <div style="flex:1">

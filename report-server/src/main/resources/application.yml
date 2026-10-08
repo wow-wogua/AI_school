@@ -59,21 +59,11 @@ aischool:
   asset:
     # 素材库（批35）PDF 渲染覆盖目录：server 与渲染子进程同容器共享；容器重建后启动同步自 MinIO
     override-dir: ./target/asset-overrides
-  portrait:
-    # 成长画像（批36①）本地物化目录：渲染子进程同容器直接读文件；
-    # 容器重建后由 MinIO 权威缓存回填（localFile 未命中先查 MinIO 再调 API），无需 compose 挂载
-    cache-dir: ./target/portrait-cache
   ai:
     # OpenAI 兼容接口；api-key 留空 → AI 草稿降级为规则模板生成（硬数字仍由规则引擎计算）
     base-url: ""
     api-key: ""
     model: ""
-    # 批36① 图像生成（成长画像）：与文本 AI 完全独立的第二把 key（OpenAI Images 协议）；
-    # 同样留空 = 未启用（报告保持占位框），key 只经管理端「AI 设置」写入 t_sys_config，绝不入仓库
-    img-base-url: ""
-    img-api-key: ""
-    img-model: ""
-    img-timeout-seconds: 180   # 生图慢（实测 grok ~10s / gpt-image-2 25~45s），给 3 分钟
     # 任务队列 worker 并发 = 对 LLM 的最大同时在途请求数。
     # DeepSeek 并发上限：flash 2500/账号、pro 500/账号（超限返回 429 不封号，未配置时降级模板）。
     # 16 = flash 的 0.6%，覆盖多位老师同时批量（5 位老师×50 人 ≈ 2 分钟跑完）；
