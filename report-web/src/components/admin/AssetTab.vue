@@ -53,6 +53,7 @@ let pickedKey = ''
 const groups = computed(() => [
   { name: 'App 内素材', rows: rows.value.filter((r) => r.group === 'web') },
   { name: '成长报告图库（PDF）', rows: rows.value.filter((r) => r.group === 'pdf') },
+  { name: 'IP 成长画像底图', rows: rows.value.filter((r) => r.group === 'ip') },
 ])
 
 async function load() {

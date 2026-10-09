@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h4>值班排班（开关开启后，日常评价仅「当日值班教师」可操作；管理员/领导不受限。先排班再开开关，避免空排班锁死全员）</h4>
+    <h4>值班排班（开关开启后，素养评价仅「当日值班教师」可操作；管理员/领导不受限。先排班再开开关，避免空排班锁死全员）</h4>
     <div class="bar">
       <span class="lbl">值班校验</span>
       <el-switch :model-value="dutyCheck" :loading="cfgSaving" inline-prompt active-text="开" inactive-text="关"
@@ -54,7 +54,7 @@ async function setCfg(open: boolean) {
   try {
     await api('/api/admin/duty/config', { method: 'PUT', json: { dutyCheck: open } })
     dutyCheck.value = open
-    ElMessage.success(open ? '已开启：日常评价仅当日值班教师可操作' : '已关闭：全员可评价')
+    ElMessage.success(open ? '已开启：素养评价仅当日值班教师可操作' : '已关闭：全员可评价')
   } finally {
     cfgSaving.value = false
   }

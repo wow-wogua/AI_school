@@ -187,7 +187,7 @@ function previewMoments(cur: string) {
 /* 入口配色（图4）：每格一色的实心圆角方底 + 白图标；noPre=目标页无按学生看数据的形态 */
 const entries = [
   { name: '成绩', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' },
-  { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
+  { name: '素养评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
   { name: '活动', icon: 'flag-o', to: '/activity', bg: '#F43F5E', noPre: true },
   { name: '荣誉', icon: 'medal-o', to: '/honor', bg: '#EAB308' },
   { name: '期末评语', icon: 'edit-square', to: '/final-eval', bg: '#F59E0B' },

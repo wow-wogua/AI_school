@@ -1,13 +1,22 @@
 <template>
   <div class="page">
     <motion.h2 class="page-title" :initial="{ opacity: 0, x: -16 }" :animate="{ opacity: 1, x: 0 }"
-      :transition="{ type: 'spring', stiffness: 400, damping: 32 }"><el-icon><Flag /></el-icon>活动管理</motion.h2>
+      :transition="{ type: 'spring', stiffness: 400, damping: 32 }"><el-icon><Flag /></el-icon>扬长课程</motion.h2>
+    <!-- 批40e：七类课程筛选（德育课程/扬长选修/体艺特训队/跨学科学习/做中学/社会实践/其他） -->
+    <div class="cats">
+      <el-radio-group v-model="cat" size="small">
+        <el-radio-button v-for="c in ['全部', ...CATS]" :key="c" :value="c">{{ c }}</el-radio-button>
+      </el-radio-group>
+      <el-tag class="stat-chip">共 {{ filtered.length }} 个</el-tag>
+    </div>
+    <el-alert v-if="cat === '其他'" type="info" :closable="false" show-icon
+      title="临时性活动请统一归入「其他」类（此处保留原活动管理用法）" style="margin-bottom: 10px" />
+
     <div class="toolbar">
-      <el-button v-if="isAdmin" type="primary" @click="openEdit()">新建活动</el-button>
-      <el-tag class="stat-chip">共 {{ activities.length }} 个活动</el-tag>
+      <el-button v-if="isAdmin" type="primary" @click="openEdit()">新建课程活动</el-button>
     </div>
 
-    <el-table :data="activities" highlight-current-row @row-click="select">
+    <el-table :data="filtered" highlight-current-row @row-click="select">
       <el-table-column label="封面" width="80">
         <template #default="{ row }">
           <el-image v-if="row.coverUrl" :src="covers[row.id]" fit="cover"
@@ -16,8 +25,8 @@
           <span v-else style="color: #c0c4cc; font-size: 12px">无</span>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="活动名称" min-width="150" />
-      <el-table-column prop="type" label="类型" width="90" />
+      <el-table-column prop="title" label="名称" min-width="150" />
+      <el-table-column prop="type" label="课程类别" width="110" />
       <el-table-column label="时间" width="150">
         <template #default="{ row }">{{ fmt(row.startTime) }}</template>
       </el-table-column>
@@ -28,7 +37,7 @@
           <el-button link size="small" @click.stop="del(row)">删除</el-button>
         </template>
       </el-table-column>
-      <template #empty>暂无活动{{ isAdmin ? '，点击上方「新建活动」创建' : '' }}</template>
+      <template #empty>暂无{{ cat === '全部' ? '课程活动' : cat + '类记录' }}{{ isAdmin ? '，点击上方「新建课程活动」创建' : '' }}</template>
     </el-table>
 
     <el-card v-if="current" style="margin-top: 16px">
@@ -47,19 +56,26 @@
         </el-table-column>
         <el-table-column prop="award" label="奖项" width="120" />
         <el-table-column prop="performance" label="表现" min-width="140" />
-        <el-table-column label="操作" width="70">
+        <el-table-column label="操作" width="110">
           <template #default="{ row }">
             <el-button link size="small" @click="openSignup(row)">编辑</el-button>
+            <!-- 批40e 撤回：误录可删，能量币入账自动冲正 -->
+            <el-button link size="small" type="danger" @click.stop="delSignup(row)">删除</el-button>
           </template>
         </el-table-column>
         <template #empty>尚无参与记录</template>
       </el-table>
     </el-card>
 
-    <el-dialog v-model="editVisible" :title="editForm.id ? '编辑活动' : '新建活动'" width="480px">
+    <el-dialog v-model="editVisible" :title="editForm.id ? '编辑课程活动' : '新建课程活动'" width="480px">
       <el-form label-width="70px">
         <el-form-item label="名称" required><el-input v-model="editForm.title" /></el-form-item>
-        <el-form-item label="类型"><el-input v-model="editForm.type" /></el-form-item>
+        <el-form-item label="课程类别" required>
+          <el-select v-model="editForm.type" style="width: 100%">
+            <el-option v-for="c in CATS" :key="c" :label="c" :value="c" />
+          </el-select>
+          <div v-if="editForm.type === '其他'" class="hint">临时性活动请归入此类</div>
+        </el-form-item>
         <el-form-item label="时间">
           <el-date-picker v-model="editForm.startTime" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" />
         </el-form-item>
@@ -77,7 +93,7 @@
       </el-form>
       <template #footer>
         <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!editForm.title" @click="saveActivity">保存</el-button>
+        <el-button type="primary" :disabled="!editForm.title || !editForm.type" @click="saveActivity">保存</el-button>
       </template>
     </el-dialog>
 
@@ -111,11 +127,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { motion } from 'motion-v'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../api/http'
 import { useAuthStore } from '../stores/auth'
+
+/** 批40e：扬长课程七类（与后端 ActivityController.CATEGORIES 一致；「其他」=临时性活动） */
+const CATS = ['德育课程', '扬长选修', '体艺特训队', '跨学科学习', '做中学', '社会实践', '其他']
 
 interface Activity { id: number; title: string; type?: string; startTime?: string; place?: string; intro?: string; coverUrl?: string }
 interface Signup { signupId: number; studentId: number; studentName: string; checkinTime?: string; award?: string; performance?: string }
@@ -124,6 +143,10 @@ const auth = useAuthStore()
 const isAdmin = auth.role === 'ADMIN'
 
 const activities = ref<Activity[]>([])
+const cat = ref('全部')
+const filtered = computed(() =>
+  cat.value === '全部' ? activities.value : activities.value.filter((a) => a.type === cat.value),
+)
 const current = ref<Activity>()
 const signups = ref<Signup[]>([])
 const classes = ref<{ id: number; name: string }[]>([])
@@ -210,6 +233,15 @@ async function del(a: Activity) {
   await loadActivities()
 }
 
+/** 批40e 撤回：删除参与记录（带能量币的自动冲正扣回） */
+async function delSignup(s: Signup) {
+  if (!current.value) return
+  await ElMessageBox.confirm(`删除 ${s.studentName} 的参与记录？已入账的能量币将自动冲销`, '撤回参与', { type: 'warning' })
+  await api(`/api/activity/${current.value.id}/signup/${s.signupId}`, { method: 'DELETE' })
+  ElMessage.success('已删除')
+  await loadSignups()
+}
+
 async function openSignup(s?: Signup) {
   signupForm.value = s
     ? { signupId: s.signupId, checkin: !!s.checkinTime, award: s.award || '', performance: s.performance || '', coin: 0 }
@@ -257,4 +289,5 @@ onMounted(loadActivities)
 
 <style scoped>
 .hint { color: var(--el-text-color-secondary); font-size: 12px; }
+.cats { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 </style>

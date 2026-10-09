@@ -101,10 +101,10 @@ function fmtTime(t?: string) {
   return t ? t.slice(0, 16).replace('T', ' ') : '—'
 }
 function stLabel(s: string) {
-  return ({ PENDING: '待处理', DONE: '已完成', REJECTED: '不予受理' } as Record<string, string>)[s] || s
+  return ({ PENDING: '待处理', DONE: '已完成', REJECTED: '不予受理', CANCELED: '已撤回' } as Record<string, string>)[s] || s
 }
 function tagType(s: string) {
-  return ({ PENDING: 'warning', DONE: 'success', REJECTED: 'info' } as Record<string, string>)[s] || 'info'
+  return ({ PENDING: 'warning', DONE: 'success', REJECTED: 'info', CANCELED: 'info' } as Record<string, string>)[s] || 'info'
 }
 
 onMounted(load)

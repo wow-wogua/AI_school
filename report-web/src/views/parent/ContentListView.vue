@@ -4,18 +4,15 @@
     <div class="app-sec">{{ typeLabel }} · {{ rows.length }} 条</div>
 
     <van-skeleton v-if="loading" :row="6" style="padding: 14px" />
-    <div v-else-if="!rows.length" class="app-card empty">
-      {{ type === 'NOTICE' ? '暂无通知公告' : '暂无扬长课程内容' }}
-    </div>
+    <div v-else-if="!rows.length" class="app-card empty">暂无通知公告</div>
 
     <!-- 内容卡（第一版卡片语言：封面通栏图 + 标题 + 摘要，tex 纹理轮换） -->
     <div v-for="(it, i) in rows" :key="it.id" class="app-card item" :class="tex(i)"
-      @click="$router.push(isParent ? `/p/content/${it.id}` : props.type === 'NOTICE' ? `/notices/${it.id}` : `/courses/${it.id}`)">
+      @click="$router.push(isParent ? `/p/content/${it.id}` : `/notices/${it.id}`)">
       <img v-if="coverCache[it.id]" class="cover" :src="coverCache[it.id]" alt="" />
       <div class="body">
         <p class="title">
           {{ it.title }}
-          <span v-if="it.videoUrl" class="app-chip video">视频</span>
           <span v-if="it.scope === 'CLASS'" class="app-chip cls">{{ it.className ?? '本班' }}</span>
         </p>
         <p v-if="it.content" class="brief">{{ it.content }}</p>
@@ -34,13 +31,13 @@ import { useRoute } from 'vue-router'
 import { api, fetchBlob } from '../../api/http'
 import { useAuthStore } from '../../stores/auth'
 
-/* 通知公告 / 扬长课程 共用列表页（路由 props 区分 type）；
+/* 通知公告列表页（批40a 内容型扬长课程下线，type 恒 NOTICE）；
    批37 教师端入口同组件双轨：家长走 /api/parent（含班级范围），其他角色走 /api/content/notices（全校范围）；
-   批37 追加：家长端两页升底部 Tab（ptab 壳无标题栏，自补状态栏安全间距） */
-const props = defineProps<{ type: 'NOTICE' | 'PARENTING' }>()
+   批37 追加：家长端页升底部 Tab（ptab 壳无标题栏，自补状态栏安全间距） */
+const props = defineProps<{ type: 'NOTICE' }>()
 const isParent = useAuthStore().role === 'PARENT'
 const isTabView = useRoute().meta.layout === 'ptab'
-const typeLabel = props.type === 'NOTICE' ? '通知公告' : '扬长课程'
+const typeLabel = '通知公告'
 
 interface Item {
   id: number; title: string; coverUrl: string | null; videoUrl: string | null
@@ -96,7 +93,6 @@ onMounted(load)
 .title { margin: 0; font-size: 15px; font-weight: 600; color: var(--app-text-1);
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .title .app-chip { flex: none; }
-.video { color: var(--shine-red); background: #fff; border: 1px solid var(--shine-red-soft); }
 .cls { color: var(--shine-navy); background: #fff; border: 1px solid var(--shine-line); }
 .brief { margin: 6px 0 0; font-size: 12px; color: var(--app-text-3);
   line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

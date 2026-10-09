@@ -7,7 +7,7 @@ export interface ConductSection { full: string; name: string; groups: ConductGro
 export const CONDUCT_BASIS =
   '文明班评比以下面 12 项得分为依据：每班每天基础分 120 分，每项 10 分；1-11 项为扣分，第 12 项为特殊加减分。'
 export const CONDUCT_NOTE =
-  '本页为校方官方量化考核标准（文明班评比口径），教师录入操行分 / 日常评价时可作打分参照；个人操行分等第（A/B/C/D）另见成长银行。'
+  '本页为校方官方量化考核标准（文明班评比口径），教师录入操行分 / 素养评价时可作打分参照；个人操行分等第（A/B/C/D）另见成长银行。'
 
 export const CONDUCT_SECTIONS: ConductSection[] = [
   { full: '一、仪容仪表（10分）', name: '仪容仪表（10分）', groups: [

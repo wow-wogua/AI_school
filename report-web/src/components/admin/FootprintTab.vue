@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h4>教师成长足迹（公开课/听课/讲座/读书笔记/工作室；奖项维度聚合教师风采）</h4>
+    <h4>教师足迹（公开课/听课/讲座/读书笔记/工作室；奖项维度聚合教师风采）</h4>
     <div class="sum">
       <div v-for="s in SIX" :key="s.key" class="cell">
         <b>{{ summary[s.key] ?? 0 }}</b><span>{{ s.label }}</span>
@@ -14,7 +14,7 @@
         <el-option v-for="s in SIX.filter((x) => x.key !== 'AWARD')" :key="s.key" :label="s.label" :value="s.key" />
       </el-select>
       <el-button type="primary" :disabled="!qTeacher" :loading="exporting" @click="exportPdf">导出该教师 PDF</el-button>
-      <span v-if="!qTeacher" class="hint">先选择教师可导出其成长足迹报告</span>
+      <span v-if="!qTeacher" class="hint">先选择教师可导出其教师足迹报告</span>
     </div>
     <el-table :data="rows" size="small">
       <el-table-column prop="teacherName" label="教师" width="100" />
@@ -60,14 +60,14 @@ const rows = ref<any[]>([])
 const summary = ref<Record<string, number>>({})
 const exporting = ref(false)
 
-/** 导出所选教师的成长足迹 PDF（批26）：同步渲染约 10s */
+/** 导出所选教师的教师足迹 PDF（批26）：同步渲染约 10s */
 async function exportPdf() {
   if (!qTeacher.value) return
   exporting.value = true
   try {
     const blob = await fetchBlob(`/api/footprint/report?teacherId=${qTeacher.value}`)
     const name = teachers.value.find((t: any) => t.id === qTeacher.value)
-    await saveFile(blob, `${name?.realName || name?.username || '教师'}-成长足迹.pdf`)
+    await saveFile(blob, `${name?.realName || name?.username || '教师'}-教师足迹.pdf`)
   } catch (e: any) {
     ElMessage.error(e?.message || '导出失败')
   } finally { exporting.value = false }

@@ -20,11 +20,18 @@
     </div>
 
     <el-card v-if="studentId">
-      <template #header>班主任寄语（AI 只产草稿，人工编辑确认后生效）</template>
+      <template #header>
+        <div class="card-head">
+          <span>班主任寄语（AI 只产草稿，人工编辑确认后生效）</span>
+          <VoiceMic @text="onVoice" />
+        </div>
+      </template>
       <el-input v-model="content" type="textarea" :rows="8" placeholder="点击「AI 生成草稿」或直接输入" />
       <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap">
         <el-button :disabled="!content" @click="save(false)">保存</el-button>
         <el-button type="primary" :disabled="!content" @click="save(true)">确认生效</el-button>
+        <!-- 批40e 撤回：清空已存寄语（报告回落无寄语） -->
+        <el-button type="danger" plain :disabled="status === '无'" @click="clearContent">清空撤回</el-button>
       </div>
     </el-card>
   </div>
@@ -34,9 +41,10 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, fetchBlob } from '../api/http'
 import { saveFile } from '../api/nativeShare'
+import VoiceMic from '../components/VoiceMic.vue'
 import { useAiTasksStore } from '../stores/aiTasks'
 
 const store = useAiTasksStore()
@@ -157,6 +165,11 @@ async function load() {
   status.value = c.status ?? '无'
 }
 
+/** 语音输入（批39⑧）：转写文本整段追加到寄语末尾 */
+function onVoice(t: string) {
+  content.value += t
+}
+
 async function makeDraft() {
   if (!studentId.value || !termId.value) return
   myTaskId = await store.submit('COMMENT', studentId.value, termId.value)
@@ -194,5 +207,19 @@ async function save(confirm: boolean) {
   ElMessage.success(confirm ? '已确认生效，报告单将使用该寄语' : '已保存')
 }
 
+/** 批40e 撤回：清空该生本学期寄语（删除记录，报告回落无寄语） */
+async function clearContent() {
+  if (!studentId.value || !termId.value) return
+  await ElMessageBox.confirm('清空该生本学期的班主任寄语？报告将回落为无寄语', '撤回寄语', { type: 'warning' })
+  await api(`/api/ai/comment?studentId=${studentId.value}&termId=${termId.value}`, { method: 'DELETE' })
+  content.value = ''
+  status.value = '无'
+  ElMessage.success('已清空')
+}
+
 onMounted(init)
 </script>
+
+<style scoped>
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+</style>

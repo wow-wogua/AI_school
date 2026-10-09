@@ -89,10 +89,10 @@ const greeting = computed(() => {
 const avatarChar = computed(() => auth.realName?.charAt(0) || '家')
 
 /* 服务宫格（同教师端 HomeView 的 g-icon 彩色方底形态；to 为空=未开放置灰）。
-   微光信箱/成长报告批2/批5 上宫格；批37：修改密码归「我的」页、成长档案上宫格（默认
+   微光时刻/成长报告批2/批5 上宫格；批37：修改密码归「我的」页、成长档案上宫格（默认
    第一个孩子，多孩从上方孩子卡进）；批37 追加：通知公告/扬长课程升底部导航 Tab，宫格移除 */
 const grids = computed(() => [
-  { name: '微光信箱', icon: 'photograph', to: '/p/moments', bg: '#F97316' },
+  { name: '微光时刻', icon: 'photograph', to: '/p/moments', bg: '#F97316' },
   { name: '成长档案', icon: 'orders-o', to: children.value.length ? `/p/archive/${children.value[0].studentId}` : '', bg: '#1F2A44' },
   { name: '荣誉证书', icon: 'medal-o', to: '/p/honor', bg: '#EAB308' },
   { name: '成长报告', icon: 'description', to: '/p/report', bg: '#14B8A6' },

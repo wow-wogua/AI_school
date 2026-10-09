@@ -174,7 +174,7 @@ const TABS: Record<string, { label: string; comp: any; icon: any }> = {
   goods: { label: '物资管理', comp: markRaw(GoodsTab), icon: GoodsIcon },
   repair: { label: '报修处理', comp: markRaw(RepairTab), icon: Tools },
   venue: { label: '场地管理', comp: markRaw(VenueTab), icon: OfficeBuilding },
-  talk: { label: '谈心记录', comp: markRaw(TalkTab), icon: ChatLineRound },
+  talk: { label: '导师谈心', comp: markRaw(TalkTab), icon: ChatLineRound },
   footprint: { label: '教师足迹', comp: markRaw(FootprintTab), icon: Medal },
 }
 /* 批37 IA 重组：30 页签按职能分 7 组（桌面侧栏=7 段；App 窄屏=两级「分组落地→组内页签」）；

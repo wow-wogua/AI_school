@@ -1,19 +1,13 @@
 <template>
   <div>
     <div class="toolbar">
-      <el-radio-group v-model="type" @change="load">
-        <el-radio-button value="NOTICE">通知公告</el-radio-button>
-        <el-radio-button value="PARENTING">扬长课程</el-radio-button>
-      </el-radio-group>
       <el-input v-model="keyword" placeholder="搜索标题" clearable style="width: 180px"
         @keyup.enter="load" @clear="load" />
       <el-button type="primary" @click="openCreate">新建</el-button>
     </div>
 
     <el-alert type="info" :closable="false" class="tip">
-      {{ type === 'NOTICE'
-        ? '通知家长的学校公告。可见范围=全校或指定班级；家长端「通知公告」宫格查看。'
-        : '扬长课程内容。支持图文、封面图+第三方平台视频外链（视频文件不直传，磁盘与流量吃不消）。' }}
+      通知家长的学校公告。可见范围=全校或指定班级；家长端「通知公告」Tab 查看。
     </el-alert>
 
     <div v-if="selected.length" class="batch-bar">
@@ -34,7 +28,6 @@
       <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
           <b>{{ row.title }}</b>
-          <el-tag v-if="row.videoUrl" size="small" type="warning" style="margin-left: 6px">视频</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="范围" width="120">
@@ -50,10 +43,10 @@
       <el-table-column label="发布时间" width="160">
         <template #default="{ row }">{{ fmtTime(row.publishTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" :width="type === 'NOTICE' ? 210 : 170">
+      <el-table-column label="操作" width="210">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="type === 'NOTICE' && row.status === 1" link type="success" @click="openReadStats(row)">
+          <el-button v-if="row.status === 1" link type="success" @click="openReadStats(row)">
             回执
           </el-button>
           <el-button link :type="row.status === 1 ? 'warning' : 'success'" @click="toggleStatus(row)">
@@ -86,7 +79,7 @@
     </el-dialog>
 
     <!-- 新建 / 编辑 -->
-    <el-dialog v-model="dialog" :title="editing ? '编辑内容' : typeLabel + '· 新建'" width="560px">
+    <el-dialog v-model="dialog" :title="editing ? '编辑内容' : '通知公告 · 新建'" width="560px">
       <el-form label-width="80px">
         <el-form-item label="标题">
           <el-input v-model="form.title" maxlength="200" show-word-limit placeholder="必填" />
@@ -99,9 +92,6 @@
             <span v-else-if="form.coverUrl" class="cover-hint ok">已上传封面</span>
             <el-button v-if="form.coverUrl" link type="danger" @click="form.coverUrl = ''">清除</el-button>
           </div>
-        </el-form-item>
-        <el-form-item v-if="type === 'PARENTING'" label="视频链接">
-          <el-input v-model="form.videoUrl" placeholder="第三方平台视频地址（可留空做纯图文）" />
         </el-form-item>
         <el-form-item label="正文">
           <el-input v-model="form.content" type="textarea" :rows="6" placeholder="支持换行的图文正文" />
@@ -134,9 +124,8 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../../api/http'
 
-/* type=NOTICE 通知公告 / PARENTING 扬长课程（批37 正名，同一张表一套 CRUD，管理端切换管理） */
-const type = ref<'NOTICE' | 'PARENTING'>('NOTICE')
-const typeLabel = computed(() => (type.value === 'NOTICE' ? '通知公告' : '扬长课程'))
+/* 内容管理（批40a 内容型扬长课程下线，仅存通知公告；历史 PARENTING 数据不再展示） */
+const type = 'NOTICE'
 
 const rows = ref<any[]>([])
 const selected = ref<any[]>([])
@@ -159,7 +148,7 @@ function fmtTime(t?: string) {
 }
 
 async function load() {
-  const qs = new URLSearchParams({ type: type.value, page: '1', size: '100' })
+  const qs = new URLSearchParams({ type, page: '1', size: '100' })
   if (keyword.value) qs.set('keyword', keyword.value)
   const d = await api<{ records: any[] }>(`/api/admin/content/list?${qs}`)
   rows.value = d.records
@@ -179,7 +168,7 @@ async function loadCovers(list: any[]) {
 
 function openCreate() {
   editing.value = null
-  form.value = { type: type.value, title: '', coverUrl: '', videoUrl: '', content: '', scope: 'ALL' }
+  form.value = { type, title: '', coverUrl: '', videoUrl: '', content: '', scope: 'ALL' }
   dialog.value = true
 }
 

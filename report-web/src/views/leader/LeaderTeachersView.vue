@@ -22,7 +22,7 @@
       </div>
       <div class="u-grid">
         <div class="u"><b>{{ t.reports }}</b><span>报告生成</span></div>
-        <div class="u"><b>{{ t.evals }}</b><span>日常评价</span></div>
+        <div class="u"><b>{{ t.evals }}</b><span>素养评价</span></div>
         <div class="u"><b>{{ t.scores }}</b><span>成绩录入</span></div>
         <div class="u"><b>{{ t.moments }}</b><span>微光发布</span></div>
         <div class="u"><b>{{ shortTokens(t.tokens) }}</b><span>AI tokens</span></div>

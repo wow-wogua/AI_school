@@ -65,7 +65,12 @@
               <p v-if="detail.handleNote"><span>说明</span><b>{{ detail.handleNote }}</b></p>
             </div>
           </template>
-          <p v-else class="node-tip">待管理员处理</p>
+          <template v-else>
+            <p class="node-tip">待管理员处理</p>
+            <!-- 批40e 撤回：发起人未处理前可撤回（凭证照片一并清除） -->
+            <van-button round block size="small" plain type="danger" style="margin-top: 10px"
+              @click="doCancel">撤回报修</van-button>
+          </template>
         </div>
       </template>
     </van-popup>
@@ -74,7 +79,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { showSuccessToast, showToast } from 'vant'
+import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { api, apiForm, fetchBlob } from '../api/http'
 import { relTime } from '../utils/fmt'
 
@@ -142,10 +147,21 @@ function fmtTime(t?: string) {
   return t ? t.slice(0, 16).replace('T', ' ') : '—'
 }
 function stLabel(s: string) {
-  return ({ PENDING: '待处理', DONE: '已完成', REJECTED: '不予受理' } as Record<string, string>)[s] || s
+  return ({ PENDING: '待处理', DONE: '已完成', REJECTED: '不予受理', CANCELED: '已撤回' } as Record<string, string>)[s] || s
 }
 function stClass(s: string) {
-  return ({ PENDING: 'pend', DONE: 'ok', REJECTED: 'bad' } as Record<string, string>)[s] || ''
+  return ({ PENDING: 'pend', DONE: 'ok', REJECTED: 'bad', CANCELED: 'cxl' } as Record<string, string>)[s] || ''
+}
+
+/** 批40e 撤回：发起人撤回未处理的报修单 */
+async function doCancel() {
+  if (!detail.value) return
+  try { await showConfirmDialog({ title: '撤回报修', message: '撤回后该报修单作废，凭证照片一并清除' }) }
+  catch { return }
+  await api(`/api/repair/${detail.value.id}/cancel`, { method: 'PUT' })
+  showSuccessToast('已撤回')
+  detailOpen.value = false
+  await load()
 }
 
 onMounted(load)
@@ -177,7 +193,7 @@ onMounted(load)
 .r-sub { margin: 3px 0 0; font-size: 11px; color: var(--app-text-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .st { flex: none; font-size: 12px; font-weight: 600; }
-.st.pend { color: #B45309; } .st.ok { color: #0D9467; } .st.bad { color: #EF4444; }
+.st.pend { color: #B45309; } .st.ok { color: #0D9467; } .st.bad { color: #EF4444; } .st.cxl { color: var(--app-text-3); }
 .empty { padding: 26px 0; text-align: center; font-size: 13px; color: var(--app-text-3); }
 
 .pop { padding-bottom: 14px; }

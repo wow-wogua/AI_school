@@ -14,6 +14,10 @@
       <button class="start-btn venue" type="button" @click="openNew('VENUE')">
         <van-icon name="location-o" /><span>场地申请</span>
       </button>
+      <!-- 批43① 采购申请（钉钉流程移植：五级链+附件+多组明细） -->
+      <button class="start-btn purchase" type="button" @click="openNew('PURCHASE')">
+        <van-icon name="shop-o" /><span>采购申请</span>
+      </button>
     </div>
 
     <van-tabs v-model:active="tab" class="oa-tabs" sticky>
@@ -72,7 +76,9 @@
     <van-popup v-model:show="newOpen" position="bottom" round :style="{ maxHeight: '82%' }" class="pop">
       <div class="p-head">
         <b>{{ typeLabel(newType) }}</b>
-        <small>{{ newType === 'SEAL' ? '提交后依次经一、二、三级审批' : '提交后按学校配置的级数审批' }}</small>
+        <small>{{ newType === 'SEAL' ? '提交后依次经一、二、三级审批'
+          : newType === 'PURCHASE' ? '五级审批：部门负责人 → 库存确认 → 主管校领导 → 招采中心 → 采购验收'
+          : '提交后按学校配置的级数审批' }}</small>
       </div>
       <div class="p-body">
         <template v-if="newType === 'SEAL'">
@@ -99,6 +105,42 @@
           <van-field v-model="newTitle" type="textarea" rows="2" autosize label="事由"
             placeholder="例如：班会课使用报告厅" />
           <p v-if="!venues.length" class="goods-tip">暂无可申请场地，请管理员先在管理端维护场地字典</p>
+        </template>
+        <template v-else-if="newType === 'PURCHASE'">
+          <van-field v-model="newTitle" type="textarea" rows="2" autosize label="申请事由"
+            placeholder="例如：初一年级英语听说竞赛物资" />
+          <van-field :model-value="purExpectDate" is-link readonly label="期望交付" placeholder="选择日期（必选）"
+            @click="openDate('expect')" />
+          <van-field v-model="purPlace" label="交付地点" placeholder="例如：办公楼二楼教务处" />
+          <!-- 附件（≤3 张，选图即传，同报修凭证模式） -->
+          <div class="photo-row">
+            <div v-for="(p, i) in purPhotos" :key="p.key" class="thumb">
+              <img :src="p.url" alt="附件" />
+              <button type="button" class="rm" @click="purPhotos.splice(i, 1)"><van-icon name="cross" /></button>
+            </div>
+            <button v-if="purPhotos.length < 3" type="button" class="add" @click="purPhotoInput?.click()">
+              <van-icon name="photograph" /><small>附件</small>
+            </button>
+          </div>
+          <input ref="purPhotoInput" type="file" accept="image/jpeg,image/png" hidden multiple @change="onPurPhoto" />
+          <!-- 采购明细（多组：名称/型号规格/数量/备注，复制加行） -->
+          <div class="app-sec" style="margin: 8px 0 4px">采购明细</div>
+          <div v-for="(it, i) in newItems" :key="i" class="p-item">
+            <div class="p-item-head">
+              <b>物品{{ i + 1 }}</b>
+              <span class="p-ops">
+                <button type="button" class="op copy" @click="copyItem(i, it)">复制</button>
+                <button v-if="newItems.length > 1" type="button" class="op del" @click="newItems.splice(i, 1)">删除</button>
+              </span>
+            </div>
+            <van-field v-model="it.name" label="物品名称" placeholder="必填" input-align="right" />
+            <van-field v-model="it.spec" label="型号规格" placeholder="必填" input-align="right" />
+            <van-field v-model="it.qty" label="数量" placeholder="必填" input-align="right" />
+            <van-field v-model="it.note" label="备注" placeholder="选填" input-align="right" />
+          </div>
+          <button class="add-line" type="button" @click="newItems.push({ name: '', spec: '', qty: '', note: '' })">
+            + 添加物品
+          </button>
         </template>
         <template v-else>
           <div v-for="(l, i) in newLines" :key="i" class="g-line">
@@ -142,6 +184,37 @@
             <p><span>使用日期</span><b>{{ detailJson.useDate }}</b></p>
             <p><span>事由</span><b>{{ detailJson.reason }}</b></p>
           </div>
+          <!-- 批43① 采购：基础信息 + 明细 + 附件 + 库存参考 -->
+          <template v-else-if="detail.formType === 'PURCHASE'">
+            <div class="detail-cells">
+              <p><span>期望交付</span><b>{{ detailJson.expectDate }}</b></p>
+              <p><span>交付地点</span><b>{{ detailJson.place }}</b></p>
+              <p><span>事由</span><b>{{ detailJson.reason }}</b></p>
+            </div>
+            <div class="app-sec" style="margin: 14px 0 4px">采购明细（{{ (detailJson.items || []).length }} 项）</div>
+            <div class="p-items-view">
+              <div v-for="(it, i) in detailJson.items" :key="i" class="pv-row">
+                <p class="pv-name">{{ i + 1 }}. {{ it.name }}<van-tag plain size="small" class="pv-qty">{{ it.qty }}</van-tag></p>
+                <p class="pv-sub">规格：{{ it.spec }}<template v-if="it.note"> · {{ it.note }}</template></p>
+              </div>
+            </div>
+            <template v-if="detail.photoUrls?.length">
+              <div class="app-sec" style="margin: 14px 0 4px">附件（{{ detail.photoUrls.length }}）</div>
+              <div class="big-photos">
+                <img v-for="(u, i) in purDetailUrls" :key="i" :src="u" alt="附件" />
+              </div>
+            </template>
+            <template v-if="detail.stockMatches?.length">
+              <div class="app-sec" style="margin: 14px 0 4px">现有库存参考（库存确认用）</div>
+              <div class="p-items-view">
+                <div v-for="(m, i) in detail.stockMatches" :key="i" class="pv-row">
+                  <p class="pv-name">{{ m.name }}<van-tag plain type="success" size="small" class="pv-qty">库存 {{ m.stock }}{{ m.unit }}</van-tag></p>
+                  <p class="pv-sub">匹配「{{ m.item }}」<template v-if="m.location"> · {{ m.location }}</template></p>
+                </div>
+              </div>
+            </template>
+            <p v-if="detail.ccNames?.length" class="cc-tip">抄送：{{ detail.ccNames.join('、') }}</p>
+          </template>
           <div v-else class="detail-cells goods-cells">
             <p v-for="(l, i) in detailJson" :key="i">
               <span>{{ l.name }}</span><b>{{ l.qty }} {{ l.unit }}<small v-if="l.location"> · {{ l.location }}</small></b>
@@ -239,7 +312,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
-import { api } from '../api/http'
+import { api, apiForm, fetchBlob } from '../api/http'
 import { relTime } from '../utils/fmt'
 import { useAuthStore } from '../stores/auth'
 
@@ -250,6 +323,9 @@ interface OaRow {
 interface OaDetail extends OaRow {
   detail: string; levels: number
   logs: { action: string; nodeName: string; operatorName: string; note: string; createTime: string }[]
+  photoUrls?: string[] // 批43① 采购附件
+  stockMatches?: { item: string; name: string; stock: number; unit: string; location: string }[]
+  ccNames?: string[]
 }
 interface GoodsOpt { id: number; name: string; unit: string; stock: number; location: string }
 
@@ -279,9 +355,9 @@ const pickLine = ref(0)
 const newLines = ref<{ goodsId: number; name: string; qty: string }[]>([{ goodsId: 0, name: '', qty: '' }])
 const submitting = ref(false)
 
-/* 日期四字段共用一个 picker（use=公章使用日期 / start·end=请假起止 / venue=场地使用日期） */
+/* 日期五字段共用一个 picker（use=公章使用日期 / start·end=请假起止 / venue=场地使用日期 / expect=采购期望交付） */
 const dateOpen = ref(false)
-const dateField = ref<'use' | 'start' | 'end' | 'venue'>('use')
+const dateField = ref<'use' | 'start' | 'end' | 'venue' | 'expect'>('use')
 const dateBuf = ref<string[]>([])
 const leaveType = ref('')
 const leaveStart = ref('')
@@ -294,6 +370,34 @@ const venueId = ref(0)
 const venueName = ref('')
 const venueDate = ref('')
 
+// ───────── 批43① 采购申请 ─────────
+const purExpectDate = ref('')
+const purPlace = ref('')
+const purPhotos = ref<{ key: string; url: string }[]>([])
+const purPhotoInput = ref<HTMLInputElement>()
+const newItems = ref<{ name: string; spec: string; qty: string; note: string }[]>([{ name: '', spec: '', qty: '', note: '' }])
+const purDetailUrls = ref<string[]>([])
+
+/** 附件选图即传（≤3 张，jpg/jpeg/png；提交时只带 objectName） */
+async function onPurPhoto(e: Event) {
+  const files = Array.from((e.target as HTMLInputElement).files ?? [])
+  ;(e.target as HTMLInputElement).value = ''
+  for (const f of files) {
+    if (purPhotos.value.length >= 3) { showToast('附件最多 3 张'); break }
+    try {
+      const fd = new FormData()
+      fd.append('photo', f)
+      const r = await apiForm<{ photo: string }>('/api/oa/purchase/photo', fd)
+      purPhotos.value.push({ key: r.photo, url: URL.createObjectURL(f) })
+    } catch { showToast('附件上传失败'); return }
+  }
+}
+
+/** 参考钉钉「复制」：复制该组明细为新行 */
+function copyItem(i: number, it: { name: string; spec: string; qty: string; note: string }) {
+  newItems.value.splice(i + 1, 0, { ...it })
+}
+
 const minDate = new Date(2020, 0, 1)
 const maxDate = new Date(2030, 11, 31)
 const goodsColumns = computed(() => goods.value.map((g) => ({
@@ -304,18 +408,18 @@ const venueColumns = computed(() => venues.value.map((v) => ({
 })))
 
 function typeLabel(t: string) {
-  return ({ SEAL: '公章使用申请', GOODS: '物资申领', LEAVE: '教师请假', VENUE: '场地申请' } as Record<string, string>)[t] || t
+  return ({ SEAL: '公章使用申请', GOODS: '物资申领', LEAVE: '教师请假', VENUE: '场地申请', PURCHASE: '采购申请' } as Record<string, string>)[t] || t
 }
 function tagOf(t: string) {
-  return ({ SEAL: 'primary', GOODS: 'warning', LEAVE: 'success', VENUE: 'default' } as Record<string, string>)[t] || 'primary'
+  return ({ SEAL: 'primary', GOODS: 'warning', LEAVE: 'success', VENUE: 'default', PURCHASE: 'primary' } as Record<string, string>)[t] || 'primary'
 }
 const dateTitle = computed(() =>
-  ({ use: '使用日期', start: '开始日期', end: '结束日期', venue: '使用日期' } as Record<string, string>)[dateField.value])
+  ({ use: '使用日期', start: '开始日期', end: '结束日期', venue: '使用日期', expect: '期望交付日期' } as Record<string, string>)[dateField.value])
 
-function openDate(field: 'use' | 'start' | 'end' | 'venue') {
+function openDate(field: 'use' | 'start' | 'end' | 'venue' | 'expect') {
   dateField.value = field
   const v = field === 'use' ? useDate.value : field === 'start' ? leaveStart.value
-    : field === 'end' ? leaveEnd.value : venueDate.value
+    : field === 'end' ? leaveEnd.value : field === 'expect' ? purExpectDate.value : venueDate.value
   if (v) {
     dateBuf.value = v.split('-')
   } else { // 空 model 的 van-date-picker 会落 min-date（2020），须预置今天
@@ -329,6 +433,7 @@ function onDateOk() {
   if (dateField.value === 'use') useDate.value = v
   else if (dateField.value === 'start') leaveStart.value = v
   else if (dateField.value === 'end') leaveEnd.value = v
+  else if (dateField.value === 'expect') purExpectDate.value = v
   else venueDate.value = v
   dateOpen.value = false
 }
@@ -353,6 +458,11 @@ function openNew(type: string) {
   venueName.value = ''
   venueDate.value = ''
   newLines.value = [{ goodsId: 0, name: '', qty: '' }]
+  purExpectDate.value = ''
+  purPlace.value = ''
+  purPhotos.value.forEach((p) => URL.revokeObjectURL(p.url))
+  purPhotos.value = []
+  newItems.value = [{ name: '', spec: '', qty: '', note: '' }]
   if (type === 'GOODS' && !goods.value.length) {
     api<GoodsOpt[]>('/api/oa/goods').then((d) => (goods.value = d)).catch(() => {})
   }
@@ -402,6 +512,29 @@ async function doSubmit() {
         json: { formType: 'VENUE', title: newTitle.value, venueId: venueId.value, useDate: venueDate.value },
       })
     } finally { submitting.value = false }
+  } else if (newType.value === 'PURCHASE') {
+    if (!newTitle.value.trim()) { showToast('请填写申请事由'); return }
+    if (!purExpectDate.value) { showToast('请选择期望交付日期'); return }
+    if (!purPlace.value.trim()) { showToast('请填写交付地点'); return }
+    const items = newItems.value.filter((it) => it.name.trim() || it.spec.trim() || it.qty.trim())
+    if (!items.length) { showToast('请至少填写一项采购明细'); return }
+    for (const it of items) {
+      if (!it.name.trim() || !it.spec.trim() || !it.qty.trim()) { showToast('每项明细须填写物品名称、型号规格与数量'); return }
+    }
+    submitting.value = true
+    try {
+      await api('/api/oa/submit', {
+        method: 'POST',
+        json: {
+          formType: 'PURCHASE',
+          title: newTitle.value,
+          expectDate: purExpectDate.value,
+          place: purPlace.value,
+          photos: purPhotos.value.map((p) => p.key),
+          items,
+        },
+      })
+    } finally { submitting.value = false }
   } else {
     const lines = newLines.value.filter((l) => l.goodsId && Number(l.qty) > 0)
     if (!lines.length) { showToast('请选择物资并填写数量'); return }
@@ -437,6 +570,14 @@ async function openDetail(id: number) {
   opinion.value = ''
   detail.value = await api<OaDetail>(`/api/oa/${id}`)
   detailOpen.value = true
+  // 批43① 采购附件：鉴权下流式直取（同报修凭证模式）
+  purDetailUrls.value = []
+  for (const u of detail.value.photoUrls ?? []) {
+    try {
+      const blob = await fetchBlob(u)
+      purDetailUrls.value.push(URL.createObjectURL(blob))
+    } catch { /* 单张缺失不阻塞 */ }
+  }
 }
 
 async function doHandle(action: string) {
@@ -557,14 +698,48 @@ onMounted(load)
 
 <style scoped>
 .oa-tabs { margin-top: 12px; }
-.start { display: flex; gap: 10px; padding: 14px; margin-top: 12px; }
+.start { display: flex; gap: 8px; padding: 14px; margin-top: 12px; }
 .start-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 16px 0 12px; border-radius: 14px; border: none; color: #fff; font-size: 13px; font-weight: 600; }
-.start-btn .van-icon { font-size: 22px; }
+  padding: 14px 0 10px; border-radius: 14px; border: none; color: #fff; font-size: 12px; font-weight: 600; }
+.start-btn .van-icon { font-size: 21px; }
 .start-btn.seal { background: linear-gradient(150deg, #8C1D23, #A8232B); }
 .start-btn.goods { background: linear-gradient(150deg, #B45309, #D97706); }
 .start-btn.leave { background: linear-gradient(150deg, #047857, #0D9467); }
 .start-btn.venue { background: linear-gradient(150deg, #1E40AF, #3B82F6); }
+.start-btn.purchase { background: linear-gradient(150deg, #6D28D9, #8B5CF6); }
+
+/* 批43① 采购：附件选择行（同报修） */
+.photo-row { display: flex; gap: 8px; margin: 10px 2px; }
+.photo-row .thumb { position: relative; }
+.photo-row .thumb img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; display: block; }
+.photo-row .thumb .rm { position: absolute; right: -6px; top: -6px; width: 20px; height: 20px;
+  border: none; background: rgba(0, 0, 0, 0.55); color: #fff; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; }
+.photo-row .add { width: 72px; height: 72px; border: 1px dashed var(--app-card-border); border-radius: 10px;
+  background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: var(--app-text-3); font-size: 11px; }
+.photo-row .add .van-icon { font-size: 18px; }
+
+/* 批43① 采购：明细组（多组+复制加行） */
+.p-item { border: 1px solid var(--app-card-border); border-radius: 12px; margin: 8px 0; overflow: hidden; }
+.p-item-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: var(--app-card-border); }
+.p-item-head b { font-size: 12px; color: var(--app-text-2); }
+.p-ops { display: flex; gap: 6px; }
+.op { border: none; border-radius: 999px; padding: 3px 12px; font-size: 11px; }
+.op.copy { background: #EEF2FF; color: #4F46E5; }
+.op.del { background: #FDECEC; color: #EF4444; }
+
+/* 批43① 采购：详情明细/库存参考展示 */
+.p-items-view { border: 1px solid var(--app-card-border); border-radius: 12px; padding: 2px 12px; }
+.pv-row { padding: 10px 0; }
+.pv-row + .pv-row { border-top: 1px solid var(--app-card-border); }
+.pv-name { margin: 0; font-size: 13px; font-weight: 600; color: var(--app-text-1); }
+.pv-qty { margin-left: 8px; }
+.pv-sub { margin: 3px 0 0; font-size: 11px; color: var(--app-text-3); }
+.cc-tip { margin: 10px 2px 0; font-size: 11px; color: var(--app-text-3); }
+.big-photos { display: flex; gap: 8px; flex-wrap: wrap; }
+.big-photos img { width: 100%; border-radius: 10px; display: block; }
 
 .list { margin-top: 12px; padding: 6px 14px; }
 .row { display: flex; align-items: center; gap: 10px; padding: 12px 0; cursor: pointer; }

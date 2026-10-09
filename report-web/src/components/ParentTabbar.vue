@@ -1,15 +1,12 @@
 <template>
-  <!-- 家长端底部导航（批1 两 Tab；批37 四 Tab）：通知公告/扬长课程升一级直达入口
-       （从首页宫格移出），家长只读参与仍无「记录」按钮 -->
+  <!-- 家长端底部导航（批1 两 Tab→批37 四 Tab→批40a 三 Tab）：内容型扬长课程下线
+       （课程活动归教师端「扬长课程」），家长只读参与仍无「记录」按钮 -->
   <nav class="ptabbar" aria-label="家长端导航">
     <RouterLink to="/p/home" class="tab" :class="{ on: tab === 'phome' }">
       <van-icon :name="tab === 'phome' ? 'wap-home' : 'wap-home-o'" /><span>首页</span>
     </RouterLink>
     <RouterLink to="/p/notices" class="tab" :class="{ on: tab === 'pnotice' }">
       <van-icon :name="tab === 'pnotice' ? 'bell' : 'bell-o'" /><span>通知公告</span>
-    </RouterLink>
-    <RouterLink to="/p/parenting" class="tab" :class="{ on: tab === 'pparenting' }">
-      <van-icon name="bookmark-o" /><span>扬长课程</span>
     </RouterLink>
     <RouterLink to="/p/mine" class="tab" :class="{ on: tab === 'pmine' }">
       <van-icon :name="tab === 'pmine' ? 'manager' : 'manager-o'" /><span>我的</span>
@@ -20,7 +17,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 
-defineProps<{ tab: 'phome' | 'pnotice' | 'pparenting' | 'pmine' }>()
+defineProps<{ tab: 'phome' | 'pnotice' | 'pmine' }>()
 </script>
 
 <style scoped>

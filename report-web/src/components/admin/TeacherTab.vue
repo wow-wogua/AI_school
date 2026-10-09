@@ -8,6 +8,7 @@
         <el-option label="任课教师" value="TEACHER" />
         <el-option label="级长" value="GRADE_LEADER" />
         <el-option label="学成中心主任" value="DIRECTOR" />
+        <el-option label="书记（请假终审）" value="SECRETARY" />
         <el-option label="生活老师" value="DORM" />
         <el-option label="招采" value="PROCUREMENT" />
         <el-option label="门卫" value="GUARD" />
@@ -34,6 +35,7 @@
       <el-table-column label="角色" width="150">
         <template #default="{ row }">
           {{ roleName(row.role) }}
+          <el-tag v-if="row.role === 'LEADER' && row.stageScope" type="success" size="small" style="margin-left: 4px">{{ row.stageScope === 'PRIMARY' ? '小学部' : '初中部' }}</el-tag>
           <el-tag v-if="row.pendingUpgradeTo" type="warning" size="small">升{{ roleName(row.pendingUpgradeTo) }}审批中</el-tag>
         </template>
       </el-table-column>
@@ -197,10 +199,18 @@
             <el-option label="任课教师" value="TEACHER" />
             <el-option label="级长（需在组织架构绑年级）" value="GRADE_LEADER" />
             <el-option label="学成中心主任" value="DIRECTOR" />
+            <el-option label="书记（请假终审，批39）" value="SECRETARY" />
             <el-option label="生活老师" value="DORM" />
             <el-option label="招采（物资核销/库存）" value="PROCUREMENT" />
             <el-option label="门卫（仅请假核验）" value="GUARD" />
           </el-select>
+        </el-form-item>
+        <el-form-item v-if="form.role === 'LEADER'" label="分管学段">
+          <el-select v-model="form.stageScope" clearable placeholder="全部学段" style="width: 100%">
+            <el-option label="小学部" value="PRIMARY" />
+            <el-option label="初中部" value="JUNIOR" />
+          </el-select>
+          <div class="hint">留空=全部学段；设置后该领导的成绩查询/汇总/导出仅限该学段（批39③）</div>
         </el-form-item>
         <el-form-item label="手机">
           <el-input v-model="form.phone" />
@@ -236,7 +246,7 @@ const teach = ref<{ teacherId?: number; classId?: number; subjectId?: number }>(
 function roleName(r: string) {
   return {
     ADMIN: '管理员', LEADER: '领导', HEAD_TEACHER: '班主任', TEACHER: '任课教师',
-    GRADE_LEADER: '级长', DIRECTOR: '学成中心主任', DORM: '生活老师', PROCUREMENT: '招采', GUARD: '门卫',
+    GRADE_LEADER: '级长', DIRECTOR: '学成中心主任', SECRETARY: '书记', DORM: '生活老师', PROCUREMENT: '招采', GUARD: '门卫',
   }[r] ?? r
 }
 
@@ -294,7 +304,7 @@ async function loadTeaches() {
 
 function openCreate() {
   editing.value = null
-  form.value = { role: 'TEACHER' }
+  form.value = { role: 'TEACHER', stageScope: '' }
   dialog.value = true
 }
 
@@ -360,7 +370,8 @@ async function doTeachImport() {
 
 function openEdit(row: any) {
   editing.value = row
-  form.value = { username: row.username, realName: row.realName, role: row.role, phone: row.phone }
+  form.value = { username: row.username, realName: row.realName, role: row.role, phone: row.phone,
+    stageScope: row.stageScope ?? '' }
   dialog.value = true
 }
 

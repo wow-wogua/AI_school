@@ -100,40 +100,48 @@ const greeting = computed(() => {
 })
 const avatarChar = computed(() => auth.realName?.charAt(0) || '师')
 
-/* 宫格分区（批37 IA 重组）：按「日常评价 → 成长激励 → 报告档案 → 校园事务 → 我的」心智排列；
-   前 4 高频图标保持原位序（微光/成绩/评价，降低老师适应成本）；
-   「期末评语」=寄语+成长总结+综合素质 三页合一（/final-eval）；
-   「我的成长」=教师档案+教师风采+成长足迹 三页合一（/my-growth）；
-   补全历史缺口：成长银行 / 德育规范 / 班级管理(班主任) / 系统管理(管理员)；
-   批32 口径：请假入口=班主任/生活老师/级长/学成中心主任/领导/管理员 */
+/* 宫格分区（批40e 按校方 18 项清单重排）：
+   学生模块 1~7（老师可记录）→「成长记录」；8~13（自动生成/查询）→「成长档案」；
+   教师模块 14~18 →「教师发展」；保留区（校方未列入但已拍板）：成长激励/校园事务/我的成长/学校管理。
+   「班主任寄语/成长总结/综合素质」三入口共用 /final-eval（?tab= 预选段）；
+   「教师档案/教师风采/教师足迹」三入口共用 /my-growth（?tab= 预选）；
+   批32 口径：请假入口=班主任/生活老师/级长/学成中心主任/领导/管理员；
+   批39③ 成绩仅教学角色（生活老师/招采前端藏，后端硬校验兜底） */
 const sections = computed(() => {
-  const leave = ['HEAD_TEACHER', 'GRADE_LEADER', 'DIRECTOR', 'DORM', 'LEADER', 'ADMIN'].includes(auth.role)
+  const leave = ['HEAD_TEACHER', 'GRADE_LEADER', 'DIRECTOR', 'DORM', 'LEADER', 'ADMIN', 'SECRETARY'].includes(auth.role)
+  const score = !['DORM', 'PROCUREMENT'].includes(auth.role)
   return [
-    { label: '评价记录', items: [
-      { name: '微光信箱', icon: 'photograph', to: '/moment/new', bg: '#F97316' },
-      { name: '成绩管理', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' },
-      { name: '日常评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
+    { label: '成长记录', items: [
+      { name: '微光时刻', icon: 'photograph', to: '/moment/new', bg: '#F97316' },
+      ...(score ? [{ name: '成绩管理', icon: 'bar-chart-o', to: '/scores', bg: '#3E7BFA' }] : []),
+      { name: '素养评价', icon: 'edit', to: '/evaluate', bg: '#10B981' },
+      { name: '导师谈心', icon: 'chat-o', to: '/talk', bg: '#7C4DD8' },
+      { name: '扬长课程', icon: 'flag-o', to: '/activity', bg: '#F43F5E' },
+      { name: '荣誉证书', icon: 'medal-o', to: '/honor', bg: '#EAB308' },
       ...(leave ? [{ name: '学生请假', icon: 'clock-o', to: '/leave', bg: '#DC2626' }] : []),
-      { name: '谈心记录', icon: 'chat-o', to: '/talk', bg: '#7C4DD8' },
+    ] },
+    { label: '成长档案', items: [
+      { name: '班主任寄语', icon: 'comment-o', to: '/final-eval?tab=comment', bg: '#F59E0B' },
+      { name: '成长总结', icon: 'notes-o', to: '/final-eval?tab=summary', bg: '#EA580C' },
+      { name: '综合素质', icon: 'star-o', to: '/final-eval?tab=comp', bg: '#0EA5E9' },
+      { name: '成长时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1' },
+      { name: '成长报告', icon: 'orders-o', to: '/reports', bg: '#14B8A6' },
+      { name: '宿舍查询', icon: 'wap-home-o', to: '/dorm', bg: '#65A30D' },
+    ] },
+    { label: '教师发展', items: [
+      { name: '行政办公', icon: 'todo-list-o', to: '/oa', bg: '#7C3AED' },
+      { name: '报修', icon: 'brush-o', to: '/repair', bg: '#0891B2' },
+      { name: '教师足迹', icon: 'location-o', to: '/my-growth?tab=footprint', bg: '#0891B2' },
+      { name: '教师风采', icon: 'flower-o', to: '/my-growth?tab=honor', bg: '#DB2777' },
+      { name: '教师档案', icon: 'manager-o', to: '/my-growth?tab=profile', bg: '#0F766E' },
     ] },
     { label: '成长激励', items: [
       { name: '成长银行', icon: 'gold-coin-o', to: '/bank', bg: '#D97706' },
-      { name: '文明班打分', icon: 'bookmark-o', to: '/civility', bg: '#B45309' },
+      { name: '文明班', icon: 'bookmark-o', to: '/civility', bg: '#B45309' },
       { name: '德育规范', icon: 'notes-o', to: '/conduct-rules', bg: '#059669' },
     ] },
-    { label: '报告档案', items: [
-      { name: '成长报告', icon: 'orders-o', to: '/reports', bg: '#14B8A6' },
-      { name: '期末评语', icon: 'edit-square', to: '/final-eval', bg: '#F59E0B' },
-      { name: '学生时间轴', icon: 'clock-o', to: '/timeline', bg: '#6366F1' },
-      { name: '荣誉证书', icon: 'medal-o', to: '/honor', bg: '#EAB308' },
-      { name: '活动管理', icon: 'flag-o', to: '/activity', bg: '#F43F5E' },
-    ] },
     { label: '校园事务', items: [
-      { name: '行政办公', icon: 'todo-list-o', to: '/oa', bg: '#7C3AED' },
       { name: '通知公告', icon: 'volume-o', to: '/notices', bg: '#CA8A04' },
-      { name: '扬长课程', icon: 'bookmark-o', to: '/courses', bg: '#8B5CF6' },
-      { name: '报修', icon: 'brush-o', to: '/repair', bg: '#0891B2' },
-      { name: '宿舍查询', icon: 'wap-home-o', to: '/dorm', bg: '#65A30D' },
       ...(auth.role === 'HEAD_TEACHER' ? [{ name: '班级管理', icon: 'setting-o', to: '/my-class', bg: '#0EA5E9' }] : []),
     ] },
     { label: '我的成长', items: [

@@ -1,6 +1,6 @@
 <template>
   <div class="app-page talk">
-    <div class="app-sec">谈心记录</div>
+    <div class="app-sec">导师谈心</div>
 
     <!-- 发起卡 -->
     <div class="app-card tex-b form">
@@ -41,7 +41,7 @@
       </span>
     </div>
     <div class="app-card list">
-      <div v-if="!shownRows.length" class="empty">{{ fuFilter === 'pending' ? '暂无待随访记录' : '还没有谈心记录' }}</div>
+      <div v-if="!shownRows.length" class="empty">{{ fuFilter === 'pending' ? '暂无待随访记录' : '还没有导师谈心' }}</div>
       <div v-for="r in shownRows" :key="r.id" class="row">
         <div class="r-body">
           <p class="r-title">
@@ -53,6 +53,8 @@
           <p class="r-sub">{{ r.talkDate }} · 记录于 {{ fmtTime(r.createTime) }}</p>
           <p class="r-txt">{{ r.content }}</p>
         </div>
+        <!-- 批40e 撤回：记录人删自己的误录（后端硬校验记录人/管理员） -->
+        <button type="button" class="del" @click.stop="del(r)"><van-icon name="delete-o" /></button>
       </div>
     </div>
 
@@ -81,7 +83,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { showSuccessToast, showToast } from 'vant'
+import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { api } from '../api/http'
 
 interface Clazz { id: number; name: string }
@@ -197,6 +199,15 @@ async function load() {
   rows.value = await api<any[]>('/api/talk/my').catch(() => [])
 }
 
+/** 批40e 撤回：删除谈心记录（本人或管理员；取消确认不报错） */
+async function del(r: any) {
+  try { await showConfirmDialog({ title: '删除谈心记录', message: `删除与 ${r.studentName} 的这条谈心记录？` }) }
+  catch { return }
+  await api(`/api/talk/${r.id}`, { method: 'DELETE' })
+  showSuccessToast('已删除')
+  await load()
+}
+
 function fmtTime(t: string) {
   return t.slice(0, 16).replace('T', ' ')
 }
@@ -237,6 +248,7 @@ onMounted(async () => {
 .r-cls { font-weight: 400; color: var(--app-text-3); margin-left: 4px; }
 .r-sub { margin: 4px 0 0; font-size: 11px; color: var(--app-text-3); }
 .r-txt { margin: 6px 0 0; font-size: 13px; color: var(--app-text-2); line-height: 1.55; white-space: pre-wrap; }
+.del { flex: none; border: none; background: none; color: var(--app-text-3); font-size: 17px; padding: 6px; }
 .empty { padding: 26px 0; text-align: center; font-size: 13px; color: var(--app-text-3); }
 .fu-row { display: flex; }
 .fu-hint { margin: 2px 16px 0; font-size: 11px; color: var(--app-text-3); line-height: 1.5; }

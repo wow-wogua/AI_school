@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h4>谈心记录全量（教师端「谈心记录」提交；家长不可见）</h4>
+    <h4>导师谈心全量（教师端「导师谈心」提交；家长不可见）</h4>
     <div class="bar">
       <el-select v-model="qClass" clearable filterable placeholder="全部班级" style="width: 180px" @change="load">
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />

@@ -7,8 +7,8 @@
       :transition="{ type: 'spring', stiffness: 240, damping: 22 }">
       <div class="login-head">
         <img class="login-logo" src="/badge.png" alt="">
-        <h1>石实SHINE</h1>
-        <p>石实实验学校 · 中学素质报告平台</p>
+        <h1>学生素质成长报告平台</h1>
+        <p>石实实验学校 · 学生的每一步成长都值得被记录</p>
         <p class="motto">任重道远，毋忘奋斗</p>
       </div>
 

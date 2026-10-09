@@ -13,13 +13,17 @@
       <el-select v-else v-model="classId" placeholder="班级" style="min-width: 140px" @change="reload">
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
-      <el-select v-model="termId" placeholder="学期" style="min-width: 160px" @change="reload">
+      <el-select v-model="termId" placeholder="学期" style="min-width: 160px" @change="onTermChange">
         <el-option v-for="t in terms" :key="t.id" :label="t.name" :value="t.id" />
       </el-select>
       <el-select v-model="reportType" style="min-width: 120px" @change="reload">
         <el-option label="学期报告" value="TERM" />
         <el-option label="学年报告" value="YEAR" />
         <el-option label="在校报告" value="SCHOOL" />
+      </el-select>
+      <el-select v-if="reportType === 'TERM'" v-model="reportPeriod" style="min-width: 100px" @change="reload">
+        <el-option label="期末" value="FINAL" />
+        <el-option label="期中" value="MID" />
       </el-select>
       <el-button v-if="scope === 'grade'" type="primary" :loading="batching" :disabled="!gradeId || !termId" @click="startGrade">
         批量生成全年级
@@ -74,15 +78,26 @@ const auth = useAuthStore()
 const router = useRouter()
 const classes = ref<{ id: number; name: string }[]>([])
 const grades = ref<{ id: number; name: string }[]>([])
-const terms = ref<{ id: number; name: string }[]>([])
+const terms = ref<{ id: number; name: string; startDate?: string; endDate?: string }[]>([])
 const classId = ref<number>()
 const gradeId = ref<number>()
 const termId = ref<number>()
 const reportType = ref<'TERM' | 'YEAR' | 'SCHOOL'>('TERM')
+const reportPeriod = ref<'FINAL' | 'MID'>('FINAL')
 const scope = ref<'class' | 'grade'>('class')
 const rows = ref<{ className?: string; studentId: number; studentNo: string; name: string; status: string; error?: string; reportId?: number }[]>([])
 const generating = ref<number | null>(null)
 const batching = ref(false)
+
+/** 期次默认预判（批42）：已结束的学期=期末；进行中=今天在学期前半→期中，后半→期末 */
+function predictPeriod() {
+  const t = terms.value.find((x) => x.id === termId.value)
+  if (!t?.startDate || !t.endDate) return 'FINAL'
+  const now = new Date()
+  const mid = new Date(new Date(t.startDate).getTime()
+    + (new Date(t.endDate).getTime() - new Date(t.startDate).getTime()) / 2)
+  return now <= mid ? 'MID' : 'FINAL'
+}
 
 function tagType(s: string) {
   return s === '成功' ? 'success' : s === '失败' ? 'danger' : s === '未生成' ? 'info' : 'warning'
@@ -92,6 +107,7 @@ async function init() {
   classes.value = await api('/api/meta/my-classes')
   terms.value = await api('/api/meta/terms')
   termId.value = terms.value[0]?.id
+  reportPeriod.value = predictPeriod()
   if (auth.role === 'ADMIN') {
     grades.value = await api('/api/meta/grades')
     gradeId.value = grades.value[0]?.id
@@ -106,6 +122,11 @@ function onScopeChange() {
   reload()
 }
 
+function onTermChange() {
+  reportPeriod.value = predictPeriod()
+  reload()
+}
+
 async function reload() {
   if (scope.value === 'grade') {
     if (!gradeId.value || !termId.value) return
@@ -117,9 +138,9 @@ async function reload() {
       const reports = await api<{ studentId: number; status: string; error?: string; reportId?: number }[]>(
         `/api/report/list?classId=${c.id}&termId=${termId.value}&scopeType=${reportType.value}`,
       )
-      const byStu = new Map(reports.map((r) => [r.studentId, r]))
+      const byStu = new Map(reports.map((r) => [`${r.studentId}:${(r as { period?: string }).period ?? 'FINAL'}`, r]))
       return stu.records.map((s) => {
-        const r = byStu.get(s.id)
+        const r = byStu.get(`${s.id}:${reportPeriod.value}`)
         return { className: c.name, studentId: s.id, studentNo: s.studentNo, name: s.name, status: r?.status ?? '未生成', error: r?.error, reportId: r?.reportId }
       })
     }))
@@ -133,19 +154,24 @@ async function reload() {
   const reports = await api<{ studentId: number; status: string; error?: string; reportId?: number }[]>(
     `/api/report/list?classId=${classId.value}&termId=${termId.value}&scopeType=${reportType.value}`,
   )
-  const byStu = new Map(reports.map((r) => [r.studentId, r]))
+  const byStu = new Map(reports.map((r) => [`${r.studentId}:${(r as { period?: string }).period ?? 'FINAL'}`, r]))
   rows.value = stu.records.map((s) => {
-    const r = byStu.get(s.id)
+    const r = byStu.get(`${s.id}:${reportPeriod.value}`)
     return { studentId: s.id, studentNo: s.studentNo, name: s.name, status: r?.status ?? '未生成', error: r?.error, reportId: r?.reportId }
   })
 }
 
-/** 成功行重新生成：确认后按最新数据再出一份（后端 INSERT 新报告行，旧版本保留，列表恒显最新） */
+/** 成功行重新生成：确认后按最新数据再出一份（后端 INSERT 新报告行，旧版本保留，家长端/列表恒显最新） */
 async function regenerate(row: { studentId: number; name: string }) {
+  const label = reportType.value === 'TERM' ? `${termNameOf()}${reportPeriod.value === 'MID' ? '期中' : '期末'}` : termNameOf()
   await ElMessageBox.confirm(
-    `按最新数据重新生成 ${row.name} 的报告？新增的奖项、微光、成绩都会刷新进新版本，历史版本仍保留可追溯。`,
+    `按最新数据重新生成 ${row.name} 的${label}报告？新增的奖项、微光、成绩都会刷新进新版本，历史版本仍保留可追溯，家长端显示新版。`,
     '重新生成', { type: 'warning' })
   await generateOne(row)
+}
+
+function termNameOf() {
+  return terms.value.find((t) => t.id === termId.value)?.name ?? ''
 }
 
 /** 单份生成：提交后轮询任务到终态（验收② 30s 内出 PDF） */
@@ -155,7 +181,7 @@ async function generateOne(row: { studentId: number; name: string }) {
   try {
     const t = await api<{ taskId: number }>('/api/report/generate', {
       method: 'POST',
-      json: { studentId: row.studentId, termId: termId.value, reportType: reportType.value },
+      json: { studentId: row.studentId, termId: termId.value, reportType: reportType.value, reportPeriod: reportPeriod.value },
     })
     const start = Date.now()
     for (;;) {
@@ -174,11 +200,17 @@ async function generateOne(row: { studentId: number; name: string }) {
 
 async function startBatch() {
   if (!classId.value || !termId.value) return
+  const existing = rows.value.filter((r) => r.status === '成功').length
+  if (existing > 0) {
+    await ElMessageBox.confirm(
+      `该班本期已有 ${existing} 份报告，重新生成将出全新版本（家长端显示新版，历史版本留档可追溯）。继续？`,
+      '批量生成', { type: 'warning' })
+  }
   batching.value = true
   try {
     const t = await api<{ taskId: number }>('/api/report/generate-batch', {
       method: 'POST',
-      json: { classId: classId.value, termId: termId.value, reportType: reportType.value },
+      json: { classId: classId.value, termId: termId.value, reportType: reportType.value, reportPeriod: reportPeriod.value },
     })
     ElMessage.success(`批量任务 #${t.taskId} 已创建`)
     router.push('/')
@@ -190,11 +222,12 @@ async function startBatch() {
 /** 全年级批量（仅管理员）：任务页看进度 */
 async function startGrade() {
   if (!gradeId.value || !termId.value) return
+  await ElMessageBox.confirm('全年级批量生成报告？已在队列排队，可在任务进度页查看。', '批量生成')
   batching.value = true
   try {
     const t = await api<{ taskId: number }>('/api/report/generate-grade', {
       method: 'POST',
-      json: { gradeId: gradeId.value, termId: termId.value, reportType: reportType.value },
+      json: { gradeId: gradeId.value, termId: termId.value, reportType: reportType.value, reportPeriod: reportPeriod.value },
     })
     ElMessage.success(`年级批量任务 #${t.taskId} 已创建`)
     router.push('/')

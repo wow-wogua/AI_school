@@ -34,6 +34,8 @@
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="saving" :disabled="!finalPreview" @click="save">保存</el-button>
+          <!-- 批40e 撤回：清空五维（撤回误评，报告回落未评）；仅单选时可用 -->
+          <el-button v-if="studentIds.length === 1" :loading="saving" @click="clearAll">清空重评</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -44,7 +46,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../api/http'
 
 const route = useRoute()
@@ -157,6 +159,22 @@ async function save() {
     }
     if (failed) ElMessage.warning(`成功 ${ok} 人，失败 ${failed} 人`)
     else ElMessage.success(`已保存 ${ok} 人，综合等级 ${finalLevel}`)
+  } finally {
+    saving.value = false
+  }
+}
+
+/** 批40e 撤回：清空该生综合素质五维（全维置空=未评，报告回落） */
+async function clearAll() {
+  if (studentIds.value.length !== 1 || !termId.value) return
+  await ElMessageBox.confirm('清空该生的综合素质五维评定？报告将回落为未评', '撤回评定', { type: 'warning' })
+  saving.value = true
+  try {
+    const body: Record<string, unknown> = { studentId: studentIds.value[0], termId: termId.value }
+    dims.value.forEach((d) => (body[d.key] = ''))
+    await api('/api/comprehensive', { method: 'PUT', json: body })
+    dims.value.forEach((d) => (d.value = ''))
+    ElMessage.success('已清空')
   } finally {
     saving.value = false
   }

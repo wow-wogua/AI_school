@@ -60,6 +60,22 @@
             <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
           </el-select>
         </template>
+      </div>
+      <!-- 批43① 采购：五级固定链（每级多人=或签，任一人通过即过级）+ 抄送人（终态通知，预设不可删） -->
+      <div class="cfg-row purchase-cfg">
+        <span class="lbl">采购审批（五级）</span>
+        <div v-for="(lv, i) in purchase" :key="i" class="lv-box">
+          <span class="lv">{{ ['部门负责人', '库存确认(或签)', '主管校领导', '招采中心(或签)', '采购验收'][i] }}</span>
+          <el-select v-model="purchase[i]" multiple filterable clearable placeholder="选择审批人（可多人）" style="width: 220px">
+            <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
+          </el-select>
+        </div>
+        <div class="lv-box">
+          <span class="lv">抄送人</span>
+          <el-select v-model="purchaseCc" multiple filterable clearable placeholder="终态通知（可多人）" style="width: 220px">
+            <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
+          </el-select>
+        </div>
         <el-button type="primary" :loading="saving" @click="saveCfg">保存配置</el-button>
       </div>
     </div>
@@ -71,6 +87,7 @@
         <el-option value="GOODS" label="物资申领" />
         <el-option value="LEAVE" label="教师请假" />
         <el-option value="VENUE" label="场地申请" />
+        <el-option value="PURCHASE" label="采购申请" />
       </el-select>
       <el-select v-model="qStatus" clearable placeholder="状态" style="width: 110px" @change="load">
         <el-option value="PENDING" label="待审" />
@@ -119,6 +136,22 @@
             <el-descriptions-item label="使用日期">{{ detailJson.useDate }}</el-descriptions-item>
             <el-descriptions-item label="事由">{{ detailJson.reason }}</el-descriptions-item>
           </template>
+          <!-- 批43① 采购：基础信息+明细+附件数+库存参考+抄送人 -->
+          <template v-if="detail.formType === 'PURCHASE'">
+            <el-descriptions-item label="期望交付">{{ detailJson.expectDate }}</el-descriptions-item>
+            <el-descriptions-item label="交付地点">{{ detailJson.place }}</el-descriptions-item>
+            <el-descriptions-item label="事由">{{ detailJson.reason }}</el-descriptions-item>
+            <el-descriptions-item label="附件">{{ detail.photoUrls?.length ? detail.photoUrls.length + ' 张' : '无' }}</el-descriptions-item>
+            <el-descriptions-item v-for="(it, i) in detailJson.items" :key="i" :label="`物品 ${i + 1}`">
+              {{ it.name }}｜{{ it.spec }}｜数量 {{ it.qty }}<template v-if="it.note">｜{{ it.note }}</template>
+            </el-descriptions-item>
+            <el-descriptions-item v-if="detail.stockMatches?.length" label="库存参考">
+              <div v-for="(m, i) in detail.stockMatches" :key="i" class="stock-line">
+                {{ m.name }}（{{ m.stock }} {{ m.unit }}<template v-if="m.location"> · {{ m.location }}</template>）匹配「{{ m.item }}」
+              </div>
+            </el-descriptions-item>
+            <el-descriptions-item v-if="detail.ccNames?.length" label="抄送人">{{ detail.ccNames.join('、') }}</el-descriptions-item>
+          </template>
           <el-descriptions-item v-for="(l, i) in detailLines" :key="i" :label="`物资 ${i + 1}`">
             {{ l.name }} × {{ l.qty }} {{ l.unit }}（{{ l.location || '地点未填' }}）
           </el-descriptions-item>
@@ -157,6 +190,9 @@ const venue = ref<(number | undefined)[]>([undefined, undefined, undefined])
 const goodsLevels = ref(1)
 const leaveLevels = ref(1)
 const venueLevels = ref(1)
+// 批43① 采购：五级或签（每级多人）+ 抄送人
+const purchase = ref<number[][]>([[], [], [], [], []])
+const purchaseCc = ref<number[]>([])
 const saving = ref(false)
 
 const qType = ref('')
@@ -173,7 +209,7 @@ const detailJson = computed<any>(() => {
 const detailLines = computed(() => (detail.value?.formType === 'GOODS' ? detailJson.value : []))
 
 async function loadCfg() {
-  const c = await api<{ sealApprovers: ({ id: number; name: string } | null)[]; goodsApprovers: ({ id: number; name: string } | null)[]; leaveApprovers: ({ id: number; name: string } | null)[]; venueApprovers: ({ id: number; name: string } | null)[]; goodsLevels: number; leaveLevels: number; venueLevels: number }>('/api/admin/oa/config')
+  const c = await api<{ sealApprovers: ({ id: number; name: string } | null)[]; goodsApprovers: ({ id: number; name: string } | null)[]; leaveApprovers: ({ id: number; name: string } | null)[]; venueApprovers: ({ id: number; name: string } | null)[]; goodsLevels: number; leaveLevels: number; venueLevels: number; purchaseApprovers: { id: number; name: string }[][]; purchaseCc: { id: number; name: string }[] }>('/api/admin/oa/config')
   seal.value = (c.sealApprovers || []).map((x) => x?.id)
   goods.value = (c.goodsApprovers || []).map((x) => x?.id)
   leave.value = (c.leaveApprovers || []).map((x) => x?.id)
@@ -181,6 +217,8 @@ async function loadCfg() {
   goodsLevels.value = c.goodsLevels || 1
   leaveLevels.value = c.leaveLevels || 1
   venueLevels.value = c.venueLevels || 1
+  purchase.value = [0, 1, 2, 3, 4].map((i) => (c.purchaseApprovers?.[i] ?? []).map((x) => x.id))
+  purchaseCc.value = (c.purchaseCc || []).map((x) => x.id)
 }
 
 async function saveCfg() {
@@ -188,6 +226,7 @@ async function saveCfg() {
   if (goods.value.slice(0, goodsLevels.value).some((v) => !v)) { ElMessage.warning('物资审批人须按级数配齐'); return }
   if (leave.value.slice(0, leaveLevels.value).some((v) => !v)) { ElMessage.warning('请假审批人须按级数配齐'); return }
   if (venue.value.slice(0, venueLevels.value).some((v) => !v)) { ElMessage.warning('场地审批人须按级数配齐'); return }
+  if (purchase.value.some((lv) => !lv.length)) { ElMessage.warning('采购五级审批人须每级至少配一人'); return }
   saving.value = true
   try {
     await api('/api/admin/oa/config', {
@@ -196,6 +235,7 @@ async function saveCfg() {
         sealApprovers: seal.value, goodsApprovers: goods.value, goodsLevels: goodsLevels.value,
         leaveApprovers: leave.value, leaveLevels: leaveLevels.value,
         venueApprovers: venue.value, venueLevels: venueLevels.value,
+        purchaseApprovers: purchase.value, purchaseCc: purchaseCc.value,
       },
     })
     ElMessage.success('已保存（教师端立即生效）')
@@ -253,6 +293,12 @@ onMounted(async () => {
 .cfg-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
 .lbl { font-size: 13px; color: #606266; font-weight: 600; }
 .lv { font-size: 12px; color: #909399; }
+/* 批43① 采购五级+抄送（多人或签，逐级竖排避免挤成一行） */
+.purchase-cfg { flex-direction: column; align-items: stretch; border-top: 1px dashed #e8ecf5; padding-top: 10px; }
+.purchase-cfg .lbl { flex: none; }
+.lv-box { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.lv-box .lv { flex: none; width: 120px; text-align: right; }
+.stock-line { font-size: 12px; color: #67c23a; line-height: 1.8; }
 .bar { display: flex; align-items: center; gap: 10px; margin: 12px 0 8px; }
 .logs { margin-top: 12px; }
 .log { margin: 0; padding: 7px 0; font-size: 13px; border-bottom: 1px dashed #e8ecf5; }

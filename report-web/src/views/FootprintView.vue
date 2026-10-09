@@ -89,12 +89,12 @@ const note = ref('')
 const submitting = ref(false)
 const exporting = ref(false)
 
-/** 成长足迹 PDF（批26）：同步渲染约 10s，落系统下载 */
+/** 教师足迹 PDF（批26）：同步渲染约 10s，落系统下载 */
 async function exportPdf() {
   exporting.value = true
   try {
     const blob = await fetchBlob('/api/footprint/report')
-    await saveFile(blob, '教师成长足迹.pdf')
+    await saveFile(blob, '教师足迹.pdf')
   } catch (e: any) {
     showToast(e?.message || '导出失败')
   } finally { exporting.value = false }

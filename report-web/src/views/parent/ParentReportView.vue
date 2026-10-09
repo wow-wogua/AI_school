@@ -1,7 +1,7 @@
 <template>
   <div class="app-page p-report">
     <van-pull-refresh v-model="refreshing" @refresh="reload" success-text="已刷新">
-    <!-- 多孩切换（同微光信箱形态） -->
+    <!-- 多孩切换（同微光时刻形态） -->
     <div v-if="children.length > 1" class="kids">
       <button v-for="c in children" :key="c.studentId" class="app-chip kid" type="button"
         :class="{ on: c.studentId === curId }" @click="switchKid(c.studentId)">{{ c.name }}</button>
@@ -9,16 +9,21 @@
 
     <van-skeleton v-if="loading" :row="4" style="padding: 14px" />
 
-    <!-- 报告卡（家长版：去成绩板块，聚焦综合素质成长） -->
-    <div v-else-if="report" class="app-card tl tex-a r-card">
-      <span class="r-icon"><van-icon name="description" /></span>
-      <div class="r-info">
-        <h1>{{ titleOf(report.scopeType) }}</h1>
-        <p>{{ report.termName ?? '本学期' }}<template v-if="report.genTime"> · 生成于 {{ fmtTime(report.genTime) }}</template></p>
+    <!-- 批42 分期归档：按学期分组列往期报告（每期只显最新版；期中/期末分列） -->
+    <template v-else-if="groups.length">
+      <div v-for="g in groups" :key="g.termId" class="term">
+        <div class="app-sec">{{ g.termName || '往期' }}</div>
+        <div v-for="it in g.items" :key="it.reportId" class="app-card tl tex-a r-card">
+          <span class="r-icon"><van-icon name="description" /></span>
+          <div class="r-info">
+            <h1>{{ titleOf(it.scopeType, it.period) }}</h1>
+            <p v-if="it.genTime">生成于 {{ fmtTime(it.genTime) }}</p>
+          </div>
+          <van-button round size="small" type="primary" :loading="opening === it.reportId" loading-text="打开中…"
+            @click="open(it)">查看</van-button>
+        </div>
       </div>
-      <van-button round size="small" type="primary" :loading="opening" loading-text="打开中…"
-        @click="open">查看报告</van-button>
-    </div>
+    </template>
 
     <!-- 空态：家长版未生成（班主任触发生成后自动出双版） -->
     <div v-else class="app-card empty">
@@ -43,19 +48,22 @@ import { api, fetchBlob } from '../../api/http'
 import { isNative, openFile } from '../../api/nativeShare'
 
 interface Kid { studentId: number; name: string }
-interface ReportMeta { reportId: number; termName?: string; scopeType?: string; genTime?: string }
+interface ReportItem { reportId: number; scopeType: string; period: string; genTime?: string }
+interface ReportGroup { termId: number; termName: string; items: ReportItem[] }
 
-/** 批26：学年/在校报告与学期报告同走此入口，标题随类型 */
-function titleOf(scopeType?: string) {
-  return scopeType === 'YEAR' ? '学年成长报告' : scopeType === 'SCHOOL' ? '在校成长报告' : '学期成长报告'
+/** 批26：学年/在校报告与学期报告同走此入口，标题随类型；批42 学期报告带期次 */
+function titleOf(scopeType?: string, period?: string) {
+  if (scopeType === 'YEAR') return '学年成长报告'
+  if (scopeType === 'SCHOOL') return '在校成长报告'
+  return period === 'MID' ? '学期成长报告 · 期中' : '学期成长报告 · 期末'
 }
 
 const children = ref<Kid[]>([])
 const curId = ref<number>()
-const report = ref<ReportMeta | null>(null)
+const groups = ref<ReportGroup[]>([])
 const loading = ref(true)
 const refreshing = ref(false)
-const opening = ref(false)
+const opening = ref<number | null>(null)
 const url = ref('')
 const blob = ref<Blob>()
 
@@ -69,9 +77,8 @@ async function load() {
   loading.value = true
   try {
     if (curId.value) {
-      // data=null 表示家长版尚未生成（教师版文件不对此接口开放）
-      report.value = await api<ReportMeta | null>(`/api/parent/children/${curId.value}/report`)
-      if (!report.value) dropPreview()
+      groups.value = await api<ReportGroup[]>(`/api/parent/children/${curId.value}/report/list`)
+      if (!groups.value.length) dropPreview()
     }
   } finally {
     loading.value = false
@@ -89,15 +96,16 @@ function switchKid(id: number) {
   load()
 }
 
-/** 打开报告：浏览器=页内 iframe 预览；App=系统面板（选查看器预览/保存到文件） */
-async function open() {
-  if (!curId.value || opening.value) return
-  opening.value = true
+/** 打开报告（含往期）：浏览器=页内 iframe 预览；App=系统面板（选查看器预览/保存到文件） */
+async function open(it: ReportItem) {
+  if (!curId.value || opening.value !== null) return
+  opening.value = it.reportId
   try {
-    const b = await fetchBlob(`/api/parent/children/${curId.value}/report/file`)
+    const b = await fetchBlob(`/api/parent/children/${curId.value}/report/${it.reportId}/file`)
+    const label = titleOf(it.scopeType, it.period).replace(' · ', '-')
     if (isNative) {
       blob.value = b
-      await openFile(b, `${curName.value || '孩子'}-成长报告.pdf`)
+      await openFile(b, `${curName.value || '孩子'}-${label}.pdf`)
     } else {
       dropPreview()
       blob.value = b
@@ -106,7 +114,7 @@ async function open() {
   } catch (e: any) {
     showToast(e?.message || '报告打开失败')
   } finally {
-    opening.value = false
+    opening.value = null
   }
 }
 
@@ -129,7 +137,8 @@ onUnmounted(dropPreview)
 .kid.on { background: var(--shine-navy); color: #fff; border-color: var(--shine-navy); }
 
 /* 报告卡 */
-.r-card { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 16px; }
+.term { margin-top: 4px; }
+.r-card { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 14px 16px; }
 .r-icon { flex: none; display: flex; align-items: center; justify-content: center;
   width: 46px; height: 46px; border-radius: 14px;
   background: var(--shine-navy); color: var(--shine-gold); }

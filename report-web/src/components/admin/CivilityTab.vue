@@ -1,8 +1,8 @@
 <template>
   <div>
-    <h4>文明班评比（批30 B 案）：打分流水 + 自动排名 + 月度评选；细则见教师端「德育规范」页</h4>
+    <h4>文明班评比：打分流水（历史）+ 班级记分流水 + 自动排名 + 月度评选；细则见教师端「德育规范」页</h4>
 
-    <!-- 打分流水（近 200 条，误录可删） -->
+    <!-- 打分流水（批39⑥ 已下线，近 200 条历史，误录可删） -->
     <div class="bar">
       <el-select v-model="qClass" clearable filterable placeholder="全部班级" style="width: 180px" @change="loadRecords">
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
@@ -31,8 +31,35 @@
       </el-table-column>
     </el-table>
 
+    <!-- 班级记分流水（批43：现行班级整体加减分，误录可删） -->
+    <h4 style="margin-top: 22px">班级记分流水（批43：班主任/级长/学成中心/管理员在「素养评价 → 班级记分」录入）</h4>
+    <div class="bar">
+      <el-select v-model="csQClass" clearable filterable placeholder="选择班级" style="width: 180px" @change="loadCsRecords">
+        <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
+      </el-select>
+    </div>
+    <el-table :data="csRecords" size="small">
+      <el-table-column prop="scoreDate" label="日期" width="110" />
+      <el-table-column label="大项" width="110">
+        <template #default="{ row }">{{ row.category ? conductSections[row.category - 1]?.name ?? row.category : '—' }}</template>
+      </el-table-column>
+      <el-table-column prop="itemText" label="事项" min-width="220" show-overflow-tooltip />
+      <el-table-column label="分值" width="70">
+        <template #default="{ row }">
+          <b :class="Number(row.delta) >= 0 ? 'pos' : 'neg'">{{ Number(row.delta) >= 0 ? '+' : '' }}{{ row.delta }}</b>
+        </template>
+      </el-table-column>
+      <el-table-column prop="note" label="备注" width="140" show-overflow-tooltip />
+      <el-table-column prop="operatorName" label="记分人" width="100" />
+      <el-table-column label="操作" width="80">
+        <template #default="{ row }">
+          <el-button size="small" text type="danger" @click="delCs(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
     <!-- 自动排名（区间聚合） -->
-    <h4 style="margin-top: 22px">区间排名（自动汇总：检查日数×120 + 累计打分）</h4>
+    <h4 style="margin-top: 22px">区间排名（自动汇总：检查日×120 + 素养评价分 + 班级记分）</h4>
     <div class="bar">
       <el-date-picker v-model="rFrom" type="date" style="width: 160px" value-format="YYYY-MM-DD" @change="loadRank" />
       <span>至</span>
@@ -52,7 +79,7 @@
       <el-table-column prop="className" label="班级" width="130" />
       <el-table-column prop="totalScore" label="总分" width="110" />
     </el-table>
-    <p class="tip">本月检查 {{ rankDays }} 天（有打分记录的日子；未被打分的班级当天保底 120 分）</p>
+    <p class="tip">本月检查 {{ rankDays }} 天（有素养评价或班级记分记录的日子；无记录的班级当天不计）</p>
 
     <!-- 月度评选 -->
     <h4 style="margin-top: 22px">文明班评选（按月冻结快照，重评覆盖；每月 1 日 08:10 自动评选上月）</h4>
@@ -79,12 +106,16 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../../api/http'
+import { CONDUCT_SECTIONS } from '../../data/conductRules'
 
+const conductSections = CONDUCT_SECTIONS
 const classes = ref<any[]>([])
 const grades = ref<any[]>([])
 const qClass = ref<number | ''>('')
 const qDate = ref('')
 const records = ref<any[]>([])
+const csQClass = ref<number | ''>('')
+const csRecords = ref<any[]>([])
 
 const now = new Date()
 const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -127,6 +158,22 @@ async function del(row: any) {
   await Promise.all([loadRecords(), loadRank(), loadAwards()])
 }
 
+/** 批43 班级记分流水（管理员视角按班查、可删） */
+async function loadCsRecords() {
+  csRecords.value = csQClass.value
+    ? await api<any[]>(`/api/civility/class-score/list?classId=${csQClass.value}`).catch(() => [])
+    : []
+}
+
+async function delCs(row: any) {
+  try {
+    await ElMessageBox.confirm(`删除班级记分「${row.itemText}」？（排名下次汇总自动对齐）`, '删除确认')
+  } catch { return }
+  await api(`/api/civility/class-score/${row.id}`, { method: 'DELETE' })
+  ElMessage.success('已删除')
+  await Promise.all([loadCsRecords(), loadRank(), loadAwards()])
+}
+
 async function settle() {
   if (!settleMonth.value) return
   const tops = await api<any[]>('/api/civility/settle', { method: 'POST', json: { month: settleMonth.value } })
@@ -138,6 +185,10 @@ onMounted(async () => {
   classes.value = await api<any[]>('/api/admin/class/list').catch(() => [])
   grades.value = await api<any[]>('/api/meta/grades').catch(() => [])
   await Promise.all([loadRecords(), loadRank(), loadAwards()])
+  if (classes.value.length) {
+    csQClass.value = classes.value[0].id
+    await loadCsRecords()
+  }
 })
 </script>
 

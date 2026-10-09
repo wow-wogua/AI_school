@@ -2,7 +2,7 @@
   <div class="sys-param">
     <el-alert type="info" :closable="false" show-icon
       title="常用系统参数（保存后即时生效，无需重启）"
-      description="当前开放：学生请假分级审批的天数阈值。老师代录请假单时按此处天数自动判定审批级数，超过上限的天数引导走纸质申请。" />
+      description="当前开放：学生请假分级审批的天数阈值、文明班评比口径切换日。" />
 
     <el-form label-width="150px" class="form" v-loading="loading">
       <div class="sec">学生请假分级审批</div>
@@ -16,8 +16,16 @@
       </el-form-item>
       <el-form-item label="系统受理上限（天）">
         <el-input-number v-model="p.leaveMaxDays" :min="2" :max="365" />
-        <span class="hint">超过级长上限且不超过该天数：级长 + 学成中心主任两级；再长请走纸质申请</span>
+        <span class="hint">超过级长上限且不超过该天数：级长 → 学成中心主任 → 书记 三级审批（批39）；再长请走纸质申请</span>
       </el-form-item>
+
+      <div class="sec">文明班评比</div>
+      <el-form-item label="口径切换日">
+        <el-date-picker v-model="p.civilityEvalFrom" type="date" value-format="YYYY-MM-DD"
+          placeholder="留空 = 仍按旧打分口径" clearable style="width: 180px" />
+        <span class="hint">自该日起：文明班分 = 每日基础 120 + 素养评价分直加；此前的历史打分仍计入排名</span>
+      </el-form-item>
+
       <el-form-item>
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
         <span class="hint">须满足 1 ≤ 即生效天数 &lt; 级长审批天数 ≤ 上限天数 ≤ 365</span>
@@ -53,6 +61,7 @@ async function save() {
         leaveLevel1Days: p.value.leaveLevel1Days,
         leaveLevel2Days: p.value.leaveLevel2Days,
         leaveMaxDays: p.value.leaveMaxDays,
+        civilityEvalFrom: p.value.civilityEvalFrom || '',
       },
     })
     ElMessage.success('已保存，即时生效')

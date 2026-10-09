@@ -14,6 +14,8 @@
         <el-option v-for="s in subjects" :key="s.subjectId" :label="s.name" :value="s.subjectId" />
       </el-select>
       <el-button type="primary" @click="examDialog = true">新建考试</el-button>
+      <!-- 批40e 撤回：管理员删误建考试（含其下全部成绩） -->
+      <el-button v-if="!teacherSide && examId" type="danger" plain @click="delExam">删除考试</el-button>
       <el-button v-if="classId" @click="downloadTemplate">下载模板</el-button>
       <el-button v-if="examId && subjectId && classId" @click="exportXlsx">导出 Excel</el-button>
       <el-button v-if="examId && subjectId && classId && editable" @click="importDialog = true">导入 Excel</el-button>
@@ -99,7 +101,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { motion } from 'motion-v'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, apiForm, fetchBlob } from '../api/http'
 import { saveFile } from '../api/nativeShare'
 import { useAuthStore } from '../stores/auth'
@@ -108,6 +110,21 @@ const route = useRoute()
 const auth = useAuthStore()
 /* 批4 方案A：教师侧（班主任同口径）仅见自己录入、名次列不开放 */
 const teacherSide = computed(() => auth.role === 'TEACHER' || auth.role === 'HEAD_TEACHER')
+
+/** 批40e 撤回：删除整场考试（管理员；含全部成绩，报告重新生成即对齐） */
+async function delExam() {
+  const ex = exams.value.find((e: any) => e.id === examId.value)
+  await ElMessageBox.confirm(
+    `删除考试「${ex?.name ?? examId.value}」及其全部科目成绩？该操作不可恢复`, '删除考试',
+    { type: 'warning' },
+  )
+  await api(`/api/score/exam/${examId.value}`, { method: 'DELETE' })
+  ElMessage.success('已删除')
+  exams.value = await api<any[]>('/api/score/exam/list')
+  examId.value = exams.value[0]?.id
+  rows.value = []
+  if (examId.value) await loadSubjects()
+}
 const hlStudentId = ref<number>(Number(route.query.studentId) || 0)   // 从学生详情进来：高亮该生行
 
 function rowClass({ row }: { row: any }) {

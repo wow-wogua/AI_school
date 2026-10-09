@@ -1,11 +1,11 @@
 <template>
-  <!-- 批37 IA 重组：我的成长三合一（教师档案 / 教师风采 / 成长足迹）——
+  <!-- 批37 IA 重组：我的成长三合一（教师档案 / 教师风采 / 教师足迹）——
        教师自身成长相关收拢为一个入口；旧路由 /profile /teacher-honor /footprint redirect 到此 -->
   <div class="page agg">
     <van-tabs v-model:active="active" class="agg-tabs" color="#A8232B" line-width="20px" title-active-color="#A8232B">
       <van-tab title="教师档案" name="profile" />
       <van-tab title="教师风采" name="honor" />
-      <van-tab title="成长足迹" name="footprint" />
+      <van-tab title="教师足迹" name="footprint" />
     </van-tabs>
     <KeepAlive>
       <!-- 管理员档案=全校总览页签（在管理端），这里给跳转入口 -->
