@@ -25,6 +25,7 @@ import com.aischool.server.mapper.ReportMapper;
 import com.aischool.server.mapper.ScoreMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.TermMapper;
+import com.aischool.server.security.AuthUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -71,30 +72,33 @@ public class TimelineService {
         List<Object[]> events = new ArrayList<>();   // [type, time, title, detail]
         LocalDateTime start = term.getStartDate().atStartOfDay();
         LocalDateTime end = term.getEndDate().atTime(LocalTime.MAX);
-        collectEvaluations(events, studentId, start, end);
+        collectEvaluations(events, studentId, start, end, false);
         collectActivities(events, studentId, start, end);
         collectHonors(events, studentId, term.getStartDate(), term.getEndDate());
         collectExamProgress(events, studentId, termId);
         return Map.of("events", toRows(events));
     }
 
-    /** 生命周期档案（原始需求四）：在校全期事件流 + 总览统计（termId 无关，跨全部学期） */
+    /** 生命周期档案（原始需求四）：在校全期事件流 + 总览统计（termId 无关，跨全部学期）。
+     *  批39⑦：家长视角只显示加分评价（教师时间轴走 events()，照常全量） */
     public Map<String, Object> lifecycle(Long studentId) {
         Student student = studentMapper.selectById(studentId);
         if (student == null) {
             throw new BizException(404, "学生不存在");
         }
         Clazz clazz = student.getClassId() == null ? null : clazzMapper.selectById(student.getClassId());
+        boolean parentView = "PARENT".equals(AuthUtil.current().role());
 
         List<Object[]> events = new ArrayList<>();
-        collectEvaluations(events, studentId, null, null);
+        collectEvaluations(events, studentId, null, null, parentView);
         collectActivities(events, studentId, null, null);
         collectHonors(events, studentId, null, null);
         collectMoments(events, studentId);
         collectExamProgress(events, studentId, null);
 
         long evaluations = evaluationMapper.selectCount(new LambdaQueryWrapper<Evaluation>()
-                .eq(Evaluation::getStudentId, studentId));
+                .eq(Evaluation::getStudentId, studentId)
+                .gt(parentView, Evaluation::getScore, 0));
         long activities = signupMapper.selectCount(new LambdaQueryWrapper<ActivitySignup>()
                 .eq(ActivitySignup::getStudentId, studentId));
         long honors = honorMapper.selectCount(new LambdaQueryWrapper<Honor>()
@@ -127,11 +131,12 @@ public class TimelineService {
         return out;
     }
 
-    /** 评价事件；start/end 为 null 时全期 */
+    /** 评价事件；start/end 为 null 时全期；onlyPositive=家长视角只收加分（批39⑦） */
     private void collectEvaluations(List<Object[]> events, Long studentId,
-                                    LocalDateTime start, LocalDateTime end) {
+                                    LocalDateTime start, LocalDateTime end, boolean onlyPositive) {
         List<Evaluation> evals = evaluationMapper.selectList(new LambdaQueryWrapper<Evaluation>()
                 .eq(Evaluation::getStudentId, studentId)
+                .gt(onlyPositive, Evaluation::getScore, 0)
                 .ge(start != null, Evaluation::getEvalTime, start)
                 .le(end != null, Evaluation::getEvalTime, end));
         for (Evaluation e : evals) {

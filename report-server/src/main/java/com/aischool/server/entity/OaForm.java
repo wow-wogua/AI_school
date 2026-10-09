@@ -16,6 +16,8 @@ public class OaForm {
     public static final String TYPE_GOODS = "GOODS";
     public static final String TYPE_LEAVE = "LEAVE";
     public static final String TYPE_VENUE = "VENUE";
+    /** 批43①：采购申请（钉钉流程移植，五级固定链见 OaService.nodeName） */
+    public static final String TYPE_PURCHASE = "PURCHASE";
 
     public static final String PENDING = "PENDING";
     public static final String APPROVED = "APPROVED";

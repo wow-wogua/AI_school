@@ -18,6 +18,8 @@ public class Report {
     private Long termId;
     /** 报告类型（批26）：TERM 学期=存量默认 / YEAR 学年 / SCHOOL 在校 */
     private String scopeType;
+    /** 期次（批42 分期归档）：MID=期中 / FINAL=期末；NULL 视为期末；仅 TERM 报告用 */
+    private String period;
     /** 覆盖学期 id 快照（逗号串；TERM=null 单学期即 termId） */
     private String termIds;
     private String fileUrl;

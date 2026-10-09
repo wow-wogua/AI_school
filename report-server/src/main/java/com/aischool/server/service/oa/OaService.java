@@ -3,6 +3,7 @@ package com.aischool.server.service.oa;
 import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Goods;
 import com.aischool.server.entity.GoodsFlow;
+import com.aischool.server.entity.Notification;
 import com.aischool.server.entity.OaFlowLog;
 import com.aischool.server.entity.OaForm;
 import com.aischool.server.entity.SysConfig;
@@ -16,18 +17,24 @@ import com.aischool.server.mapper.SysConfigMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.mapper.VenueMapper;
 import com.aischool.server.security.AuthUtil;
+import com.aischool.server.security.UserPrincipal;
 import com.aischool.server.service.notify.NotificationService;
+import com.aischool.server.service.report.PdfStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -41,6 +48,7 @@ public class OaService {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String NODE_SUBMIT = "提交";
+    private static final long PHOTO_MAX_SIZE = 10L * 1024 * 1024;
 
     private final OaFormMapper formMapper;
     private final OaFlowLogMapper logMapper;
@@ -50,6 +58,7 @@ public class OaService {
     private final UserMapper userMapper;
     private final VenueMapper venueMapper;
     private final NotificationService notificationService;
+    private final PdfStoreService pdfStore;
 
     // ---- 配置 ----
 
@@ -70,10 +79,13 @@ public class OaService {
         return cfg(key);
     }
 
-    /** 物资/请假审批级数（1-3，默认 1，键 oa_{type}_levels）；公章固定 3 */
+    /** 物资/请假审批级数（1-3，默认 1，键 oa_{type}_levels）；公章固定 3；采购固定 5（批43①） */
     public int levels(String formType) {
         if (OaForm.TYPE_SEAL.equals(formType)) {
             return 3;
+        }
+        if (OaForm.TYPE_PURCHASE.equals(formType)) {
+            return 5;
         }
         try {
             return Math.max(1, Math.min(3, Integer.parseInt(cfg("oa_" + formType.toLowerCase() + "_levels"))));
@@ -82,19 +94,36 @@ public class OaService {
         }
     }
 
-    /** 第 level 级审批人 user_id；未配置返回 null */
-    private Long approverId(String formType, int level) {
+    /**
+     * 第 level 级审批人 user_id 列表（批43① 或签）：配置值为逗号分隔 id（"5,12"），任一人通过即过级。
+     * 单人配置 "5" 与既有四类型完全兼容。
+     */
+    private List<Long> approverIds(String formType, int level) {
         String v = cfg("oa_" + formType.toLowerCase() + "_l" + level);
-        return v.isEmpty() ? null : Long.parseLong(v);
+        if (v.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return java.util.Arrays.stream(v.split(",")).map(String::trim).filter(s -> !s.isEmpty())
+                    .map(Long::parseLong).distinct().toList();
+        } catch (NumberFormatException e) {
+            return List.of();
+        }
+    }
+
+    /** 过滤出账号仍存在的审批人（被删账号配成审批人会让单据卡死在无人可审的级） */
+    private List<Long> validUserIds(List<Long> ids) {
+        return ids.isEmpty() ? ids
+                : ids.stream().filter(id -> userMapper.selectById(id) != null).toList();
     }
 
     /** 提交前校验所用级数的审批人全部配齐（否则单据卡死在无人可审的级） */
     private void checkApproversConfigured(String formType) {
         int n = levels(formType);
         for (int i = 1; i <= n; i++) {
-            Long id = approverId(formType, i);
-            if (id == null || userMapper.selectById(id) == null) {
-                throw new BizException(400, "管理员尚未配齐「" + typeName(formType) + "」第 " + i + " 级审批人，请联系管理员配置后再提交");
+            if (validUserIds(approverIds(formType, i)).isEmpty()) {
+                throw new BizException(400, "管理员尚未配齐「" + typeName(formType) + "」第 " + i
+                        + " 级（" + nodeName(formType, i) + "）审批人，请联系管理员配置后再提交");
             }
         }
     }
@@ -105,6 +134,9 @@ public class OaService {
         }
         if (OaForm.TYPE_LEAVE.equals(formType)) {
             return "教师请假";
+        }
+        if (OaForm.TYPE_PURCHASE.equals(formType)) {
+            return "采购申请";
         }
         return OaForm.TYPE_VENUE.equals(formType) ? "场地申请" : "公章使用申请";
     }
@@ -122,12 +154,26 @@ public class OaService {
         private String startDate;
         private String endDate;
         private Long venueId; // 批11：场地申请（t_venue）
+        // 批43①：采购申请（钉钉流程移植）
+        private String expectDate; // 期望交付日期
+        private String place; // 交付地点
+        private List<String> photos; // 附件 objectName（先传 /purchase/photo 预上传拿 key）
+        private List<PurchaseItem> items; // 采购明细（多组）
     }
 
     @Data
     public static class GoodsLine {
         private Long goodsId;
         private Integer qty;
+    }
+
+    /** 批43① 采购明细行（甲方表单原样：名称/型号规格/数量为文本，无金额字段） */
+    @Data
+    public static class PurchaseItem {
+        private String name;
+        private String spec;
+        private String qty;
+        private String note;
     }
 
     public OaForm submit(SubmitReq req) {
@@ -137,7 +183,8 @@ public class OaService {
         }
         String type = OaForm.TYPE_LEAVE.equals(req.getFormType()) ? OaForm.TYPE_LEAVE
                 : OaForm.TYPE_GOODS.equals(req.getFormType()) ? OaForm.TYPE_GOODS
-                : OaForm.TYPE_VENUE.equals(req.getFormType()) ? OaForm.TYPE_VENUE : OaForm.TYPE_SEAL;
+                : OaForm.TYPE_VENUE.equals(req.getFormType()) ? OaForm.TYPE_VENUE
+                : OaForm.TYPE_PURCHASE.equals(req.getFormType()) ? OaForm.TYPE_PURCHASE : OaForm.TYPE_SEAL;
         checkApproversConfigured(type);
         OaForm form = new OaForm();
         form.setFormType(type);
@@ -191,6 +238,61 @@ public class OaService {
             detail.put("reason", req.getTitle().trim());
             form.setTitle(v.getName() + "·" + req.getUseDate());
             form.setDetail(toJson(detail));
+        } else if (type.equals(OaForm.TYPE_PURCHASE)) {
+            if (req.getTitle() == null || req.getTitle().isBlank()) {
+                throw new BizException(400, "请填写申请事由");
+            }
+            if (req.getTitle().length() > 200) {
+                throw new BizException(400, "申请事由不能超过 200 字");
+            }
+            if (req.getExpectDate() == null || req.getExpectDate().isBlank()) {
+                throw new BizException(400, "请选择期望交付日期");
+            }
+            if (req.getPlace() == null || req.getPlace().isBlank()) {
+                throw new BizException(400, "请填写交付地点");
+            }
+            List<PurchaseItem> items = req.getItems();
+            if (items == null || items.isEmpty()) {
+                throw new BizException(400, "请至少填写一项采购明细");
+            }
+            for (int i = 0; i < items.size(); i++) {
+                PurchaseItem it = items.get(i);
+                boolean blankRow = (it.getName() == null || it.getName().isBlank())
+                        && (it.getSpec() == null || it.getSpec().isBlank())
+                        && (it.getQty() == null || it.getQty().isBlank());
+                if (blankRow) {
+                    continue; // 全空行丢弃（前端「复制/添加」产生的空行）
+                }
+                if (it.getName() == null || it.getName().isBlank()
+                        || it.getSpec() == null || it.getSpec().isBlank()
+                        || it.getQty() == null || it.getQty().isBlank()) {
+                    throw new BizException(400, "采购明细第 " + (i + 1) + " 项须填写物品名称、型号规格与数量");
+                }
+            }
+            long filled = items.stream().filter(it -> it.getName() != null && !it.getName().isBlank()).count();
+            if (filled == 0) {
+                throw new BizException(400, "请至少填写一项采购明细");
+            }
+            if (req.getPhotos() != null && req.getPhotos().size() > 3) {
+                throw new BizException(400, "附件最多 3 张");
+            }
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("reason", req.getTitle().trim());
+            detail.put("expectDate", req.getExpectDate());
+            detail.put("place", req.getPlace().trim());
+            detail.put("photos", req.getPhotos() == null ? List.of() : req.getPhotos());
+            detail.put("items", items.stream()
+                    .filter(it -> it.getName() != null && !it.getName().isBlank())
+                    .map(it -> {
+                        Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("name", it.getName().trim());
+                        m.put("spec", it.getSpec().trim());
+                        m.put("qty", it.getQty().trim());
+                        m.put("note", it.getNote() == null ? "" : it.getNote().trim());
+                        return m;
+                    }).toList());
+            form.setTitle(req.getTitle().trim());
+            form.setDetail(toJson(detail));
         } else {
             List<GoodsLine> lines = req.getGoodsLines();
             if (lines == null || lines.isEmpty()) {
@@ -229,10 +331,10 @@ public class OaService {
         log.setNodeName(NODE_SUBMIT);
         log.setOperatorId(user.userId());
         logMapper.insert(log);
-        // 批29：通知第一级审批人（App 通知中心 + 企微群）
-        Long first = approverId(type, 1);
-        if (first != null) {
-            notificationService.oaTodo(first, typeName(type), form.getTitle(), form.getId(), user.realName());
+        // 批29：通知第一级审批人（App 通知中心 + 企微群）；批43① 或签=逐人通知、群合并一条
+        List<Long> first = validUserIds(approverIds(type, 1));
+        if (!first.isEmpty()) {
+            notificationService.oaTodoAny(first, typeName(type), form.getTitle(), form.getId(), user.realName());
         }
         return form;
     }
@@ -248,14 +350,14 @@ public class OaService {
                 .orderByDesc(OaForm::getId)));
     }
 
-    /** 待我审批：当前待审级配置人=本人 的 PENDING 单（PARENT 不会成为审批人，天然空） */
+    /** 待我审批：当前待审级配置人含本人 的 PENDING 单（或签=列表任一人；PARENT 不会成为审批人，天然空） */
     public List<Map<String, Object>> todoList() {
         var user = AuthUtil.current();
         Long uid = user.userId();
         List<OaForm> all = formMapper.selectList(new LambdaQueryWrapper<OaForm>()
                 .eq(OaForm::getStatus, OaForm.PENDING));
         List<OaForm> mine = all.stream()
-                .filter(f -> uid.equals(approverId(f.getFormType(), f.getCurrentLevel())))
+                .filter(f -> approverIds(f.getFormType(), f.getCurrentLevel()).contains(uid))
                 .collect(Collectors.toList());
         return toRows(mine);
     }
@@ -272,16 +374,8 @@ public class OaService {
     public Map<String, Object> detail(Long id) {
         var user = AuthUtil.current();
         OaForm form = requireForm(id);
-        if (!"ADMIN".equals(user.role())) {
-            boolean applicant = form.getApplicantId().equals(user.userId());
-            boolean approver = form.getStatus().equals(OaForm.PENDING)
-                    && user.userId().equals(approverId(form.getFormType(), form.getCurrentLevel()));
-            // 批33：招采可看物资单（核销工作台进详情）
-            boolean procurement = OaForm.TYPE_GOODS.equals(form.getFormType())
-                    && "PROCUREMENT".equals(user.role());
-            if (!applicant && !approver && !procurement) {
-                throw new BizException(403, "仅申请人与当前审批人可查看该单据");
-            }
+        if (!canView(form, user)) {
+            throw new BizException(403, "仅申请人与当前审批人可查看该单据");
         }
         List<OaFlowLog> logs = logMapper.selectList(new LambdaQueryWrapper<OaFlowLog>()
                 .eq(OaFlowLog::getFormId, id).orderByAsc(OaFlowLog::getId));
@@ -299,7 +393,54 @@ public class OaService {
             m.put("createTime", l.getCreateTime());
             return m;
         }).toList());
+        // 批43① 采购：附件流回 URL + 库存参考（库存确认节点辅助）+ 抄送人展示
+        if (OaForm.TYPE_PURCHASE.equals(form.getFormType())) {
+            Map<String, Object> d = parseObj(form.getDetail());
+            List<String> photoUrls = new ArrayList<>();
+            if (d.get("photos") instanceof List<?> ph) {
+                for (int i = 0; i < ph.size(); i++) {
+                    photoUrls.add("/api/oa/purchase/file/" + form.getId() + "?idx=" + i);
+                }
+            }
+            out.put("photoUrls", photoUrls);
+            List<Map<String, Object>> matches = new ArrayList<>();
+            if (d.get("items") instanceof List<?> items) {
+                for (Object o : items) {
+                    if (!(o instanceof Map<?, ?> it) || it.get("name") == null) {
+                        continue;
+                    }
+                    String name = String.valueOf(it.get("name"));
+                    goodsMapper.selectList(new LambdaQueryWrapper<Goods>()
+                                    .like(Goods::getName, name).eq(Goods::getStatus, 1).last("LIMIT 3"))
+                            .forEach(g -> matches.add(Map.of(
+                                    "item", name, "name", g.getName(),
+                                    "stock", g.getStock(), "unit", g.getUnit(),
+                                    "location", g.getLocation() == null ? "" : g.getLocation())));
+                }
+            }
+            out.put("stockMatches", matches);
+            List<Long> cc = ccIds();
+            if (!cc.isEmpty()) {
+                Map<Long, String> nm = userMapper.selectBatchIds(cc).stream()
+                        .collect(Collectors.toMap(User::getId, User::getRealName, (a, b) -> a));
+                out.put("ccNames", cc.stream().map(ccId -> nm.getOrDefault(ccId, ""))
+                        .filter(s -> !s.isBlank()).toList());
+            }
+        }
         return out;
+    }
+
+    /** 可见性：管理员全量；申请人本人；当前待审级或签成员；招采看物资单（批33 核销工作台） */
+    private boolean canView(OaForm form, UserPrincipal user) {
+        if ("ADMIN".equals(user.role())) {
+            return true;
+        }
+        boolean applicant = form.getApplicantId().equals(user.userId());
+        boolean approver = form.getStatus().equals(OaForm.PENDING)
+                && approverIds(form.getFormType(), form.getCurrentLevel()).contains(user.userId());
+        boolean procurement = OaForm.TYPE_GOODS.equals(form.getFormType())
+                && "PROCUREMENT".equals(user.role());
+        return applicant || approver || procurement;
     }
 
     // ---- 审批动作 ----
@@ -330,15 +471,16 @@ public class OaService {
         if (!form.getStatus().equals(OaForm.PENDING)) {
             throw new BizException(400, "单据已流转结束");
         }
-        Long approver = approverId(form.getFormType(), form.getCurrentLevel());
-        boolean currentApprover = user.userId().equals(approver);
+        List<Long> approvers = approverIds(form.getFormType(), form.getCurrentLevel());
+        boolean currentApprover = approvers.contains(user.userId());
         if (!admin && !currentApprover) {
-            throw new BizException(403, "当前节点由「" + nodeName(form.getCurrentLevel()) + "」审批人处理");
+            throw new BizException(403, "当前节点由「" + nodeName(form.getFormType(), form.getCurrentLevel()) + "」审批人处理");
         }
         if (OaFlowLog.REJECT.equals(action)) {
             writeLog(form, OaFlowLog.REJECT, user.userId(), req.getNote());
             finish(form, OaForm.REJECTED);
             notificationService.oaResult(form.getApplicantId(), typeName(form.getFormType()), form.getTitle(), false, req.getNote());
+            ccPurchase(form, false, req.getNote(), user);
             return;
         }
         if (!OaFlowLog.AGREE.equals(action)) {
@@ -351,13 +493,15 @@ public class OaService {
             String note = OaForm.TYPE_GOODS.equals(form.getFormType())
                     ? "审批通过，请到招采部门领取，领取后由招采核销出库" : req.getNote();
             notificationService.oaResult(form.getApplicantId(), typeName(form.getFormType()), form.getTitle(), true, note);
+            // 批43① 采购验收通过：入库由招采线下手动处理（不走物资台账自动入库）
+            ccPurchase(form, true, note, user);
         } else {
             form.setCurrentLevel(form.getCurrentLevel() + 1);
             formMapper.updateById(form);
-            // 批29：流转到下一级，通知下一级审批人
-            Long next = approverId(form.getFormType(), form.getCurrentLevel());
-            if (next != null) {
-                notificationService.oaTodo(next, typeName(form.getFormType()), form.getTitle(), form.getId(), user.realName());
+            // 批29：流转到下一级，通知下一级审批人；批43① 或签=逐人通知、群合并一条
+            List<Long> next = validUserIds(approverIds(form.getFormType(), form.getCurrentLevel()));
+            if (!next.isEmpty()) {
+                notificationService.oaTodoAny(next, typeName(form.getFormType()), form.getTitle(), form.getId(), user.realName());
             }
         }
     }
@@ -431,7 +575,17 @@ public class OaService {
         return form;
     }
 
-    public static String nodeName(int level) {
+    public static String nodeName(String formType, int level) {
+        if (OaForm.TYPE_PURCHASE.equals(formType)) {
+            return switch (level) {
+                case 1 -> "部门负责人审批";
+                case 2 -> "库存确认";
+                case 3 -> "主管校领导审批";
+                case 4 -> "招采中心确认";
+                case 5 -> "采购验收";
+                default -> "提交";
+            };
+        }
         return switch (level) {
             case 1 -> "一级审批";
             case 2 -> "二级审批";
@@ -445,7 +599,7 @@ public class OaService {
         log.setFormId(form.getId());
         log.setAction(action);
         log.setLevel(OaFlowLog.SUBMIT.equals(action) ? 0 : form.getCurrentLevel());
-        log.setNodeName(OaFlowLog.SUBMIT.equals(action) ? NODE_SUBMIT : nodeName(form.getCurrentLevel()));
+        log.setNodeName(OaFlowLog.SUBMIT.equals(action) ? NODE_SUBMIT : nodeName(form.getFormType(), form.getCurrentLevel()));
         log.setOperatorId(operatorId);
         log.setNote(note);
         logMapper.insert(log);
@@ -473,7 +627,7 @@ public class OaService {
         m.put("applicantName", names.getOrDefault(f.getApplicantId(), ""));
         m.put("status", f.getStatus());
         m.put("currentLevel", f.getCurrentLevel());
-        m.put("nodeName", f.getStatus().equals(OaForm.PENDING) ? nodeName(f.getCurrentLevel()) : "");
+        m.put("nodeName", f.getStatus().equals(OaForm.PENDING) ? nodeName(f.getFormType(), f.getCurrentLevel()) : "");
         m.put("createTime", f.getCreateTime());
         return m;
     }
@@ -525,5 +679,73 @@ public class OaService {
                 throw new BizException(400, "「" + d.get("venueName") + "」在 " + useDate + " 已有申请单（#" + f.getId() + "），请改期或联系管理员");
             }
         }
+    }
+
+    // ───────── 批43① 采购：抄送 / 附件 ─────────
+
+    /** 抄送人配置（oa_purchase_cc 逗号分隔；管理员预设不可删，同钉钉） */
+    private List<Long> ccIds() {
+        String v = cfg("oa_purchase_cc");
+        if (v.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return java.util.Arrays.stream(v.split(",")).map(String::trim).filter(s -> !s.isEmpty())
+                    .map(Long::parseLong).distinct().toList();
+        } catch (NumberFormatException e) {
+            return List.of();
+        }
+    }
+
+    /** 终态抄送（通过/驳回后通知预设抄送人；采购单专用，不写流转日志） */
+    private void ccPurchase(OaForm form, boolean approved, String note, UserPrincipal operator) {
+        if (!OaForm.TYPE_PURCHASE.equals(form.getFormType())) {
+            return;
+        }
+        String applicantName = userNames(form, List.of()).getOrDefault(form.getApplicantId(), "");
+        for (Long id : validUserIds(ccIds())) {
+            notificationService.send(id, Notification.OA_RESULT, "抄送：采购申请" + (approved ? "已通过" : "已被驳回"),
+                    applicantName + " 提交的「" + form.getTitle() + "」"
+                            + (approved ? "已审批通过（" + operator.realName() + " 验收）" : "已被驳回")
+                            + (note == null || note.isBlank() ? "" : "，意见：" + note), "/oa");
+        }
+    }
+
+    /** 采购附件预上传（multipart→MinIO oa/ 前缀；submit 时只带 objectName 列表，同报修凭证模式） */
+    public Map<String, Object> uploadPurchasePhoto(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BizException(400, "附件为空");
+        }
+        if (file.getSize() > PHOTO_MAX_SIZE) {
+            throw new BizException(400, "附件不能超过 10MB");
+        }
+        String original = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
+        String ext = original.contains(".")
+                ? original.substring(original.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT) : "";
+        if (!ext.equals("jpg") && !ext.equals("jpeg") && !ext.equals("png")) {
+            throw new BizException(400, "仅支持 jpg/jpeg/png 格式");
+        }
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (Exception e) {
+            throw new BizException(400, "读取附件失败");
+        }
+        String objectName = "oa/" + UUID.randomUUID() + "." + ext;
+        pdfStore.upload(objectName, new ByteArrayInputStream(bytes), bytes.length, file.getContentType());
+        return Map.of("photo", objectName);
+    }
+
+    /** 附件对象名（详情流回用；可见性同 detail） */
+    public String purchasePhotoObject(Long formId, int idx) {
+        OaForm form = requireForm(formId);
+        if (!canView(form, AuthUtil.current())) {
+            throw new BizException(403, "仅申请人与当前审批人可查看该单据");
+        }
+        if (!(parseObj(form.getDetail()).get("photos") instanceof List<?> list)
+                || idx < 0 || idx >= list.size()) {
+            throw new BizException(404, "附件不存在");
+        }
+        return String.valueOf(list.get(idx));
     }
 }

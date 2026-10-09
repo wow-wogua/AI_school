@@ -18,6 +18,7 @@ public class User {
     private String realName;
     private String role;
     private String phone;
+    private String stageScope; // 批39③：领导分管学段 PRIMARY/JUNIOR，null=全部（仅 LEADER 使用）
     private Integer status;
     private Integer mustChangePwd;
     private LocalDateTime createTime;

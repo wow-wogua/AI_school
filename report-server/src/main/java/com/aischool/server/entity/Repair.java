@@ -15,6 +15,7 @@ public class Repair {
     public static final String PENDING = "PENDING";
     public static final String DONE = "DONE";
     public static final String REJECTED = "REJECTED";
+    public static final String CANCELED = "CANCELED"; // 批40e 撤回普适：发起人撤回（未处理前）
 
     @TableId(type = IdType.AUTO)
     private Long id;

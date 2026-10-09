@@ -6,6 +6,8 @@ import com.aischool.server.entity.SysConfig;
 import com.aischool.server.mapper.AiTaskMapper;
 import com.aischool.server.mapper.SysConfigMapper;
 import com.aischool.server.service.ai.AiClient;
+import com.aischool.server.service.ai.AiImageClient;
+import com.aischool.server.service.asset.AssetService;
 import com.aischool.server.service.auth.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.Data;
@@ -34,6 +36,8 @@ public class AdminAiController {
 
     private final SysConfigMapper sysConfigMapper;
     private final AiClient aiClient;
+    private final AiImageClient aiImageClient;
+    private final AssetService assetService;
     private final AiTaskMapper aiTaskMapper;
     private final PermissionService permissionService;
 
@@ -69,10 +73,19 @@ public class AdminAiController {
         m.put("apiKeyMasked", key.length() > 4 ? "••••••" + key.substring(key.length() - 4) : "");
         m.put("enabled", aiClient.enabled());
         m.put("effectiveModel", aiClient.currentConfig().model());
+        // 批40c 图像生成（IP 成长画像垫图）：独立第二把 key，未配置 = 画像退 IP 原图/占位框
+        String imgKey = cfg("img_api_key");
+        m.put("imgBaseUrl", cfg("img_base_url"));
+        m.put("imgModel", cfg("img_model"));
+        m.put("imgApiKeySet", !imgKey.isEmpty());
+        m.put("imgApiKeyMasked", imgKey.length() > 4 ? "••••••" + imgKey.substring(imgKey.length() - 4) : "");
+        m.put("imgEnabled", aiImageClient.enabled());
+        m.put("ipBaseReady", assetService.readAssetBytes("ip_shi") != null
+                && assetService.readAssetBytes("ip_meng") != null);
         return ApiResponse.ok(m);
     }
 
-    /** api-key 留空 = 保持不变（打码回显不会把密钥带回来）；清空 base-url/model 即停用 */
+    /** api-key 留空 = 保持不变（打码回显不会把密钥带回来）；清空 base-url/model 即停用。文本/图像两组同语义 */
     @PutMapping("/config")
     public ApiResponse<Map<String, Object>> setConfig(@Validated @RequestBody AiCfgReq req) {
         checkAdmin();
@@ -84,6 +97,15 @@ public class AdminAiController {
         }
         if (req.getApiKey() != null && !req.getApiKey().isBlank()) {
             upsert("ai_api_key", req.getApiKey().trim());
+        }
+        if (req.getImgBaseUrl() != null) {
+            upsert("img_base_url", req.getImgBaseUrl().trim());
+        }
+        if (req.getImgModel() != null) {
+            upsert("img_model", req.getImgModel().trim());
+        }
+        if (req.getImgApiKey() != null && !req.getImgApiKey().isBlank()) {
+            upsert("img_api_key", req.getImgApiKey().trim());
         }
         return config();
     }
@@ -106,6 +128,36 @@ public class AdminAiController {
         return ApiResponse.ok(Map.of("result", reply));
     }
 
+    /** 测试改图（批40c 垫图版）：字段留空 = 用已保存配置；素材库小石底图 + 报告真实提示词模板出一张，回 dataUri 预览 */
+    @PostMapping("/test-image")
+    public ApiResponse<Map<String, Object>> testImage(@RequestBody AiCfgReq req) {
+        checkAdmin();
+        AiImageClient.ImgConfig saved = aiImageClient.currentConfig();
+        String baseUrl = req.getImgBaseUrl() != null && !req.getImgBaseUrl().isBlank()
+                ? req.getImgBaseUrl().trim() : saved.baseUrl();
+        String apiKey = req.getImgApiKey() != null && !req.getImgApiKey().isBlank()
+                ? req.getImgApiKey().trim() : saved.apiKey();
+        String model = req.getImgModel() != null && !req.getImgModel().isBlank()
+                ? req.getImgModel().trim() : saved.model();
+        if (baseUrl.isEmpty() || apiKey.isEmpty() || model.isEmpty()) {
+            throw new BizException(400, "请先填齐图像服务商地址 / API key / 模型名（或先保存）再测试");
+        }
+        byte[] base = assetService.readAssetBytes("ip_shi");
+        if (base == null) {
+            throw new BizException(400, "请先在「素材库」上传「画像底图·小石」再测试（AI 画像是垫图改图，需要 IP 底图）");
+        }
+        // 样例 = 报告真实模板（小树持物 + 科学精神周边），测的就是实际出图效果
+        String dataUri = aiImageClient.testDataUri(base,
+                "Keep the cartoon character in the image exactly the same — same face, same pose, same colors,"
+                        + " same proportions and same flat art style. Do not redraw or restyle the character."
+                        + " The character now happily holds a small potted sapling with light-green leaves."
+                        + " Around the character add: a starry night sky and a small telescope."
+                        + " Keep the plain light background clean and simple."
+                        + " Absolutely no text, no letters, no numbers, no watermark.",
+                new AiImageClient.ImgConfig(baseUrl, apiKey, model));
+        return ApiResponse.ok(Map.of("image", dataUri));
+    }
+
     /** AI 用量统计（管理端「AI 设置」内嵌用量区；修复既有缺口：此路径此前无人实现，页签一直空表） */
     @GetMapping("/usage")
     public ApiResponse<Map<String, Object>> usage(@RequestParam(defaultValue = "30") int days) {
@@ -122,5 +174,8 @@ public class AdminAiController {
         private String baseUrl;
         private String apiKey;
         private String model;
+        private String imgBaseUrl;
+        private String imgApiKey;
+        private String imgModel;
     }
 }

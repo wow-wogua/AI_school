@@ -52,6 +52,13 @@ public class RepairController {
         return ApiResponse.ok(repairService.detail(id, AuthUtil.current()));
     }
 
+    /** 批40e 撤回普适：发起人撤回报修单（仅未处理时） */
+    @PutMapping("/{id}/cancel")
+    public ApiResponse<Void> cancel(@PathVariable Long id) {
+        repairService.cancel(id, AuthUtil.current());
+        return ApiResponse.ok();
+    }
+
     /** 凭证照片预览（inline，流式+ETag+缓存，同微光照片模式） */
     @GetMapping("/file/{id}")
     public ResponseEntity<InputStreamResource> file(@PathVariable Long id,

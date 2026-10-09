@@ -2,13 +2,17 @@ package com.aischool.server.service.auth;
 
 import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Clazz;
+import com.aischool.server.entity.Grade;
 import com.aischool.server.entity.GradeBinding;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.Teach;
+import com.aischool.server.entity.User;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.GradeBindingMapper;
+import com.aischool.server.mapper.GradeMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.TeachMapper;
+import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.UserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +23,10 @@ import java.util.List;
 /**
  * 数据权限（角色隔离）：
  * - ADMIN：全校
- * - LEADER（领导）：全校可见；教师侧功能与 ADMIN 同口径放行（批3.5 领导教师化），成绩录入除外（批4）
+ * - LEADER（领导）：全校可见；教师侧功能与 ADMIN 同口径放行（批3.5 领导教师化），成绩录入除外（批4）；
+ *   设分管学段（t_user.stage_scope，批41 全数据面）→ 教学数据范围收缩为该学段班级（年级未标学段=不限，安全默认不锁人）
  * - DIRECTOR（学成中心主任）：全校（批32；请假终审等走模块内校验）
+ * - SECRETARY（书记，批39④）：全校（教师壳，请假终审；成绩学段门走 ScoreService）
  * - GRADE_LEADER（级长）：所绑年级的班级（t_grade_binding，批32）
  * - DORM（生活老师）：全校（批32 先全校；甲方分年级方案到位后改按 t_grade_binding 收紧）
  * - HEAD_TEACHER（班主任）：所带班级
@@ -35,11 +41,19 @@ public class DataScopeService {
     private final StudentMapper studentMapper;
     private final TeachMapper teachMapper;
     private final GradeBindingMapper gradeBindingMapper;
+    private final GradeMapper gradeMapper;
+    private final UserMapper userMapper;
 
     /** 当前用户可见的班级 id 列表；null 表示不受限（管理员） */
     public List<Long> visibleClassIds(UserPrincipal user) {
         return switch (user.role()) {
-            case "ADMIN", "LEADER", "DIRECTOR", "DORM" -> null;
+            case "ADMIN", "DIRECTOR", "DORM", "SECRETARY" -> null; // 书记（批39④）教师壳：全校
+            case "LEADER" -> {
+                // 批41：分管学段全数据面——教学类功能（评价/报告/微光/谈心/银行/荣誉等）收缩为该学段班级；
+                // 成绩线另有 ScoreService 学段门（口径一致）；请假线行政豁免走 leaveVisible
+                String scope = stageScopeOf(user);
+                yield scope == null ? null : stageClassIds(scope);
+            }
             case "GRADE_LEADER" -> {
                 List<Long> gradeIds = gradeBindingMapper.selectList(new LambdaQueryWrapper<GradeBinding>()
                                 .eq(GradeBinding::getUserId, user.userId())
@@ -72,8 +86,15 @@ public class DataScopeService {
 
     /** 校验当前用户可对指定班级发起操作（管理员/领导全校放行，或该班班主任；综合素质/荣誉/微光/报告等写路径统一收口于此） */
     public void checkClassOperable(UserPrincipal user, Long classId) {
-        if ("ADMIN".equals(user.role()) || "LEADER".equals(user.role())) {
+        if ("ADMIN".equals(user.role())) {
             return;
+        }
+        if ("LEADER".equals(user.role())) {
+            String scope = stageScopeOf(user);
+            if (scope == null || stageMatch(scope, classId)) { // 批41 学段门（与成绩线同口径）
+                return;
+            }
+            throw new BizException(403, "该领导分管" + stageName(scope) + "，无权操作另一学段的班级");
         }
         if ("HEAD_TEACHER".equals(user.role())) {
             Clazz clazz = clazzMapper.selectById(classId);
@@ -82,5 +103,43 @@ public class DataScopeService {
             }
         }
         throw new BizException(403, "只有管理员或该班班主任可执行此操作");
+    }
+
+    // ───────── 批41：分管学段（教学数据面）─────────
+
+    /** 领导分管学段（t_user.stage_scope；非领导/未设置=null 即不受限） */
+    public String stageScopeOf(UserPrincipal user) {
+        if (!"LEADER".equals(user.role())) {
+            return null;
+        }
+        User u = userMapper.selectById(user.userId());
+        return u != null && u.getStageScope() != null && !u.getStageScope().isBlank() ? u.getStageScope() : null;
+    }
+
+    /** 学段匹配（scope 须覆盖班级学段；年级未标 stage=null 视为不受限） */
+    public boolean stageMatch(String scope, Long classId) {
+        if (scope == null) {
+            return true;
+        }
+        Clazz c = clazzMapper.selectById(classId);
+        if (c == null || c.getGradeId() == null) {
+            return true;
+        }
+        Grade g = gradeMapper.selectById(c.getGradeId());
+        return g == null || g.getStage() == null || scope.equals(g.getStage());
+    }
+
+    /** 某学段的班级 id 列表（年级未标学段的班级计入，安全默认不锁人） */
+    public List<Long> stageClassIds(String scope) {
+        List<Long> gradeIds = gradeMapper.selectList(null).stream()
+                .filter(g -> g.getStage() == null || scope.equals(g.getStage()))
+                .map(Grade::getId).toList();
+        return gradeIds.isEmpty() ? List.of()
+                : clazzMapper.selectList(new LambdaQueryWrapper<Clazz>().in(Clazz::getGradeId, gradeIds))
+                        .stream().map(Clazz::getId).toList();
+    }
+
+    public String stageName(String scope) {
+        return "PRIMARY".equals(scope) ? "小学部" : "初中部";
     }
 }

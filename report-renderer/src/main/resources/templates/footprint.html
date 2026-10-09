@@ -2,9 +2,9 @@
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
 <meta charset="UTF-8"/>
-<title>教师成长足迹报告</title>
+<title>教师足迹报告</title>
 <style>
-  /* ===== 教师成长足迹报告（批26）：六维足迹 + 奖项，页面骨架与学期报告同源 ===== */
+  /* ===== 教师足迹报告（批26）：六维足迹 + 奖项，页面骨架与学期报告同源 ===== */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: "HarmonyOS Sans SC", Arial, sans-serif; color: #000; background: #fff; }
   .page { width: 210mm; height: 296.9mm; position: relative; overflow: hidden;
@@ -60,7 +60,7 @@
   <div class="abs" style="top:148pt;left:0;width:100%;text-align:center;font-size:20pt;font-weight:bold;color:#1F2A44;letter-spacing:3pt;margin-right:-3pt" th:text="${r.schoolName}">佛山市南海区石实实验学校</div>
   <div class="abs" style="top:182pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2.2pt;margin-right:-2.2pt">SHISHI EXPERIMENTAL SCHOOL · EST. 2000</div>
   <div class="abs" style="top:287pt;left:222.5pt;width:150pt;height:1pt;background:rgba(201,162,39,.55)"></div>
-  <div class="abs" style="top:297pt;left:0;width:100%;text-align:center;font-size:33pt;font-weight:bold;color:#1F2A44;letter-spacing:7pt;margin-right:-7pt">教师成长足迹</div>
+  <div class="abs" style="top:297pt;left:0;width:100%;text-align:center;font-size:33pt;font-weight:bold;color:#1F2A44;letter-spacing:7pt;margin-right:-7pt">教师足迹</div>
   <div class="abs" style="top:355pt;left:0;width:100%;text-align:center;font-size:9.5pt;color:#B08A1E;letter-spacing:3.5pt;margin-right:-3.5pt">TEACHER GROWTH FOOTPRINT REPORT</div>
   <div class="abs" style="top:366pt;left:222.5pt;width:150pt;height:1pt;background:rgba(201,162,39,.55)"></div>
   <div class="abs" style="top:406pt;left:0;width:100%;text-align:center;font-size:8pt;color:#8A93A6;letter-spacing:4pt;margin-right:-4pt">公开课 · 听课 · 奖项 · 讲座 · 读书笔记 · 工作室</div>
@@ -139,7 +139,7 @@
   <div class="abs" style="top:26pt;left:26pt;right:26pt;bottom:26pt;border:1.5pt solid rgba(201,162,39,.85);border-radius:2pt"></div>
   <div class="abs" style="top:392pt;left:0;width:100%;text-align:center;font-family:var(--serif);font-size:15pt;color:#B08A1E;letter-spacing:5pt;margin-right:-5pt">任重道远　毋忘奋斗</div>
   <div class="abs" style="top:440pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2pt;margin-right:-2pt"
-       th:text="${r.schoolName} + ' · 教师成长足迹报告'">佛山市南海区石实实验学校</div>
+       th:text="${r.schoolName} + ' · 教师足迹报告'">佛山市南海区石实实验学校</div>
 </div>
 
 <script th:utext="${echartsJs}"></script>
@@ -157,7 +157,7 @@ document.querySelectorAll('.page').forEach((pg, i) => {
     lg.src = LOGO;
     lg.alt = '';
     h.appendChild(lg);
-    h.appendChild(document.createTextNode(DATA.schoolName + '教师成长足迹报告'));
+    h.appendChild(document.createTextNode(DATA.schoolName + '教师足迹报告'));
     pg.appendChild(h);
   }
   if (!pg.classList.contains('nonum')) {

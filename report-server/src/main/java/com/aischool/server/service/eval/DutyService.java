@@ -13,7 +13,7 @@ import java.time.LocalDate;
 
 /**
  * 值班排班（批6 漏项C1）：t_sys_config.duty_check 开（管理端配置）后，
- * 日常评价仅「当日值班教师」可操作（口径=操作发生日，ADMIN/LEADER 不受限——监督角色不参与日常录入）。
+ * 素养评价仅「当日值班教师」可操作（口径=操作发生日，ADMIN/LEADER 不受限——监督角色不参与日常录入）。
  * 开关默认关：学校配好排班再开，避免空排班把全员锁死。
  */
 @Service
@@ -49,7 +49,7 @@ public class DutyService {
             return;
         }
         if (!isOnDuty(userId, LocalDate.now())) {
-            throw new BizException(403, "今日不在值班名单，日常评价仅当日值班老师可操作（如需调整请联系管理员）");
+            throw new BizException(403, "今日不在值班名单，素养评价仅当日值班老师可操作（如需调整请联系管理员）");
         }
     }
 }

@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.time.LocalDateTime;
 
-/** t_moment（微光信箱·随手拍） */
+/** t_moment（微光时刻·随手拍） */
 @Data
 @TableName("t_moment")
 public class Moment {

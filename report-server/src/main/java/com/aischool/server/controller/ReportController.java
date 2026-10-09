@@ -53,6 +53,8 @@ public class ReportController {
         private Long termId;
         /** 报告类型（批26）：TERM 学期=默认 / YEAR 学年 / SCHOOL 在校 */
         private String reportType;
+        /** 期次（批42）：MID 期中 / FINAL 期末，缺省=期末；仅 TERM 报告生效 */
+        private String reportPeriod;
     }
 
     @Data
@@ -63,6 +65,8 @@ public class ReportController {
         private Long termId;
         /** 报告类型（批26）：TERM 学期=默认 / YEAR 学年 / SCHOOL 在校 */
         private String reportType;
+        /** 期次（批42）：MID 期中 / FINAL 期末，缺省=期末；仅 TERM 报告生效 */
+        private String reportPeriod;
     }
 
     @Data
@@ -73,6 +77,8 @@ public class ReportController {
         private Long termId;
         /** 报告类型（批26）：TERM 学期=默认 / YEAR 学年 / SCHOOL 在校 */
         private String reportType;
+        /** 期次（批42）：MID 期中 / FINAL 期末，缺省=期末；仅 TERM 报告生效 */
+        private String reportPeriod;
     }
 
     /** 单份生成：30s 内出 PDF（优先级最高） */
@@ -83,7 +89,7 @@ public class ReportController {
         if (!"ADMIN".equals(user.role())) {
             dataScope.checkClassOperable(user, student.getClassId());
         }
-        ReportTask task = taskService.createTask("单生", req.studentId, req.termId, typeOf(req.reportType), user.userId());
+        ReportTask task = taskService.createTask("单生", req.studentId, req.termId, typeOf(req.reportType), periodOf(req.reportPeriod), user.userId());
         return ApiResponse.ok(taskView(task));
     }
 
@@ -92,7 +98,7 @@ public class ReportController {
     public ApiResponse<Map<String, Object>> generateBatch(@Validated @RequestBody GenerateBatchReq req) {
         var user = AuthUtil.current();
         dataScope.checkClassOperable(user, req.classId);
-        ReportTask task = taskService.createTask("班级", req.classId, req.termId, typeOf(req.reportType), user.userId());
+        ReportTask task = taskService.createTask("班级", req.classId, req.termId, typeOf(req.reportType), periodOf(req.reportPeriod), user.userId());
         return ApiResponse.ok(taskView(task));
     }
 
@@ -103,7 +109,7 @@ public class ReportController {
         if (!"ADMIN".equals(user.role())) {
             throw new BizException(403, "只有管理员可生成全年级报告");
         }
-        ReportTask task = taskService.createTask("年级", req.gradeId, req.termId, typeOf(req.reportType), user.userId());
+        ReportTask task = taskService.createTask("年级", req.gradeId, req.termId, typeOf(req.reportType), periodOf(req.reportPeriod), user.userId());
         return ApiResponse.ok(taskView(task));
     }
 
@@ -155,7 +161,7 @@ public class ReportController {
         if (visible != null && !visible.contains(classId)) {
             throw new BizException(403, "无权访问该班级");
         }
-        // 每个学生取最新一份成功报告
+        // 每个学生×每期次取最新一份（批42 分期归档：期中/期末各一行；重生成只显最新版）
         List<Report> reports = reportMapper.selectList(new LambdaQueryWrapper<Report>()
                 .eq(Report::getTermId, termId)
                 .eq(Report::getScopeType, scopeType)
@@ -163,15 +169,16 @@ public class ReportController {
                 .inSql(Report::getStudentId,
                         "SELECT id FROM t_student WHERE class_id = " + classId)
                 .orderByDesc(Report::getId));
-        Map<Long, Report> latest = new java.util.LinkedHashMap<>();
+        Map<String, Report> latest = new java.util.LinkedHashMap<>();
         for (Report r : reports) {
-            latest.putIfAbsent(r.getStudentId(), r);
+            latest.putIfAbsent(r.getStudentId() + ":" + ("MID".equals(r.getPeriod()) ? "MID" : "FINAL"), r);
         }
         return ApiResponse.ok(latest.values().stream().map(r -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("reportId", r.getId());
             m.put("studentId", r.getStudentId());
             m.put("scopeType", r.getScopeType() == null ? "TERM" : r.getScopeType());
+            m.put("period", "MID".equals(r.getPeriod()) ? "MID" : "FINAL");
             m.put("status", r.getStatus());
             m.put("fileUrl", r.getFileUrl());
             m.put("genTime", r.getGenTime());
@@ -235,6 +242,11 @@ public class ReportController {
 
     private static String typeOf(String reportType) {
         return reportType == null || reportType.isBlank() ? "TERM" : reportType;
+    }
+
+    /** 期次归一（批42）：只认 MID，其余一律 FINAL（默认期末） */
+    private static String periodOf(String reportPeriod) {
+        return "MID".equals(reportPeriod) ? "MID" : "FINAL";
     }
 
     private void checkTaskReadable(com.aischool.server.security.UserPrincipal user, ReportTask task) {

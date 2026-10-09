@@ -82,11 +82,12 @@ public class RenderService {
         pool.shutdown();
     }
 
-    /** 学期报告（教师版/家长版，批5 双版并行） */
-    public CompletableFuture<Path> submit(int priority, String batchKey, Long studentId, Long termId, boolean parent) {
+    /** 学期报告（教师版/家长版，批5 双版并行；批42 period=MID 时数据窗口锁学期前半） */
+    public CompletableFuture<Path> submit(int priority, String batchKey, Long studentId, Long termId,
+                                          boolean parent, String period) {
         String mode = parent ? "parent" : "teacher";
         return submitData(priority, batchKey, String.valueOf(studentId), mode,
-                () -> dataBuilder.build(studentId, termId));
+                () -> dataBuilder.build(studentId, termId, period));
     }
 
     /** 学年/在校报告（批26）：单版本（学业仅个人成绩，教师/家长通用）；termIds 升序解析 */

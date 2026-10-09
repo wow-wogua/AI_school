@@ -44,10 +44,12 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 学生请假（批32 重构）：家长不再 App 提交（微信/电话告知班主任，由教师代录），家长只收通知。
+ * 学生请假（批32 重构 → 批39④ 四级审批）：家长不再 App 提交（微信/电话告知班主任，由教师代录），家长只收通知。
  * 分级审批按时长自动判定（阈值 t_sys_config：leave_level1_days/leave_level2_days/leave_max_days）：
- * ≤L1 录入即生效；L1~L1 级长一级；L2~max 级长+学成中心主任两级；超 max 走纸质（系统不受理）。
- * 数据同步：班主任/生活老师/门卫/级长及以上（任课教师不可见）；批准后门卫+生活老师自动抄送。
+ * ≤L1（默认 3 天）录入即生效；L1~L2（3~7 天）级长一级；L2~max（7~30 天）级长→学成中心主任→书记三级；
+ * 超 max 走纸质（系统不受理）。书记=SECRETARY 角色（教师壳），任一级可审+终审；
+ * 领导/管理员恒可代批（书记缺位流程不卡死）。
+ * 数据同步：班主任/生活老师/门卫/级长及以上（任课教师不可见）；批准后门卫+生活老师+行政（学成中心主任）自动抄送。
  * 流转轨迹 t_leave_flow_log（详情页时间线）；门卫离校/返校登记沿用。
  */
 @Service
@@ -102,7 +104,9 @@ public class StudentLeaveService {
         if (dur.doubleValue() > max) {
             throw new BizException(400, "请假超过 " + max + " 天须走纸质申请流程，系统不受理");
         }
-        int totalStep = dur.doubleValue() <= l1 ? 0 : (dur.doubleValue() <= l2 ? 1 : 2);
+        // 批39④ 四级链：0=录入即生效 / 1=级长 / 3=级长→学成中心主任→书记（totalStep=3，无 2 级直跳，
+        // 历史单 totalStep=2 仍按原两级口径走完）
+        int totalStep = dur.doubleValue() <= l1 ? 0 : (dur.doubleValue() <= l2 ? 1 : 3);
 
         List<String> objects = uploadPhotos(photos);
         StudentLeave l = new StudentLeave();
@@ -164,7 +168,7 @@ public class StudentLeaveService {
         return s;
     }
 
-    /** 当前级审批人待办（级长缺位时兜底转学成中心主任/领导，流程不卡死） */
+    /** 当前级审批人待办（缺位兜底转上级，流程不卡死；批39④ 第 3 级=书记，缺位转领导/管理员） */
     private void notifyStepTodo(StudentLeave l, Student s, Clazz c) {
         String className = c == null ? "" : c.getName();
         String range = rangeOf(l);
@@ -176,12 +180,18 @@ public class StudentLeaveService {
                 stepName = "级长（该年级未绑定级长，已转学成中心主任/领导处理）";
             }
             notificationService.leaveTodo(ids, stepName, s.getName(), className, l.getLeaveType(), range);
-        } else {
+        } else if (l.getCurrentStep() == 2) {
             List<Long> ids = roleIds("DIRECTOR");
             if (ids.isEmpty()) {
                 ids = roleIds("LEADER", "ADMIN");
             }
             notificationService.leaveTodo(ids, "学成中心主任", s.getName(), className, l.getLeaveType(), range);
+        } else {
+            List<Long> ids = roleIds("SECRETARY");
+            if (ids.isEmpty()) {
+                ids = roleIds("LEADER", "ADMIN");
+            }
+            notificationService.leaveTodo(ids, "书记", s.getName(), className, l.getLeaveType(), range);
         }
     }
 
@@ -267,7 +277,7 @@ public class StudentLeaveService {
         if ("all".equals(scope) && !"DIRECTOR".equals(role) && !"LEADER".equals(role) && !"ADMIN".equals(role)) {
             throw new BizException(403, "全校视图仅学成中心主任/领导/管理员可用");
         }
-        List<Long> visible = "all".equals(scope) ? null : dataScope.visibleClassIds(user);
+        List<Long> visible = "all".equals(scope) ? null : leaveVisible(user);
         List<StudentLeave> rows = leaveMapper.selectList(new LambdaQueryWrapper<StudentLeave>()
                 .eq(status != null && !status.isBlank(), StudentLeave::getStatus, status)
                 .orderByDesc(StudentLeave::getId)
@@ -298,9 +308,14 @@ public class StudentLeaveService {
                 .orderByDesc(StudentLeave::getId)));
     }
 
+    /** 请假线走行政口径不分会段（批41）：领导保持全校（兜底代批任一级不受学段限制），其余角色同统一数据范围 */
+    private List<Long> leaveVisible(UserPrincipal user) {
+        return "LEADER".equals(user.role()) ? null : dataScope.visibleClassIds(user);
+    }
+
     /** 录入表单数据源：管辖范围内班级列表 */
     public List<Map<String, Object>> classes(UserPrincipal user) {
-        List<Long> visible = dataScope.visibleClassIds(user);
+        List<Long> visible = leaveVisible(user);
         List<Clazz> cs = visible == null
                 ? clazzMapper.selectList(new LambdaQueryWrapper<Clazz>().orderByAsc(Clazz::getId))
                 : visible.isEmpty() ? List.of() : clazzMapper.selectBatchIds(visible);
@@ -314,7 +329,7 @@ public class StudentLeaveService {
 
     /** 录入表单数据源：班级内学生（学号/姓名可搜；范围校验同列表口径） */
     public List<Map<String, Object>> students(UserPrincipal user, Long classId, String q) {
-        List<Long> visible = dataScope.visibleClassIds(user);
+        List<Long> visible = leaveVisible(user);
         if (visible != null && !visible.contains(classId)) {
             throw new BizException(403, "无权查看该班级学生（数据权限隔离）");
         }
@@ -428,17 +443,21 @@ public class StudentLeaveService {
         }
         if ("HEAD_TEACHER".equals(role) || "DORM".equals(role) || "GRADE_LEADER".equals(role)
                 || "DIRECTOR".equals(role) || "LEADER".equals(role) || "ADMIN".equals(role)
-                || "GUARD".equals(role)) {
-            return; // 同步对象全员可读详情（列表仍按管辖范围过滤）
+                || "SECRETARY".equals(role) || "GUARD".equals(role)) {
+            return; // 同步对象全员可读详情（列表仍按管辖范围过滤；批39④ 书记=终审人）
         }
         throw new BizException(403, "任课教师不可查看学生请假");
     }
 
-    /** 当前级审批权：1级=本年级绑定级长；2级=学成中心主任；主任/领导/管理员恒可代批 */
+    /** 当前级审批权（批39④ 四级链）：1级=本年级绑定级长；2级=学成中心主任；3级=书记终审。
+     * 书记（SECRETARY）级别最高，任一级可审；主任 1/2 级可审（兜底级长缺位）；领导/管理员恒可代批 */
     private boolean isStepApprover(UserPrincipal user, StudentLeave l, Student s) {
         String role = user.role();
-        if ("DIRECTOR".equals(role) || "LEADER".equals(role) || "ADMIN".equals(role)) {
+        if ("LEADER".equals(role) || "ADMIN".equals(role) || "SECRETARY".equals(role)) {
             return true;
+        }
+        if ("DIRECTOR".equals(role)) {
+            return l.getCurrentStep() != null && l.getCurrentStep() < 3; // 书记终审级主任不代批
         }
         if ("GRADE_LEADER".equals(role) && l.getCurrentStep() == 1) {
             return s != null && boundGradeIds(user).contains(gradeIdOf(s));
@@ -451,9 +470,12 @@ public class StudentLeaveService {
             return;
         }
         if (l.getCurrentStep() == 1) {
-            throw new BizException(403, "当前级由级长审批（学成中心主任/领导/管理员可代批）");
+            throw new BizException(403, "当前级由级长审批（学成中心主任/书记/领导/管理员可代批）");
         }
-        throw new BizException(403, "当前级由学成中心主任审批（领导/管理员可代批）");
+        if (l.getCurrentStep() == 2) {
+            throw new BizException(403, "当前级由学成中心主任审批（书记/领导/管理员可代批）");
+        }
+        throw new BizException(403, "当前级由书记终审（领导/管理员可代批）");
     }
 
     private StudentLeave require(Long id) {
@@ -578,7 +600,8 @@ public class StudentLeaveService {
     private String actionLabel(LeaveFlowLog f) {
         return switch (f.getAction()) {
             case LeaveFlowLog.SUBMIT -> "提交登记";
-            case LeaveFlowLog.APPROVE -> (f.getStep() != null && f.getStep() == 2 ? "学成中心主任" : "级长") + "审批通过";
+            case LeaveFlowLog.APPROVE -> (f.getStep() != null && f.getStep() == 3 ? "书记"
+                    : f.getStep() != null && f.getStep() == 2 ? "学成中心主任" : "级长") + "审批通过";
             case LeaveFlowLog.REJECT -> "驳回";
             case LeaveFlowLog.CANCEL -> "撤销";
             case LeaveFlowLog.REG_LEAVE -> "登记离校";
@@ -660,7 +683,8 @@ public class StudentLeaveService {
         if (StudentLeave.CANCELLED.equals(st)) {
             return "已撤销";
         }
-        return l.getCurrentStep() != null && l.getCurrentStep() == 2 ? "待主任审批" : "待级长审批";
+        return l.getCurrentStep() != null && l.getCurrentStep() == 3 ? "待书记终审"
+                : l.getCurrentStep() != null && l.getCurrentStep() == 2 ? "待主任审批" : "待级长审批";
     }
 
     private String rangeOf(StudentLeave l) {

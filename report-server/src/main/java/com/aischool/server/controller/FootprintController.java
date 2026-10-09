@@ -24,7 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 教师成长足迹：公开课/听课/讲座/读书笔记/工作室（本人录入）；奖项维度聚合 t_teacher_honor（原始需求三） */
+/** 教师足迹：公开课/听课/讲座/读书笔记/工作室（本人录入）；奖项维度聚合 t_teacher_honor（原始需求三） */
 @RestController
 @RequestMapping("/api/footprint")
 @RequiredArgsConstructor
@@ -120,7 +120,7 @@ public class FootprintController {
         return ApiResponse.ok();
     }
 
-    /** 成长足迹 PDF（批26）：本人导出；ADMIN 可带 teacherId 导出任意教师。同步渲染约 10s（不入任务队列） */
+    /** 教师足迹 PDF（批26）：本人导出；ADMIN 可带 teacherId 导出任意教师。同步渲染约 10s（不入任务队列） */
     @GetMapping("/report")
     public ResponseEntity<byte[]> report(@RequestParam(required = false) Long teacherId) throws Exception {
         rejectParent();
@@ -128,7 +128,7 @@ public class FootprintController {
         Long target = user.userId();
         if (teacherId != null && !teacherId.equals(user.userId())) {
             if (!"ADMIN".equals(user.role())) {
-                throw new BizException(403, "只能导出自己的成长足迹");
+                throw new BizException(403, "只能导出自己的教师足迹");
             }
             target = teacherId;
         }
@@ -149,7 +149,7 @@ public class FootprintController {
 
     private void rejectParent() {
         if ("PARENT".equals(AuthUtil.current().role())) {
-            throw new BizException(403, "家长账号无教师成长足迹");
+            throw new BizException(403, "家长账号无教师足迹");
         }
     }
 }

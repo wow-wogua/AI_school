@@ -104,6 +104,14 @@ public class AiController {
         return ApiResponse.ok(draftService.saveComment(req.studentId, req.termId, req.content, req.confirm));
     }
 
+    /** 批40e 撤回普适：清空班主任寄语（记录删除，报告回落无寄语） */
+    @DeleteMapping("/comment")
+    public ApiResponse<Void> deleteComment(@RequestParam Long studentId, @RequestParam Long termId) {
+        checkWritable(studentId);
+        draftService.deleteComment(studentId, termId);
+        return ApiResponse.ok();
+    }
+
     /** 成长总结草稿（不落库，仅展示） */
     @PostMapping("/summary")
     public ApiResponse<Map<String, Object>> summary(@Validated @RequestBody DraftReq req) {

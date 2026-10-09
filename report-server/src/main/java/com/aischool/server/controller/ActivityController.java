@@ -40,11 +40,15 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** 活动管理：活动 CRUD（管理员）+ 参与记录（管理员/本班班主任），获奖可附能量币入账 */
+/** 扬长课程（原活动管理，批40a 更名/批40e 七类改造）：课程 CRUD（管理员）+ 参与记录（管理员/本班班主任），获奖可附能量币入账 */
 @RestController
 @RequestMapping("/api/activity")
 @RequiredArgsConstructor
 public class ActivityController {
+
+    /** 批40e：扬长课程七类（校方拍板固定；「其他」收纳临时性活动=原活动管理用法） */
+    public static final List<String> CATEGORIES = List.of(
+            "德育课程", "扬长选修", "体艺特训队", "跨学科学习", "做中学", "社会实践", "其他");
 
     private final ActivityMapper activityMapper;
     private final ActivitySignupMapper signupMapper;
@@ -61,6 +65,13 @@ public class ActivityController {
         private LocalDateTime startTime;
         private String place;
         private String intro;
+    }
+
+    /** 批40e：课程类别固定七类 */
+    private void checkCategory(String type) {
+        if (type == null || !CATEGORIES.contains(type)) {
+            throw new BizException(400, "课程类别必须是：" + String.join("/", CATEGORIES));
+        }
     }
 
     @Data
@@ -95,6 +106,7 @@ public class ActivityController {
         if (!"ADMIN".equals(user.role())) {
             throw new BizException(403, "只有管理员可管理活动");
         }
+        checkCategory(req.getType());
         Activity a = new Activity();
         a.setTitle(req.getTitle());
         a.setType(req.getType());
@@ -114,6 +126,7 @@ public class ActivityController {
         if (activityMapper.selectById(id) == null) {
             throw new BizException(404, "活动不存在");
         }
+        checkCategory(req.getType());
         activityMapper.update(null, new LambdaUpdateWrapper<Activity>()
                 .eq(Activity::getId, id)
                 .set(Activity::getTitle, req.getTitle())
@@ -266,7 +279,7 @@ public class ActivityController {
         return ApiResponse.ok(data);
     }
 
-    /** 改参与记录（只动签到/奖项/表现；能量币改动请删除重录——本期不提供 signup 删除） */
+    /** 改参与记录（只动签到/奖项/表现；能量币改动请删除重录） */
     @PutMapping("/{id}/signup/{signupId}")
     public ApiResponse<Void> updateSignup(@PathVariable Long id, @PathVariable Long signupId,
                                           @RequestBody SignupEditReq req) {
@@ -281,6 +294,19 @@ public class ActivityController {
                 .set(ActivitySignup::getPerformance, req.getPerformance())
                 .set(ActivitySignup::getCheckinTime, Boolean.TRUE.equals(req.getCheckin())
                         ? LocalDateTime.now() : null));
+        return ApiResponse.ok();
+    }
+
+    /** 批40e 撤回普适：删除参与记录（撤回误录）；带能量币入账的自动冲正（负流水留痕+账户扣回） */
+    @DeleteMapping("/{id}/signup/{signupId}")
+    public ApiResponse<Void> deleteSignup(@PathVariable Long id, @PathVariable Long signupId) {
+        ActivitySignup su = signupMapper.selectById(signupId);
+        if (su == null || !su.getActivityId().equals(id)) {
+            throw new BizException(404, "参与记录不存在");
+        }
+        checkWritable(su.getStudentId());
+        signupMapper.deleteById(signupId);
+        coinLedger.reverse(su.getStudentId(), "活动", signupId);
         return ApiResponse.ok();
     }
 

@@ -15,6 +15,7 @@ public class Grade {
     private Long id;
     private String name;
     private String schoolYear;
+    private String stage; // 批39③：PRIMARY=小学部 JUNIOR=初中部，空=不限制
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

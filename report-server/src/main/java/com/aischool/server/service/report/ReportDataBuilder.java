@@ -72,15 +72,32 @@ public class ReportDataBuilder {
     private final MomentMapper momentMapper;
     private final MomentStudentMapper momentStudentMapper;
     private final PdfStoreService pdfStore;
+    private final PortraitService portraitService;
 
     public Map<String, Object> build(Long studentId, Long termId) {
+        return build(studentId, termId, null);
+    }
+
+    /** 批42 分期归档：period=MID（期中）时取数窗口锁定学期前半——任何时候（重）生成口径都稳定，
+     *  期中之后补录的数据自然进期末版；FINAL/null=全学期（存量默认） */
+    public Map<String, Object> build(Long studentId, Long termId, String period) {
         Student student = studentMapper.selectById(studentId);
         if (student == null) {
             throw new BizException(404, "学生不存在: " + studentId);
         }
-        Term term = termMapper.selectById(termId);
-        if (term == null) {
+        Term loaded = termMapper.selectById(termId);
+        if (loaded == null) {
             throw new BizException(404, "学期不存在: " + termId);
+        }
+        Term term = loaded;
+        if ("MID".equals(period) && loaded.getStartDate() != null && loaded.getEndDate() != null) {
+            term = new Term();
+            term.setId(loaded.getId());
+            term.setName(loaded.getName());
+            term.setStartDate(loaded.getStartDate());
+            term.setEndDate(loaded.getStartDate().plusDays(
+                    java.time.temporal.ChronoUnit.DAYS.between(loaded.getStartDate(), loaded.getEndDate()) / 2));
+            term.setIsCurrent(loaded.getIsCurrent());
         }
         Clazz clazz = clazzMapper.selectById(student.getClassId());
         Grade grade = gradeMapper.selectById(clazz.getGradeId());
@@ -102,12 +119,18 @@ public class ReportDataBuilder {
         data.put("regularScores", buildRegularScores(student, term));
         Map<String, Object> radar = buildRadar(student, term, prevTerm, sections);
         data.put("radar", radar);
-        data.put("grids", buildGrids(student, term, prevTerm, clazz, grade));
-        data.put("activities", buildActivities(student, term));
+        List<Map<String, Object>> grids = buildGrids(student, term, prevTerm, clazz, grade);
+        data.put("grids", grids);
+        List<Map<String, Object>> activities = buildActivities(student, term);
+        data.put("activities", activities);
         data.put("coin", buildCoin(student, term, sections));
-        data.put("growthSymbol", buildGrowthSymbol(student, term));
+        Map<String, Object> growthSymbol = buildGrowthSymbol(student, term);
+        data.put("growthSymbol", growthSymbol);
+        // 批40c IP 成长画像垫图版：性别选底图 + 等级/最强格/最热课程 → edits；
+        // 底图未上传 → null（虚线占位框），生成失败 → IP 原图占位
+        data.put("portraitFile", portraitService.materialize(
+                student.getGender(), growthSymbol, grids, activities));
         data.put("comprehensive", buildComprehensive(student, term));
-        data.put("improvement", buildImprovement(student, term, clazz));
         data.put("headTeacherComment", buildHeadTeacherComment(student, term));
         data.put("moments", buildMoments(student, term));
         return data;
@@ -477,6 +500,7 @@ public class ReportDataBuilder {
                     m.put("title", a.getTitle());
                     m.put("time", a.getStartTime() != null ? a.getStartTime().format(DATE_FMT) : "");
                     m.put("place", a.getPlace());
+                    m.put("type", a.getType()); // 批40c：画像取「参与最多的课程类别」（模板未消费，零契约影响）
                     m.put("award", s.getAward());
                     m.put("performance", s.getPerformance());
                     return m;
@@ -738,88 +762,7 @@ public class ReportDataBuilder {
         return m;
     }
 
-    // ───────────────── improvement（学生改进方向页：规则引擎实时聚合，口径同 expand_golden.py） ─────────────────
-
-    /** 学业提升空间：与班级最高分差距>0 的学科，差距降序前 3（平分按学科序）；
-     *  九维弱项：低于班级人均的维度，差距降序前 2。均为确定性规则产物（无 AI），供新学期规划参考。 */
-    private Map<String, Object> buildImprovement(Student student, Term term, Clazz clazz) {
-        Exam exam = latestExam(term.getId());
-        Map<Long, Subject> subjects = allSubjects();
-        List<Score> scores = exam != null ? scoreMapper.selectList(new LambdaQueryWrapper<Score>()
-                .eq(Score::getExamId, exam.getId()).eq(Score::getStudentId, student.getId())) : List.of();
-        Map<Long, ExamSubject> examSubject = exam != null ? examSubjectMapper.selectList(
-                        new LambdaQueryWrapper<ExamSubject>().eq(ExamSubject::getExamId, exam.getId())).stream()
-                .collect(Collectors.toMap(ExamSubject::getSubjectId, es -> es)) : Map.of();
-
-        record WeakSubject(int subjectSort, String name, BigDecimal score, BigDecimal classMax, BigDecimal gap) {}
-        List<WeakSubject> weakSubjects = new ArrayList<>();
-        for (Score sc : scores) {
-            Subject s = subjects.get(sc.getSubjectId());
-            ExamSubject es = examSubject.get(sc.getSubjectId());
-            if (s == null || es == null || es.getClassMax() == null) {
-                continue;
-            }
-            BigDecimal gap = es.getClassMax().subtract(sc.getScore());
-            if (gap.signum() > 0) {
-                weakSubjects.add(new WeakSubject(s.getSort() == null ? 99 : s.getSort(),
-                        s.getName(), sc.getScore(), es.getClassMax(), gap));
-            }
-        }
-        weakSubjects.sort(Comparator.comparing(WeakSubject::gap).reversed()
-                .thenComparing(WeakSubject::subjectSort));
-        List<Map<String, Object>> subjectRows = weakSubjects.stream().limit(3).map(x -> {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("name", x.name());
-            row.put("score", Num.of(x.score()));
-            row.put("classMax", Num.of(x.classMax()));
-            row.put("gap", Num.of(x.gap()));
-            row.put("suggestion", subjectSuggestion(x.gap()));
-            return row;
-        }).toList();
-
-        Map<Long, GridStatTerm> cur = gridStatTerm(student.getId(), term.getId());
-        Map<Long, BigDecimal> classAvg = gridAvg(classGridAvgMapper, clazz.getId(), term.getId());
-        record WeakGrid(int gridSort, String name, BigDecimal mine, BigDecimal avg, BigDecimal gap) {}
-        List<WeakGrid> weakGrids = new ArrayList<>();
-        for (Grid g : orderedGrids()) {
-            GridStatTerm st = cur.get(g.getId());
-            BigDecimal avg = classAvg.get(g.getId());
-            if (st == null || avg == null) {
-                continue;
-            }
-            BigDecimal gap = avg.subtract(st.getScore());
-            if (gap.signum() > 0) {
-                weakGrids.add(new WeakGrid(g.getSort() == null ? 99 : g.getSort(),
-                        g.getName(), st.getScore(), avg, gap));
-            }
-        }
-        weakGrids.sort(Comparator.comparing(WeakGrid::gap).reversed().thenComparing(WeakGrid::gridSort));
-        List<Map<String, Object>> gridRows = weakGrids.stream().limit(2).map(x -> {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("name", x.name());
-            row.put("mine", Num.of(x.mine()));
-            row.put("classAvg", Num.of(x.avg()));
-            row.put("gap", Num.of(x.gap()));
-            row.put("suggestion", "新学期主动争取该维度的表现与活动机会");
-            return row;
-        }).toList();
-
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("subjects", subjectRows);
-        m.put("grids", gridRows);
-        return m;
-    }
-
-    /** 学业建议档位（与 expand_golden.py 同文案）：≥20 重点补强 / ≥10 专项巩固 / 其余保持节奏 */
-    private String subjectSuggestion(BigDecimal gap) {
-        if (gap.compareTo(BigDecimal.valueOf(20)) >= 0) {
-            return "重点补强：错题整理+每周专项练习";
-        }
-        if (gap.compareTo(BigDecimal.valueOf(10)) >= 0) {
-            return "专项巩固：固定复习时段，主动请教任课老师";
-        }
-        return "保持节奏：加强薄弱知识点练习";
-    }
+    // 批39⑦：学生改进方向页整体取消（学业差距表+九维弱项表），报告数据面与 PDF 模板同步移除
 
     private String buildHeadTeacherComment(Student student, Term term) {
         List<Comment> comments = commentMapper.selectList(new LambdaQueryWrapper<Comment>()

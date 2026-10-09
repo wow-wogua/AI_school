@@ -32,7 +32,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 谈心记录（批11，原始需求二行政五件套收口）：教师对可见班级学生（任课/班主任/领导/管理员），
+ * 导师谈心（批11，原始需求二行政五件套收口）：教师对可见班级学生（任课/班主任/领导/管理员），
  * 不走审批流；家长不可见（PARENT 无入口+接口拒绝）。
  * 批30 加随访：记录可标「需随访」+到期日，该生再有新谈心即闭环；每日晨间提醒到期未随访（走通知中心）。
  */
@@ -62,7 +62,7 @@ public class TalkService {
     public void create(TalkReq req) {
         UserPrincipal user = AuthUtil.current();
         if ("PARENT".equals(user.role())) {
-            throw new BizException(403, "家长账号无需谈心记录");
+            throw new BizException(403, "家长账号无需导师谈心");
         }
         if (req.getStudentId() == null) {
             throw new BizException(400, "请选择学生");
@@ -155,6 +155,19 @@ public class TalkService {
         } catch (Exception e) {
             log.warn("谈心随访提醒失败：{}", e.getMessage());
         }
+    }
+
+    /** 批40e 撤回普适：删除谈心记录（记录人本人或管理员；随访标记随记录一并删除） */
+    public void delete(Long id) {
+        UserPrincipal user = AuthUtil.current();
+        Talk t = talkMapper.selectById(id);
+        if (t == null) {
+            throw new BizException(404, "谈心记录不存在");
+        }
+        if (!"ADMIN".equals(user.role()) && !t.getTeacherId().equals(user.userId())) {
+            throw new BizException(403, "只有记录人或管理员可删除谈心记录");
+        }
+        talkMapper.deleteById(id);
     }
 
     /** 我的谈心（记录人视角） */

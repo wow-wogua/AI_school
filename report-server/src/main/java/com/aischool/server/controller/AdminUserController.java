@@ -73,9 +73,9 @@ public class AdminUserController {
     /** 批量导入的统一初始密码（导入后教师首登强制改密） */
     public static final String INITIAL_PASSWORD = "Shishi@2026";
 
-    /** 本控制器管理的角色（家长 PARENT 走 AdminParentController；批32 加级长/主任/生活老师/招采） */
+    /** 本控制器管理的角色（家长 PARENT 走 AdminParentController；批32 加级长/主任/生活老师/招采；批39④ 加书记） */
     private static final List<String> ROLES = List.of("ADMIN", "LEADER", "HEAD_TEACHER", "TEACHER", "GUARD",
-            "GRADE_LEADER", "DIRECTOR", "DORM", "PROCUREMENT");
+            "GRADE_LEADER", "DIRECTOR", "DORM", "PROCUREMENT", "SECRETARY");
 
     private void checkAdmin() {
         permissionService.checkAdminAccess("只有管理员可操作系统管理");
@@ -93,6 +93,7 @@ public class AdminUserController {
         @NotBlank(message = "role 不能为空")
         private String role;
         private String phone;
+        private String stageScope; // 批39③：领导分管学段 PRIMARY/JUNIOR（仅 LEADER 有效）
     }
 
     @Data
@@ -101,6 +102,18 @@ public class AdminUserController {
         private String role;
         private String phone;
         private String username; // 批8.5：换绑登录名（ss 临时号等改名转正）
+        private String stageScope; // 批39③：领导分管学段（非领导角色一律清空）
+    }
+
+    /** 批39③ 分管学段归一：仅 LEADER 保留 PRIMARY/JUNIOR，其余角色/空值一律 null（=全部） */
+    private String normStageScope(String role, String v) {
+        if (!"LEADER".equals(role) || v == null || v.isBlank()) {
+            return null;
+        }
+        if (!"PRIMARY".equals(v) && !"JUNIOR".equals(v)) {
+            throw new BizException(400, "stageScope 只能是 PRIMARY（小学部）/JUNIOR（初中部）");
+        }
+        return v;
     }
 
     @Data
@@ -147,6 +160,7 @@ public class AdminUserController {
             m.put("realName", u.getRealName());
             m.put("role", u.getRole());
             m.put("phone", u.getPhone());
+            m.put("stageScope", u.getStageScope()); // 批39③ 领导分管学段回显
             m.put("status", u.getStatus());
             return m;
         }).toList();
@@ -175,7 +189,7 @@ public class AdminUserController {
     public ApiResponse<Map<String, Object>> createUser(@Validated @RequestBody UserReq req) {
         checkAdmin();
         if (!ROLES.contains(req.getRole())) {
-            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD/GRADE_LEADER/DIRECTOR/DORM/PROCUREMENT");
+            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD/GRADE_LEADER/DIRECTOR/DORM/PROCUREMENT/SECRETARY");
         }
         if (userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getUsername, req.getUsername())) > 0) {
             throw new BizException(400, "用户名已存在");
@@ -186,6 +200,7 @@ public class AdminUserController {
         u.setRealName(req.getRealName());
         u.setRole(req.getRole());
         u.setPhone(req.getPhone());
+        u.setStageScope(normStageScope(req.getRole(), req.getStageScope()));
         // 管理员/领导走双人审批（批2-5）：建号即停用，另一名管理员/领导通过后才启用
         boolean needsApproval = RoleApprovalService.needsApproval(req.getRole());
         u.setStatus(needsApproval ? 0 : 1);
@@ -361,7 +376,7 @@ public class AdminUserController {
             throw new BizException(400, "不能修改自己的角色");
         }
         if (req.getRole() != null && !ROLES.contains(req.getRole())) {
-            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD/GRADE_LEADER/DIRECTOR/DORM/PROCUREMENT");
+            throw new BizException(400, "role 必须是 ADMIN/LEADER/HEAD_TEACHER/TEACHER/GUARD/GRADE_LEADER/DIRECTOR/DORM/PROCUREMENT/SECRETARY");
         }
         String newRole = req.getRole() != null ? req.getRole() : u.getRole();
         // 换绑登录名（批8.5）：非空才改；唯一性+格式校验，改名后原 token 不受影响（按 userId 鉴权）
@@ -391,11 +406,16 @@ public class AdminUserController {
                     .set(!newUsername.equals(u.getUsername()), User::getUsername, newUsername));
             return ApiResponse.ok(Map.of("pendingApproval", true));
         }
+        // 批39③ 分管学段：显式传值按传值归一；字段缺失时按新角色归一原值（改角色自动清、同角色保留）
+        String newStage = req.getStageScope() == null
+                ? ("LEADER".equals(newRole) ? u.getStageScope() : null)
+                : normStageScope(newRole, req.getStageScope());
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, id)
                 .set(User::getRealName, req.getRealName() != null ? req.getRealName() : u.getRealName())
                 .set(User::getRole, newRole)
                 .set(User::getPhone, req.getPhone())
+                .set(User::getStageScope, newStage)
                 .set(!newUsername.equals(u.getUsername()), User::getUsername, newUsername));
         // 角色变更清权限点，防 LEADER 改角后遗留管理员级权限
         if (!newRole.equals(u.getRole())) {

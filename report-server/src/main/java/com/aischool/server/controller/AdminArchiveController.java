@@ -226,15 +226,25 @@ public class AdminArchiveController {
                 }
             }
         }
+        // 批42 分期归档：每生每格（学期×类型×期次）只打包最新一份（重生成的旧版留库不进归档，防 zip 膨胀+重名）
+        java.util.Map<String, Report> latestReport = new java.util.LinkedHashMap<>();
         for (Report r : reportMapper.selectList(new LambdaQueryWrapper<Report>()
-                .in(Report::getStudentId, ids))) {
+                .in(Report::getStudentId, ids)
+                .orderByDesc(Report::getGenTime).orderByDesc(Report::getId))) {
+            latestReport.putIfAbsent(r.getStudentId() + ":" + r.getTermId() + ":"
+                    + (r.getScopeType() == null ? "TERM" : r.getScopeType())
+                    + ":" + ("MID".equals(r.getPeriod()) ? "MID" : "FINAL"), r);
+        }
+        for (Report r : latestReport.values()) {
+            String label = (r.getScopeType() == null ? "TERM" : r.getScopeType()) + "-T" + r.getTermId()
+                    + ("MID".equals(r.getPeriod()) ? "-期中" : "") + "-";
             if (r.getFileUrl() != null && !r.getFileUrl().isBlank()) {
                 b.reports.add(new ArchiveFile(r.getStudentId().toString(),
-                        r.getScopeType() + "-T" + r.getTermId() + "-教师版", r.getFileUrl()));
+                        label + "教师版", r.getFileUrl()));
             }
             if (r.getParentFileUrl() != null && !r.getParentFileUrl().isBlank()) {
                 b.reports.add(new ArchiveFile(r.getStudentId().toString(),
-                        r.getScopeType() + "-T" + r.getTermId() + "-家长版", r.getParentFileUrl()));
+                        label + "家长版", r.getParentFileUrl()));
             }
         }
         return b;

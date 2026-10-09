@@ -102,6 +102,37 @@ public class CivilityController {
         return ApiResponse.ok(civilityService.awards(month));
     }
 
+    // ───────── 批43：班级整体加减分（素养评价双轨之一，进文明班不进个人档案） ─────────
+
+    /** 可记分班级下拉（班主任=本班；级长=绑定年级；主任/领导/管理员=全校；无权限 403 供前端隐藏入口） */
+    @GetMapping("/class-score/classes")
+    public ApiResponse<List<Map<String, Object>>> classScoreClasses() {
+        rejectParentGuard();
+        return ApiResponse.ok(civilityService.classScoreClasses());
+    }
+
+    @PostMapping("/class-score")
+    public ApiResponse<Map<String, Object>> createClassScore(@Validated @RequestBody CivilityService.ClassScoreReq req) {
+        rejectParentGuard();
+        return ApiResponse.ok(civilityService.createClassScore(req));
+    }
+
+    @GetMapping("/class-score/list")
+    public ApiResponse<List<Map<String, Object>>> classScoreList(@RequestParam Long classId,
+                                                                 @RequestParam(required = false) String from,
+                                                                 @RequestParam(required = false) String to) {
+        rejectParentGuard();
+        return ApiResponse.ok(civilityService.classScoreList(classId,
+                parseDate(from, "from"), parseDate(to, "to")));
+    }
+
+    @DeleteMapping("/class-score/{id}")
+    public ApiResponse<Void> deleteClassScore(@PathVariable Long id) {
+        rejectParentGuard();
+        civilityService.deleteClassScore(id);
+        return ApiResponse.ok();
+    }
+
     private void rejectParentGuard() {
         String role = AuthUtil.current().role();
         if ("PARENT".equals(role) || "GUARD".equals(role)) {

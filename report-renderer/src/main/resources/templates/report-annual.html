@@ -95,10 +95,10 @@
     <div style="flex:1.2"><span style="color:#B08A1E">班主任　</span><span th:text="${r.student.headTeacher}">李老师</span></div>
   </div>
   <!-- 五格统计：横向五等分 99pt×5 + 间隔 4pt -->
-  <th:block th:with="cells=${ {'日常评价','活动参与','获得荣誉','成长微光','成长币收入'} }">
+  <th:block th:with="cells=${ {'素养评价','活动参与','获得荣誉','成长微光','成长币收入'} }">
     <div class="abs card" th:each="i : ${#numbers.sequence(0,4)}"
          th:style="|top:200pt;left:${44 + i * 103}pt;width:99pt;height:120pt;text-align:center|">
-      <div style="padding-top:24pt;font-size:8.5pt;color:#8A93A6;letter-spacing:1pt" th:text="${cells[i]}">日常评价</div>
+      <div style="padding-top:24pt;font-size:8.5pt;color:#8A93A6;letter-spacing:1pt" th:text="${cells[i]}">素养评价</div>
       <div style="padding-top:10pt;font-size:26pt;font-weight:bold;color:#1F2A44;font-family:var(--serif)"
            th:text="${i==0? r.stats.evaluations : i==1? r.stats.activities : i==2? r.stats.honors : i==3? r.stats.moments : #numbers.formatDecimal(r.stats.coinTotal,1,0)}">12</div>
       <div style="padding-top:8pt;font-size:7pt;color:#C9A227;letter-spacing:2pt">TIMES / COINS</div>
@@ -130,7 +130,7 @@
   </div>
   <div class="abs" style="top:130pt;left:318pt;width:238pt;font-size:8pt;color:#4A5468;line-height:14pt">
     雷达图叠加呈现各学期九维「扬长」积分形态；某维度某学期无记录时该角断开。
-    维度积分由日常评价累计折算，学期积分小计见下页明细表。
+    维度积分由素养评价累计折算，学期积分小计见下页明细表。
   </div>
   <div class="abs card" style="top:216pt;left:318pt;width:238pt;padding:10pt 12pt;font-size:9pt;color:#1F2A44">
     <div style="font-weight:bold;font-family:var(--serif);margin-bottom:6pt">各学期积分小计</div>

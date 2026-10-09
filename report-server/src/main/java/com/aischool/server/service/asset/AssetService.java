@@ -54,7 +54,11 @@ public class AssetService {
             new Spec("img_photo1", "pdf", "报告照片一", "成长报告校园文化页照片位一", "jpg"),
             new Spec("img_photo2", "pdf", "报告照片二", "成长报告校园文化页照片位二", "jpg"),
             new Spec("img_nine_grid", "pdf", "九格示意图", "成长报告评价体系示意九宫格", "png,jpg"),
-            new Spec("img_principal", "pdf", "校长照片", "成长报告校长寄语页照片", "png,jpg"));
+            new Spec("img_principal", "pdf", "校长照片", "成长报告校长寄语页照片", "png,jpg"),
+            // 批40c IP 成长画像垫图底图：PortraitService 直读 MinIO（不进 PDF 渲染覆盖目录）；
+            // IP 素材有校方授权边界不入仓库，生产须校方在素材库上传（未上传=报告画像保持虚线占位框）
+            new Spec("ip_shi", "ip", "画像底图·小石", "成长画像 AI 垫图底图（男生角色）", "png"),
+            new Spec("ip_meng", "ip", "画像底图·小萌", "成长画像 AI 垫图底图（女生角色）", "png"));
 
     private static final String PREFIX = "asset/";
 
@@ -206,6 +210,26 @@ public class AssetService {
             throw new BizException(500, "素材上传失败: " + e.getMessage());
         }
         syncRendererOverrides();
+    }
+
+    /** 读取某素材位当前对象字节（批40c 画像垫图用）；未上传返回 null */
+    public byte[] readAssetBytes(String key) {
+        String obj;
+        try {
+            obj = objectNameOf(key);
+        } catch (Exception e) {
+            return null;
+        }
+        if (obj == null) {
+            return null;
+        }
+        try (InputStream in = minioClient.getObject(
+                GetObjectArgs.builder().bucket(bucket).object(obj).build())) {
+            return in.readAllBytes();
+        } catch (Exception e) {
+            log.warn("素材读取失败 {}: {}", key, e.getMessage());
+            return null;
+        }
     }
 
     /** 恢复内置：删 MinIO 对象 + 清覆盖目录文件 */

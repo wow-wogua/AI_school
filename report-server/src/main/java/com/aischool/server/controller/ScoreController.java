@@ -69,6 +69,14 @@ public class ScoreController {
         return ApiResponse.ok(scoreService.examList());
     }
 
+    /** 批40e 撤回普适：删除整场考试（管理员；含其下全部成绩，误建撤回） */
+    @DeleteMapping("/exam/{id}")
+    public ApiResponse<Void> deleteExam(@PathVariable Long id) {
+        permissionService.checkAdminAccess("只有管理员可删除考试");
+        scoreService.deleteExam(id);
+        return ApiResponse.ok(null);
+    }
+
     /** 开关录入窗口（批4 管理端考试页签；管理员或有 ADMIN_ACCESS 的领导） */
     @PutMapping("/exam/{id}/entry-open")
     public ApiResponse<Void> setEntryOpen(@PathVariable Long id, @RequestBody EntryOpenReq req) {

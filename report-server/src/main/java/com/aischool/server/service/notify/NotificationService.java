@@ -59,6 +59,16 @@ public class NotificationService {
                 + "：" + title + "（单号 #" + formId + "）");
     }
 
+    /** OA 或签节点（批43 采购）：每人 App 一条待审，企微群合并一条（防重复刷屏；单人与 oaTodo 等价） */
+    public void oaTodoAny(List<Long> approverIds, String typeName, String title, Long formId, String applicantName) {
+        for (Long id : approverIds) {
+            send(id, Notification.OA_TODO, "待审批：" + typeName,
+                    applicantName + " 提交的「" + title + "」等待您审批", "/oa");
+        }
+        wecomService.pushApprovals("【新审批】" + applicantName + " 提交了" + typeName
+                + "：" + title + "（单号 #" + formId + "）");
+    }
+
     /** OA 终态：通知申请人审批结果（不推群，防刷屏） */
     public void oaResult(Long applicantId, String typeName, String title, boolean approved, String note) {
         String verdict = approved ? "已审批通过" : "已被驳回";
@@ -107,12 +117,14 @@ public class NotificationService {
         }
     }
 
-    /** 请假信息同步（批32）：批准后自动抄送门卫（出校核验）与生活老师，无需选择 */
+    /** 请假信息同步（批32 → 批39④）：批准后自动抄送门卫（出校核验）/生活老师/行政（学成中心主任），无需选择 */
     public void leaveSyncGuard(String studentName, String className, String leaveType, String range) {
         sendToRoles(List.of("GUARD"), Notification.LEAVE_NOTICE, "请假批准·出校核验",
                 className + " " + studentName + " 的" + leaveType + "（" + range + "）已批准，离校请核验登记", "/g/home");
         sendToRoles(List.of("DORM"), Notification.LEAVE_NOTICE, "请假同步（生活老师）",
                 className + " " + studentName + " 的" + leaveType + "（" + range + "）已批准，请知悉", "/leave");
+        sendToRoles(List.of("DIRECTOR"), Notification.LEAVE_NOTICE, "请假批准（行政知悉）",
+                className + " " + studentName + " 的" + leaveType + "（" + range + "）已批准", "/leave");
         wecomService.pushApprovals("【学生请假·门卫核验】" + className + " " + studentName
                 + " 的" + leaveType + "（" + range + "）已批准");
     }

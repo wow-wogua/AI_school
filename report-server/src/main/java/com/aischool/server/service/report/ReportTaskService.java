@@ -95,12 +95,14 @@ public class ReportTaskService {
 
     // ───────────────── 任务创建 ─────────────────
 
-    /** 报告类型（批26）：TERM 学期=存量；YEAR 学年=锚定学期所在学年（9 月划界）；SCHOOL 在校=全部学期 */
-    public ReportTask createTask(String scope, Long targetId, Long termId, String reportType, Long createBy) {
+    /** 报告类型（批26）：TERM 学期=存量；YEAR 学年=锚定学期所在学年（9 月划界）；SCHOOL 在校=全部学期。
+     *  批42 分期归档：period=MID 期中 / FINAL 期末（仅 TERM 报告区分，其余恒 FINAL），重生成出新行、旧版留库 */
+    public ReportTask createTask(String scope, Long targetId, Long termId, String reportType, String period, Long createBy) {
         Term term = termMapper.selectById(termId);
         if (term == null) {
             throw new BizException(404, "学期不存在");
         }
+        String normalized = "TERM".equals(reportType) && "MID".equals(period) ? "MID" : "FINAL";
         List<Term> covered = switch (reportType) {
             case "TERM" -> List.of(term);
             case "YEAR" -> termsOfSchoolYear(term);
@@ -156,6 +158,7 @@ public class ReportTaskService {
             item.setStudentId(studentId);
             item.setTermId(termId);
             item.setScopeType(reportType);
+            item.setPeriod(normalized);
             item.setTermIds(termIds);
             item.setStatus("排队");
             reportMapper.insert(item);
@@ -205,13 +208,13 @@ public class ReportTaskService {
                 .map(item -> {
                     CompletableFuture<Path> parent = "TERM".equals(reportType)
                             ? renderService.submit(priority, String.valueOf(taskId),
-                                    item.getStudentId(), task.getTermId(), true)
+                                    item.getStudentId(), task.getTermId(), true, item.getPeriod())
                             : CompletableFuture.completedFuture(null);
                     CompletableFuture<Path> main = switch (reportType) {
                         case "YEAR", "SCHOOL" -> renderService.submitAnnual(priority, String.valueOf(taskId),
                                 item.getStudentId(), termIds, reportType.toLowerCase());
                         default -> renderService.submit(priority, String.valueOf(taskId),
-                                item.getStudentId(), task.getTermId(), false);
+                                item.getStudentId(), task.getTermId(), false, item.getPeriod());
                     };
                     return main.whenComplete((pdf, err) -> finalizeItem(taskId, item, pdf, err, parent));
                 })

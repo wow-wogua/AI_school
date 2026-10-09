@@ -143,7 +143,7 @@
     <div class="toc-row" data-k="成长银行"><span>成长银行</span><span class="dots"></span><span class="tp"></span></div>
     <div class="toc-row" data-k="我的成长画像"><span>我的成长画像</span><span class="dots"></span><span class="tp"></span></div>
     <div class="toc-row" data-k="综合素质评定"><span>综合素质评定</span><span class="dots"></span><span class="tp"></span></div>
-    <div class="toc-row" data-k="学生改进方向" th:unless="${parentEdition}"><span>学生改进方向</span><span class="dots"></span><span class="tp"></span></div>
+    <!-- 批39⑦：学生改进方向 TOC 行随页面一并移除 -->
   </div>
 </div>
 
@@ -545,6 +545,12 @@
 <div class="page z-g">
   <div class="t16v" style="top:58pt"><span>成长画像</span></div>
   <div class="abs" style="top:150pt;left:150pt;width:300pt;height:440pt;border:1pt dashed rgba(47,111,94,.5);border-radius:6pt;background:#F4F9F7"></div>
+  <!-- 批40c IP 成长画像（垫图版）：有图盖在占位框上（实线细框+角标），无图保持原虚线框零变化。
+       图=IP 底图按学生成长关键字改图，生成失败时为 IP 原图（无「AI 生成」角标即原图兜底） -->
+  <img th:if="${portraitUri != null}" class="abs" th:src="${portraitUri}" alt="IP 成长画像"
+       style="top:150pt;left:150pt;width:300pt;height:440pt;object-fit:contain;border:1pt solid rgba(47,111,94,.35);border-radius:6pt;background:#F4F9F7">
+  <div th:if="${portraitUri != null and portraitAi}" class="abs"
+       style="top:561pt;left:397pt;font-size:7.5pt;color:#2F6F5E;background:rgba(244,249,247,.9);border:1pt solid rgba(47,111,94,.3);border-radius:3pt;padding:2pt 7pt">AI 生成</div>
   <div class="abs" style="top:607pt;left:60.7pt;width:355.2pt;height:108pt;background:#F0E7C8;border:1pt solid rgba(201,162,39,.55);border-radius:4pt"></div>
   <div class="abs" style="top:634.8pt;left:63.7pt;width:345.9pt;display:flex;text-align:center">
     <div style="flex:1">
@@ -583,66 +589,13 @@
        th:text="${r.headTeacherComment}">班主任寄语</div>
 </div>
 
-<!-- ═══════════ p50 学生改进方向（家长版不渲染） ═══════════ -->
-<div class="page z-o" data-toc="学生改进方向" th:unless="${parentEdition}">
-  <div class="t16" style="top:97pt">学生改进方向</div>
-  <div class="abs" style="top:152pt;left:60.7pt;width:473.6pt">
-    <div style="font-size:12pt;font-weight:bold;color:#A8232B">学业提升空间（与班级最高分差距）</div>
-    <table style="table-layout:fixed;width:100%;background:#FBF8F1;border-collapse:collapse;margin-top:4pt">
-      <colgroup><col style="width:86pt"><col style="width:74pt"><col style="width:74pt"><col style="width:56pt"><col></colgroup>
-      <tr>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">科目</th>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">我的得分</th>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">班级最高</th>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">差距</th>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">努力建议</th>
-      </tr>
-      <tr th:each="s : ${r.improvement.subjects}">
-        <td th:text="${s.name}" style="border:1pt solid #E3D5AE;color:#1A1A1A;font-size:9pt;padding:9pt 2pt;text-align:center">道德与法治</td>
-        <td th:text="${s.score}" style="border:1pt solid #E3D5AE;color:#6A747E;font-size:9pt;padding:9pt 2pt;text-align:center">74</td>
-        <td th:text="${s.classMax}" style="border:1pt solid #E3D5AE;color:#6A747E;font-size:9pt;padding:9pt 2pt;text-align:center">88</td>
-        <td th:text="${s.gap}" style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:9pt 2pt;text-align:center">14</td>
-        <td th:text="${s.suggestion}" style="border:1pt solid #E3D5AE;color:#6A747E;font-size:9pt;padding:9pt 6pt;text-align:left">专项巩固：固定复习时段，主动请教任课老师</td>
-      </tr>
-      <tr th:if="${#lists.isEmpty(r.improvement.subjects)}">
-        <td colspan="5" style="border:1pt solid #E3D5AE;color:#6A747E;font-size:9pt;padding:14pt 2pt;text-align:center">各科与班级最高分差距微小，学业均衡发展，继续保持</td>
-      </tr>
-    </table>
-  </div>
-  <div class="abs" style="top:340pt;left:60.7pt;width:473.6pt">
-    <div style="font-size:12pt;font-weight:bold;color:#A8232B">综合素质弱项（与班级人均差距）</div>
-    <table style="table-layout:fixed;width:100%;background:#FBF8F1;border-collapse:collapse;margin-top:4pt">
-      <colgroup><col style="width:86pt"><col style="width:74pt"><col style="width:74pt"><col style="width:56pt"><col></colgroup>
-      <tr>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">维度</th>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">我的得分</th>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">班级人均</th>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">差距</th>
-        <th style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:1pt 2pt;text-align:center">努力建议</th>
-      </tr>
-      <tr th:each="g : ${r.improvement.grids}">
-        <td th:text="${g.name}" style="border:1pt solid #E3D5AE;color:#1A1A1A;font-size:9pt;padding:9pt 2pt;text-align:center">实践创新</td>
-        <td th:text="${g.mine}" style="border:1pt solid #E3D5AE;color:#6A747E;font-size:9pt;padding:9pt 2pt;text-align:center">7</td>
-        <td th:text="${g.classAvg}" style="border:1pt solid #E3D5AE;color:#6A747E;font-size:9pt;padding:9pt 2pt;text-align:center">24</td>
-        <td th:text="${g.gap}" style="border:1pt solid #E3D5AE;color:#A8232B;font-size:9pt;padding:9pt 2pt;text-align:center">17</td>
-        <td th:text="${g.suggestion}" style="border:1pt solid #E3D5AE;color:#6A747E;font-size:9pt;padding:9pt 6pt;text-align:left">新学期主动争取该维度的表现与活动机会</td>
-      </tr>
-      <tr th:if="${#lists.isEmpty(r.improvement.grids)}">
-        <td colspan="5" style="border:1pt solid #E3D5AE;color:#6A747E;font-size:9pt;padding:14pt 2pt;text-align:center">九维得分均不低于班级人均，全面发展态势良好</td>
-      </tr>
-    </table>
-  </div>
-  <div class="abs" style="top:600pt;left:60.7pt;width:473.6pt;font-size:9pt;color:#6A747E;line-height:16pt">
-    本版块由系统依据本学期数据自动生成：学业取与班级最高分差距最大的 3 个学科，综合素质取低于班级人均幅度最大的
-    2 个维度；建议文字为规则模板，供学生新学期规划与家校沟通参考。
-  </div>
-</div>
+<!-- 批39⑦：学生改进方向页取消（学业差距表+九维弱项表整页移除，TOC 同步删行） -->
 
-<!-- ═══════════ p51 成长掠影（微光信箱随手拍，可选页：无记录整页跳过、不占页码契约） ═══════════ -->
+<!-- ═══════════ p51 成长掠影（微光时刻随手拍，可选页：无记录整页跳过、不占页码契约） ═══════════ -->
 <div class="page z-o" th:if="${!#lists.isEmpty(r.moments)}">
   <div class="t16" style="top:97pt">成长掠影</div>
   <div class="abs" style="top:141pt;left:0;width:100%;text-align:center;font-size:10.5pt;color:#A8232B"
-       th:text="'微光信箱 · 老师们随手拍下的 ' + ${#lists.size(r.moments)} + ' 个闪光时刻'"></div>
+       th:text="'微光时刻 · 老师们随手拍下的 ' + ${#lists.size(r.moments)} + ' 个闪光时刻'"></div>
   <div class="abs" style="top:176pt;left:60.7pt;width:474pt;display:flex;flex-wrap:wrap;gap:15pt 27pt">
     <div th:each="m : ${r.moments}" style="width:140pt">
       <div style="width:140pt;height:180pt;border:1pt solid #E3D5AE;border-radius:6pt;overflow:hidden;

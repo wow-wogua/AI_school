@@ -56,6 +56,13 @@ public class AdminOaController {
         out.put("goodsLevels", oaService.levels("GOODS"));
         out.put("leaveLevels", oaService.levels("LEAVE"));
         out.put("venueLevels", oaService.levels("VENUE"));
+        // 批43① 采购：五级或签（每级多人）+ 抄送人
+        List<List<Map<String, Object>>> purchase = new java.util.ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            purchase.add(idListView(oaService.cfgOf("oa_purchase_l" + i), names));
+        }
+        out.put("purchaseApprovers", purchase);
+        out.put("purchaseCc", idListView(oaService.cfgOf("oa_purchase_cc"), names));
         return ApiResponse.ok(out);
     }
 
@@ -73,7 +80,18 @@ public class AdminOaController {
         return list;
     }
 
-    /** 四型十二键涉及的审批人姓名 */
+    /** 逗号分隔 id 串 → [{id,name}]（批43① 采购多人或签/抄送配置回显） */
+    private List<Map<String, Object>> idListView(String csv, Map<Long, String> names) {
+        if (csv == null || csv.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(csv.split(",")).map(String::trim).filter(s -> !s.isEmpty())
+                .map(Long::parseLong)
+                .map(id -> Map.<String, Object>of("id", id, "name", names.getOrDefault(id, "已注销账号")))
+                .toList();
+    }
+
+    /** 五型涉及的审批人姓名 */
     private Map<Long, String> approverNames() {
         List<Long> ids = new java.util.ArrayList<>();
         for (int i = 1; i <= 3; i++) {
@@ -84,9 +102,21 @@ public class AdminOaController {
                 }
             }
         }
+        for (int i = 1; i <= 5; i++) {
+            addCsvIds(ids, oaService.cfgOf("oa_purchase_l" + i));
+        }
+        addCsvIds(ids, oaService.cfgOf("oa_purchase_cc"));
         return ids.isEmpty() ? Map.of()
-                : userMapper.selectBatchIds(ids).stream()
+                : userMapper.selectBatchIds(ids.stream().distinct().toList()).stream()
                         .collect(Collectors.toMap(User::getId, User::getRealName, (a, b) -> a));
+    }
+
+    private void addCsvIds(List<Long> ids, String csv) {
+        if (csv == null || csv.isBlank()) {
+            return;
+        }
+        java.util.Arrays.stream(csv.split(",")).map(String::trim).filter(s -> !s.isEmpty())
+                .map(Long::parseLong).forEach(ids::add);
     }
 
     @PutMapping("/oa/config")
@@ -104,7 +134,23 @@ public class AdminOaController {
         oaService.setCfg("oa_leave_levels", String.valueOf(leaveLevels));
         int venueLevels = Math.max(1, Math.min(3, req.getVenueLevels() == null ? 1 : req.getVenueLevels()));
         oaService.setCfg("oa_venue_levels", String.valueOf(venueLevels));
+        // 批43① 采购：五级或签（逗号分隔多人）+ 抄送人（前端未传足 5 位按空级处理）
+        List<List<Long>> purchase = req.getPurchaseApprovers();
+        for (int i = 1; i <= 5; i++) {
+            List<Long> lv = purchase != null && purchase.size() >= i ? purchase.get(i - 1) : null;
+            oaService.setCfg("oa_purchase_l" + i, csvOf(lv));
+        }
+        oaService.setCfg("oa_purchase_cc", csvOf(req.getPurchaseCc()));
         return ApiResponse.ok();
+    }
+
+    /** 多人 id 列表 → 逗号分隔串（空=清空配置） */
+    private String csvOf(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return "";
+        }
+        return ids.stream().filter(java.util.Objects::nonNull).map(String::valueOf)
+                .distinct().collect(Collectors.joining(","));
     }
 
     private String idStr(List<Long> ids, int i) {
@@ -314,6 +360,8 @@ public class AdminOaController {
         private List<Long> leaveApprovers;
         private Integer venueLevels; // 批11
         private List<Long> venueApprovers;
+        private List<List<Long>> purchaseApprovers; // 批43① 五级或签 [l1[],l2[],…,l5[]]（不足 5 位按空补）
+        private List<Long> purchaseCc; // 抄送人（管理员预设不可删）
     }
 
     @Data

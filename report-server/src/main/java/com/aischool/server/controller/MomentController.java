@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** 微光信箱：随手拍记录学生闪光时刻（照片走 MinIO，JWT 内联预览） */
+/** 微光时刻：随手拍记录学生闪光时刻（照片走 MinIO，JWT 内联预览） */
 @RestController
 @RequestMapping("/api/moment")
 @RequiredArgsConstructor

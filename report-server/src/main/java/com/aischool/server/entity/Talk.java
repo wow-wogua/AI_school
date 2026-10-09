@@ -9,7 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** t_talk 谈心记录（批11）：教师对可见班级学生，家长不可见 */
+/** t_talk 导师谈心（批11）：教师对可见班级学生，家长不可见 */
 @Data
 @TableName("t_talk")
 public class Talk {

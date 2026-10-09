@@ -13,6 +13,7 @@ import com.aischool.server.entity.User;
 import com.aischool.server.mapper.ClassGridAvgMapper;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.CoinWeekMapper;
+import com.aischool.server.mapper.ConductLogMapper;
 import com.aischool.server.mapper.EvaluationMapper;
 import com.aischool.server.mapper.GradeGridAvgMapper;
 import com.aischool.server.mapper.GridMapper;
@@ -31,6 +32,7 @@ import com.aischool.server.service.conduct.ConductLedgerService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -71,6 +73,7 @@ public class EvaluationService {
     private final GradeGridAvgMapper gradeGridAvgMapper;
     private final CoinLedgerService coinLedger;
     private final ConductLedgerService conductLedger;
+    private final ConductLogMapper conductLogMapper;
     private final DataScopeService dataScope;
     private final DutyService dutyService;
     private final MomentService momentService;
@@ -113,13 +116,19 @@ public class EvaluationService {
         e.setEvalTime(evalTime);
         evaluationMapper.insert(e);
 
-        // ② 学期九维累计（原子 upsert：ODKU 消除 select-then-update 的并发丢增量，唯一键见 V6）
-        gridStatTermMapper.upsertIncrement(studentId, term.getId(), grid.getId(), score,
-                kindCount(studentId, term, grid.getId()));
-
-        // ③ 周九维（原子 upsert）
+        // 批39⑦ 减分过滤：九维体系（个人累计/周趋势/班年级均值）只累加分，减分仅留明细（教师照常可查）；
+        // 历史已聚合的减分不回溯重算（聚合表按学期分行，下学期自然干净）
+        boolean positive = score.signum() > 0;
         int weekNo = weekNo(term, evalTime);
-        gridStatWeekMapper.upsertIncrement(studentId, term.getId(), grid.getId(), weekNo, score);
+
+        // ② 学期九维累计（原子 upsert：ODKU 消除 select-then-update 的并发丢增量，唯一键见 V6）
+        if (positive) {
+            gridStatTermMapper.upsertIncrement(studentId, term.getId(), grid.getId(), score,
+                    kindCount(studentId, term, grid.getId()));
+
+            // ③ 周九维（原子 upsert）
+            gridStatWeekMapper.upsertIncrement(studentId, term.getId(), grid.getId(), weekNo, score);
+        }
 
         // ④ 周能量币（原子 upsert；只动本人的 in_mine，in_class/in_grade 是全组共现值，改动会波及他人报告）
         coinWeekMapper.upsertMineIncome(studentId, term.getId(), weekNo, score);
@@ -136,9 +145,9 @@ public class EvaluationService {
                     ind.getConductValue(), grid.getName() + "-" + ind.getName(), user.userId());
         }
 
-        // ⑥ 班/年级均值增量平移
+        // ⑥ 班/年级均值增量平移（与②③同口径：只平移加分，个人九维与均值才不分叉）
         Clazz clazz = clazzMapper.selectById(student.getClassId());
-        if (clazz != null) {
+        if (positive && clazz != null) {
             long classSize = studentMapper.selectCount(new LambdaQueryWrapper<Student>()
                     .eq(Student::getClassId, clazz.getId()));
             if (classSize > 0) {
@@ -166,6 +175,68 @@ public class EvaluationService {
         data.put("termId", term.getId());
         data.put("weekNo", weekNo);
         return data;
+    }
+
+    /**
+     * 批40e 撤回普适：删除评价并逆向冲销全部聚合——九维学期/周累计、周能量币 in_mine、
+     * 班年级均值平移、能量币流水（负行留痕）、操行分联动（按原 log 行 delta 取负，指标改配置也不冲错）。
+     * 聚合表全是增量式，负值即冲销；kindCount 基于明细表，先删行再算即回正。
+     * 边界：联动生成的微光（EVAL_SYNC）无评价关联键，不自动删，教师可在微光模块手删。
+     */
+    @Transactional
+    public void delete(UserPrincipal user, Long id) {
+        Evaluation e = evaluationMapper.selectById(id);
+        if (e == null) {
+            throw new BizException(404, "评价不存在");
+        }
+        if (!"ADMIN".equals(user.role()) && !e.getTeacherId().equals(user.userId())) {
+            throw new BizException(403, "只有评价人或管理员可删除评价");
+        }
+        Indicator ind = indicatorMapper.selectById(e.getIndicatorId());
+        Grid grid = ind == null ? null : gridMapper.selectById(ind.getGridId());
+        Term term = termOf(e.getEvalTime());
+        Student student = studentMapper.selectById(e.getStudentId());
+
+        evaluationMapper.deleteById(id);
+
+        boolean positive = e.getScore().signum() > 0;
+        if (grid != null && term != null) {
+            int weekNo = weekNo(term, e.getEvalTime());
+            // 周能量币 in_mine 与 evaluate 同口径（正负分都写），冲销移出 positive 判定
+            coinWeekMapper.upsertMineIncome(e.getStudentId(), term.getId(), weekNo, e.getScore().negate());
+            if (positive) {
+                gridStatTermMapper.upsertIncrement(e.getStudentId(), term.getId(), grid.getId(), e.getScore().negate(),
+                        kindCount(e.getStudentId(), term, grid.getId()));
+                gridStatWeekMapper.upsertIncrement(e.getStudentId(), term.getId(), grid.getId(), weekNo, e.getScore().negate());
+            }
+            if (student != null && student.getClassId() != null) {
+                Clazz clazz = clazzMapper.selectById(student.getClassId());
+                if (clazz != null) {
+                    long classSize = studentMapper.selectCount(new LambdaQueryWrapper<Student>()
+                            .eq(Student::getClassId, clazz.getId()));
+                    if (classSize > 0) {
+                        shiftClassAvg(clazz.getId(), term.getId(), grid.getId(), e.getScore().negate(), classSize);
+                    }
+                    long gradeSize = studentMapper.selectCount(new LambdaQueryWrapper<Student>()
+                            .in(Student::getClassId, clazzIdsOfGrade(clazz.getGradeId())));
+                    if (gradeSize > 0) {
+                        shiftGradeAvg(clazz.getGradeId(), term.getId(), grid.getId(), e.getScore().negate(), gradeSize);
+                    }
+                }
+            }
+        }
+        // 能量币冲正：按原入账行定位（无行=批3 前老数据没入过账，自然不冲）
+        coinLedger.reverse(e.getStudentId(), "评价", id);
+        // 操行分联动冲正：按原 log 行 delta 取负（无行=未联动）
+        ConductLog conductOrigin = conductLogMapper.selectOne(new LambdaQueryWrapper<ConductLog>()
+                .eq(ConductLog::getSourceType, ConductLog.SRC_EVALUATION)
+                .eq(ConductLog::getSourceId, id)
+                .orderByAsc(ConductLog::getId)
+                .last("LIMIT 1"));
+        if (conductOrigin != null) {
+            conductLedger.apply(e.getStudentId(), e.getEvalTime().toLocalDate(), ConductLog.SRC_EVALUATION, id,
+                    conductOrigin.getDelta().negate(), "撤回-" + conductOrigin.getReason(), user.userId());
+        }
     }
 
     /** 某学生某学期的评价列表（含格/指标/教师名，时间正序） */
@@ -250,9 +321,9 @@ public class EvaluationService {
                         teacherNames.getOrDefault(ev.getTeacherId(), "")});
             }
         }
-        String name = "日常评价_" + (clazz != null ? clazz.getName() : classId)
+        String name = "素养评价_" + (clazz != null ? clazz.getName() : classId)
                 + "_" + term.getName() + ".xlsx";
-        return new Exported(name, excel.export("日常评价",
+        return new Exported(name, excel.export("素养评价",
                 new String[]{"学号", "姓名", "时间", "九维", "指标", "标题", "分值", "备注", "评价人"}, table));
     }
 

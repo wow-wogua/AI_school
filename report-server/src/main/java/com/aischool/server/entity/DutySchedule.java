@@ -7,7 +7,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** t_duty_schedule（日常评价值班排班，批6 漏项C1） */
+/** t_duty_schedule（素养评价值班排班，批6 漏项C1） */
 @Data
 @TableName("t_duty_schedule")
 public class DutySchedule {

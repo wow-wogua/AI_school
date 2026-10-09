@@ -39,7 +39,7 @@ public interface AiTaskMapper extends BaseMapper<AiTask> {
 
     /** AI 用量：按教师聚合（谁在用、用了多少） */
     @Select("""
-            SELECT u.real_name AS teacher, COUNT(*) AS tasks,
+            SELECT u.real_name AS teacher, t.created_by AS userId, COUNT(*) AS tasks,
                    IFNULL(SUM(t.prompt_tokens), 0) AS promptTokens,
                    IFNULL(SUM(t.completion_tokens), 0) AS completionTokens
             FROM t_ai_task t JOIN t_user u ON u.id = t.created_by

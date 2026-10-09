@@ -1,4 +1,6 @@
-# Phase E 校验：10 份变体 PDF 全部 52 页（golden 无微光派生，含改进方向页；掠影由 qa_moments_pdf*.mjs 动态覆盖），且每页中文标题序列与 golden 渲染一致（分页一致）
+# Phase E 校验：10 份变体 PDF 全部 51 页，且每页中文标题序列与 golden 渲染一致（分页一致）。
+# 口径：本离线链的 golden_student.json moments 为空 → 成长掠影页 th:if 跳过，含常驻 IP 画像占位页 → 51 页。
+# （API 链 verify_contract 用真实学生1 数据含微光掠影页 = 53 页；掠影/画像 AI 实测由批40c 三态闭环与 qa_moments_pdf*.mjs 覆盖，两链基数不同勿混。）
 import fitz, re, pathlib
 ROOT = pathlib.Path(__file__).resolve().parents[1] / 'target'
 BASE = str(ROOT / 'report.pdf')
@@ -20,8 +22,8 @@ for i in range(1, 11):
     p = str(ROOT / 'batch' / f'student{i:02d}.pdf')
     d = fitz.open(p)
     s = sig(d)
-    if len(d) != 52:
-        print(f'student{i:02d}: 页数 {len(d)} != 52  FAIL'); ok = False; continue
+    if len(d) != 51:
+        print(f'student{i:02d}: 页数 {len(d)} != 51  FAIL'); ok = False; continue
     if s != base:
         for j, (a, b) in enumerate(zip(s, base)):
             if a != b:
@@ -29,5 +31,5 @@ for i in range(1, 11):
         if len(s) != len(base):
             print(f'student{i:02d}: 签名页数 {len(s)} vs {len(base)}'); ok = False
     else:
-        print(f'student{i:02d}: 52 页, 分页一致 OK')
+        print(f'student{i:02d}: 51 页, 分页一致 OK')
 print('RESULT:', 'PASS' if ok else 'FAIL')

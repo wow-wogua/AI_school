@@ -43,6 +43,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -106,7 +107,7 @@ public class ParentController {
         }).toList());
     }
 
-    /** 孩子最近评价（行为评价不含成绩；仅绑定孩子可查） */
+    /** 孩子最近评价（行为评价不含成绩；仅绑定孩子可查。批39⑦：家长侧只显示加分记录） */
     @GetMapping("/children/{studentId}/evaluations")
     public ApiResponse<List<Map<String, Object>>> evaluations(@PathVariable Long studentId,
             @RequestParam(defaultValue = "5") int limit) {
@@ -114,6 +115,7 @@ public class ParentController {
         requireBound(studentId);
         List<Evaluation> rows = evaluationMapper.selectList(new LambdaQueryWrapper<Evaluation>()
                 .eq(Evaluation::getStudentId, studentId)
+                .gt(Evaluation::getScore, 0)
                 .orderByDesc(Evaluation::getEvalTime)
                 .orderByDesc(Evaluation::getId)
                 .last("LIMIT " + Math.min(Math.max(limit, 1), 20)));
@@ -188,6 +190,95 @@ public class ParentController {
                 .isNotNull(Report::getParentFileUrl)
                 .orderByDesc(Report::getGenTime).orderByDesc(Report::getId)
                 .last("LIMIT 1"));
+    }
+
+    // ───────── 批42：分期归档——往期报告按学期分组可见 ─────────
+
+    /**
+     * 孩子全部家长版报告，按学期分组（新→旧）。每格（学期×类型×期次）只显最新一份——
+     * 重生成的旧版本留库不展示。期内排序：学期·期末 → 学期·期中 → 学年 → 在校。
+     */
+    @GetMapping("/children/{studentId}/report/list")
+    public ApiResponse<List<Map<String, Object>>> reportList(@PathVariable Long studentId) {
+        checkParent();
+        requireBound(studentId);
+        List<Report> rows = reportMapper.selectList(new LambdaQueryWrapper<Report>()
+                .eq(Report::getStudentId, studentId)
+                .eq(Report::getStatus, "成功")
+                .isNotNull(Report::getParentFileUrl)
+                .orderByDesc(Report::getGenTime).orderByDesc(Report::getId));
+        // 每格保留最新（rows 已按生成时间倒序 → 首见即最新）
+        Map<String, Report> latest = new java.util.LinkedHashMap<>();
+        for (Report r : rows) {
+            String key = r.getTermId() + ":" + (r.getScopeType() == null ? "TERM" : r.getScopeType())
+                    + ":" + ("MID".equals(r.getPeriod()) ? "MID" : "FINAL");
+            latest.putIfAbsent(key, r);
+        }
+        Map<Long, Term> terms = latest.isEmpty() ? Map.of()
+                : termMapper.selectBatchIds(latest.values().stream().map(Report::getTermId).distinct().toList())
+                        .stream().collect(java.util.stream.Collectors.toMap(Term::getId, t -> t, (a, b) -> a));
+        Map<Long, List<Map<String, Object>>> byTerm = new java.util.LinkedHashMap<>();
+        for (Report r : latest.values()) {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("reportId", r.getId());
+            m.put("scopeType", r.getScopeType() == null ? "TERM" : r.getScopeType());
+            m.put("period", "MID".equals(r.getPeriod()) ? "MID" : "FINAL");
+            m.put("genTime", r.getGenTime() == null ? null : r.getGenTime().toString());
+            byTerm.computeIfAbsent(r.getTermId(), k -> new ArrayList<>()).add(m);
+        }
+        List<Map<String, Object>> groups = new ArrayList<>();
+        byTerm.entrySet().stream()
+                .sorted((a, b) -> Long.compare(
+                        terms.getOrDefault(b.getKey(), new Term()).getId(),
+                        terms.getOrDefault(a.getKey(), new Term()).getId()))
+                .forEach(e -> {
+                    e.getValue().sort(java.util.Comparator.comparingInt(m -> itemOrder(
+                            String.valueOf(m.get("scopeType")), String.valueOf(m.get("period")))));
+                    Map<String, Object> g = new java.util.LinkedHashMap<>();
+                    g.put("termId", e.getKey());
+                    Term t = terms.get(e.getKey());
+                    g.put("termName", t == null ? "" : t.getName());
+                    g.put("items", e.getValue());
+                    groups.add(g);
+                });
+        return ApiResponse.ok(groups);
+    }
+
+    /** 指定往期报告的家长版 PDF（inline 预览 / attachment 下载；须属于绑定孩子） */
+    @GetMapping("/children/{studentId}/report/{reportId}/file")
+    public ResponseEntity<byte[]> reportFileOf(@PathVariable Long studentId, @PathVariable Long reportId,
+            @RequestParam(defaultValue = "inline") String disposition) throws IOException {
+        checkParent();
+        requireBound(studentId);
+        Report report = reportMapper.selectById(reportId);
+        if (report == null || !studentId.equals(report.getStudentId())
+                || report.getParentFileUrl() == null || !"成功".equals(report.getStatus())) {
+            throw new BizException(404, "报告不存在或尚未生成");
+        }
+        byte[] bytes;
+        try (InputStream in = pdfStore.download(report.getParentFileUrl())) {
+            bytes = in.readAllBytes();
+        }
+        String fileName = "report-parent-" + studentId + "-T" + report.getTermId()
+                + ("MID".equals(report.getPeriod()) ? "-期中" : "") + "-" + reportId + ".pdf";
+        String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentLength(bytes.length);
+        headers.add(HttpHeaders.CONTENT_DISPOSITION,
+                ("download".equals(disposition) ? "attachment" : "inline") + "; filename*=UTF-8''" + encoded);
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    /** 期内排序权重：学期·期末 0 → 学期·期中 1 → 学年 2 → 在校 3 */
+    private static int itemOrder(String scopeType, String period) {
+        if ("YEAR".equals(scopeType)) {
+            return 2;
+        }
+        if ("SCHOOL".equals(scopeType)) {
+            return 3;
+        }
+        return "MID".equals(period) ? 1 : 0;
     }
 
     // ────────────────────────── 内容：通知公告 / 育儿课堂（批2） ──────────────────────────
@@ -269,7 +360,7 @@ public class ParentController {
         return content.substring(0, 80) + "…";
     }
 
-    // ────────────────────────── 微光信箱（批2-3 方案A：仅进孩子成长档案） ──────────────────────────
+    // ────────────────────────── 微光时刻（批2-3 方案A：仅进孩子成长档案） ──────────────────────────
 
     /** 家长上传微光：进该孩子成长档案（家长+班主任可见），不进班级公开墙、不进 AI 报告素材、免审核 */
     @PostMapping("/moment")

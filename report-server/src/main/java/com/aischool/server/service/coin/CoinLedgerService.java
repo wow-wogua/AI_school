@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /** 能量币入账（活动/荣誉共用唯一入口）：写 t_coin_income 并同步 t_coin_account */
 @Service
@@ -45,6 +46,31 @@ public class CoinLedgerService {
         // 账户原子 upsert（student_id 建表即 UNIQUE）：并发入账不再丢增量
         coinAccountMapper.upsertIncome(studentId, coin);
         return term.getId();
+    }
+
+    /**
+     * 批40e 撤回冲正：按来源定位原入账行，记一笔负冲销流水（账面留痕不凭空消失）并账户同步扣减。
+     * 冲正全部非零行（负分评价的负入账同样要冲回）；防双扣靠来源记录删除后 404（评价/参与单删即不可再删）。
+     */
+    public void reverse(Long studentId, String sourceType, Long sourceId) {
+        List<CoinIncome> rows = coinIncomeMapper.selectList(new LambdaQueryWrapper<CoinIncome>()
+                .eq(CoinIncome::getStudentId, studentId)
+                .eq(CoinIncome::getSourceType, sourceType)
+                .eq(CoinIncome::getSourceId, sourceId)
+                .ne(CoinIncome::getCoin, BigDecimal.ZERO));
+        for (CoinIncome row : rows) {
+            CoinIncome rev = new CoinIncome();
+            rev.setStudentId(studentId);
+            rev.setTermId(row.getTermId());
+            rev.setSourceType(sourceType);
+            rev.setSourceId(sourceId);
+            rev.setModule("撤回-" + row.getModule());
+            rev.setCoin(row.getCoin().negate());
+            rev.setDisplayOrder(99);
+            rev.setCreateTime(LocalDateTime.now());
+            coinIncomeMapper.insert(rev);
+            coinAccountMapper.upsertIncome(studentId, row.getCoin().negate());
+        }
     }
 
     /** 学期落点推导（批3 起操行分账本共用，保证与能量币口径一致） */

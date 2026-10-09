@@ -54,6 +54,13 @@ public class EvaluationController {
                 req.getIndicatorId(), req.getTitle(), req.getScore(), req.getRemark(), req.getEvalTime()));
     }
 
+    /** 批40e 撤回普适：删除评价并冲销聚合（评价人或管理员） */
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        evaluationService.delete(AuthUtil.current(), id);
+        return ApiResponse.ok();
+    }
+
     @GetMapping("/list")
     public ApiResponse<List<Map<String, Object>>> list(@RequestParam Long studentId,
                                                        @RequestParam Long termId) {

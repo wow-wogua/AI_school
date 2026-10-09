@@ -15,13 +15,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * 管理端「系统参数」（批35 学校自治）：t_sys_config 常用参数表单化。
  * 当前覆盖学生请假分级阈值（leave_level1_days / leave_level2_days / leave_max_days，
- * 消费方 StudentLeaveService 动态读库，改完即时生效）。
+ * 消费方 StudentLeaveService 动态读库，改完即时生效）；
+ * 批39⑥ 文明班口径切换日（civility_eval_from，yyyy-MM-dd，空=未切换仍按旧打分口径排名）。
  */
 @RestController
 @RequestMapping("/api/admin/sys-param")
@@ -56,6 +59,22 @@ public class AdminSysParamController {
         }
     }
 
+    private String cfgStr(String key) {
+        SysConfig c = sysConfigMapper.selectById(key);
+        return c == null || c.getCfgValue() == null ? "" : c.getCfgValue().trim();
+    }
+
+    private void setStr(String key, String value) {
+        int n = sysConfigMapper.update(null, new LambdaUpdateWrapper<SysConfig>()
+                .eq(SysConfig::getCfgKey, key).set(SysConfig::getCfgValue, value));
+        if (n == 0) {
+            SysConfig c = new SysConfig();
+            c.setCfgKey(key);
+            c.setCfgValue(value);
+            sysConfigMapper.insert(c);
+        }
+    }
+
     @GetMapping
     public ApiResponse<Map<String, Object>> get() {
         checkAdmin();
@@ -63,6 +82,7 @@ public class AdminSysParamController {
         m.put("leaveLevel1Days", cfgInt("leave_level1_days", 3));
         m.put("leaveLevel2Days", cfgInt("leave_level2_days", 7));
         m.put("leaveMaxDays", cfgInt("leave_max_days", 30));
+        m.put("civilityEvalFrom", cfgStr("civility_eval_from"));
         return ApiResponse.ok(m);
     }
 
@@ -75,9 +95,21 @@ public class AdminSysParamController {
         if (l1 < 1 || l2 <= l1 || max < l2 || max > 365) {
             throw new BizException(400, "阈值须满足 1 ≤ 即生效天数 < 级长审批天数 ≤ 上限天数 ≤ 365");
         }
+        LocalDate from = null;
+        if (req.getCivilityEvalFrom() != null && !req.getCivilityEvalFrom().isBlank()) {
+            try {
+                from = LocalDate.parse(req.getCivilityEvalFrom().trim());
+            } catch (DateTimeParseException e) {
+                throw new BizException(400, "文明班切换日格式须为 yyyy-MM-dd");
+            }
+            if (from.isAfter(LocalDate.now())) {
+                throw new BizException(400, "文明班切换日不能晚于今天");
+            }
+        }
         set("leave_level1_days", l1);
         set("leave_level2_days", l2);
         set("leave_max_days", max);
+        setStr("civility_eval_from", from == null ? "" : from.toString());
         return get();
     }
 
@@ -86,5 +118,6 @@ public class AdminSysParamController {
         private Integer leaveLevel1Days;
         private Integer leaveLevel2Days;
         private Integer leaveMaxDays;
+        private String civilityEvalFrom;
     }
 }

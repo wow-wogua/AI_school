@@ -136,6 +136,23 @@ public class RepairService {
         repairMapper.updateById(r);
     }
 
+    /** 批40e 撤回普适：发起人撤回报修单（仅 PENDING 未处理时可撤；凭证照片对象一并清理） */
+    public void cancel(Long id, UserPrincipal user) {
+        Repair r = require(id);
+        if (!r.getReporterId().equals(user.userId())) {
+            throw new BizException(403, "只有报修人本人可撤回报修单");
+        }
+        if (!Repair.PENDING.equals(r.getStatus())) {
+            throw new BizException(400, "该报修单已处理，不能撤回");
+        }
+        for (String objectName : parsePhotos(r.getPhotos())) {
+            pdfStore.delete(objectName);
+        }
+        r.setPhotos(null);
+        r.setStatus(Repair.CANCELED);
+        repairMapper.updateById(r);
+    }
+
     /** 逐张凭证照片回图（照片内容=故障现场，报修人本人与管理员可见） */
     public String photoObject(Long id, int idx, UserPrincipal user) {
         Repair r = require(id);

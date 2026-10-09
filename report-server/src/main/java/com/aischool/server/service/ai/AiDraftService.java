@@ -251,7 +251,7 @@ public class AiDraftService {
     // ───────────────── 内部 ─────────────────
 
     /**
-     * 微光信箱素材注入：把该学生本学期（学期起止缺失则不限）的教师随手拍
+     * 微光时刻素材注入：把该学生本学期（学期起止缺失则不限）的教师随手拍
      * 以「日期/场景/教师备注」结构放进 facts，LLM 与模板两条路都可见。
      */
     private void injectMomentFacts(Map<String, Object> facts, Long studentId, Long termId) {
@@ -310,6 +310,16 @@ public class AiDraftService {
         return rows.size() + " 个闪光瞬间（" + tags + "）";
     }
 
+    /** 批40e 撤回普适：删除班主任寄语记录（误写撤回；无记录=幂等成功） */
+    public void deleteComment(Long studentId, Long termId) {
+        Comment comment = commentMapper.selectOne(new LambdaQueryWrapper<Comment>()
+                .eq(Comment::getStudentId, studentId).eq(Comment::getTermId, termId)
+                .eq(Comment::getType, "班主任").orderByDesc(Comment::getId).last("LIMIT 1"));
+        if (comment != null) {
+            commentMapper.deleteById(comment.getId());
+        }
+    }
+
     private Comment upsertComment(Long studentId, Long termId) {
         Comment comment = commentMapper.selectOne(new LambdaQueryWrapper<Comment>()
                 .eq(Comment::getStudentId, studentId).eq(Comment::getTermId, termId)
@@ -344,7 +354,7 @@ public class AiDraftService {
         }
         String momentBrief = momentBrief(facts);
         if (momentBrief != null) {
-            sb.append("老师们还用微光信箱记录下你的 ").append(momentBrief).append("，每一帧都是你成长的见证。");
+            sb.append("老师们还用微光时刻记录下你的 ").append(momentBrief).append("，每一帧都是你成长的见证。");
         }
         sb.append("新的学期，愿你保持热情与专注，查漏补缺、稳步前行，成为更好的自己。加油！");
         return sb.toString();
@@ -357,7 +367,7 @@ public class AiDraftService {
                 .append(facts.getOrDefault("优势学科", "")).append("表现稳定突出");
         String momentBrief = momentBrief(facts);
         if (momentBrief != null) {
-            sb.append("，微光信箱记录了 ").append(momentBrief);
+            sb.append("，微光时刻记录了 ").append(momentBrief);
         }
         sb.append("。\n");
         sb.append("学习发展：期末总分 ").append(facts.get("总分")).append(" 分，")

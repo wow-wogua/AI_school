@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/** 谈心记录（批11）：管理端全量 */
+/** 导师谈心（批11）：管理端全量 */
 @RestController
 @RequestMapping("/api/admin/talk")
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class AdminTalkController {
     @GetMapping("/list")
     public ApiResponse<List<Map<String, Object>>> list(@RequestParam(required = false) Long classId,
                                                        @RequestParam(required = false) Integer followUp) {
-        permissionService.checkAdminAccess("只有管理员可查谈心记录");
+        permissionService.checkAdminAccess("只有管理员可查导师谈心");
         return ApiResponse.ok(talkService.adminList(classId, followUp));
     }
 }

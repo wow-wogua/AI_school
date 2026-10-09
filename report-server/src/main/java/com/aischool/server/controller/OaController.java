@@ -5,8 +5,12 @@ import com.aischool.server.common.BizException;
 import com.aischool.server.entity.Goods;
 import com.aischool.server.mapper.GoodsMapper;
 import com.aischool.server.service.oa.OaService;
+import com.aischool.server.service.report.PdfStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,8 +19,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.InputStreamResource;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -30,6 +38,7 @@ public class OaController {
 
     private final OaService oaService;
     private final GoodsMapper goodsMapper;
+    private final PdfStoreService pdfStore;
 
     @PostMapping("/submit")
     public ApiResponse<Map<String, Object>> submit(@RequestBody OaService.SubmitReq req) {
@@ -88,6 +97,32 @@ public class OaController {
                 "unit", g.getUnit(),
                 "stock", g.getStock(),
                 "location", g.getLocation() == null ? "" : g.getLocation())).toList());
+    }
+
+    // ───────── 批43① 采购附件 ─────────
+
+    /** 附件预上传（multipart 单文件→MinIO oa/ 前缀；submit 时只带返回的 objectName） */
+    @PostMapping("/purchase/photo")
+    public ApiResponse<Map<String, Object>> purchasePhoto(@RequestParam("photo") MultipartFile photo) {
+        return ApiResponse.ok(oaService.uploadPurchasePhoto(photo));
+    }
+
+    /** 附件预览（inline 流式+ETag+缓存，同报修凭证模式；可见性同单据详情） */
+    @GetMapping("/purchase/file/{id}")
+    public ResponseEntity<InputStreamResource> purchaseFile(@PathVariable Long id,
+                                                            @RequestParam(defaultValue = "0") int idx) {
+        String objectName = oaService.purchasePhotoObject(id, idx);
+        java.io.InputStream in = pdfStore.download(objectName);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentTypeOf(objectName)))
+                .eTag("\"" + objectName + "\"")
+                .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
+                .body(new InputStreamResource(in));
+    }
+
+    private String contentTypeOf(String objectName) {
+        String ext = objectName.substring(objectName.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+        return ext.equals("png") ? "image/png" : "image/jpeg";
     }
 
     private Map<String, Object> rowOf(com.aischool.server.entity.OaForm f) {

@@ -18,7 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
- * 教师成长足迹报告（批26，原始需求三 PDF 化）：六维统计 + 五类足迹明细 + 奖项列表。
+ * 教师足迹报告（批26，原始需求三 PDF 化）：六维统计 + 五类足迹明细 + 奖项列表。
  * 同步按需渲染（单人低频导出），不入报告任务队列。
  */
 @Service

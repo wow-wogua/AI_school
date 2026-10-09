@@ -6,15 +6,18 @@ import com.aischool.server.common.Exported;
 import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.Evaluation;
 import com.aischool.server.entity.Student;
+import com.aischool.server.entity.Teach;
 import com.aischool.server.entity.User;
 import com.aischool.server.mapper.AiTaskMapper;
 import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.EvaluationMapper;
 import com.aischool.server.mapper.LeaderUsageMapper;
 import com.aischool.server.mapper.StudentMapper;
+import com.aischool.server.mapper.TeachMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.OnlineTracker;
+import com.aischool.server.service.auth.DataScopeService;
 import com.aischool.server.service.auth.RoleApprovalService;
 import com.aischool.server.service.score.ScoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -36,6 +39,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 领导端（App 内 LEADER 角色分流进入）。
@@ -56,6 +61,8 @@ public class LeaderController {
     private final AiTaskMapper taskMapper;
     private final LeaderUsageMapper usageMapper;
     private final ScoreService scoreService;
+    private final DataScopeService dataScope;
+    private final TeachMapper teachMapper;
 
     private void checkLeader() {
         if (!"LEADER".equals(AuthUtil.current().role())) {
@@ -63,18 +70,32 @@ public class LeaderController {
         }
     }
 
-    /** 全校概览：学生/教师/班级规模 + 今日评价 + 实时在线 */
+    /** 全校概览：学生/教师/班级规模 + 今日评价 + 实时在线（批41：分管学段的领导，班级/学生/评价按学段统计） */
     @GetMapping("/overview")
     public ApiResponse<Map<String, Object>> overview() {
         checkLeader();
+        String stage = dataScope.stageScopeOf(AuthUtil.current());
+        List<Long> stagedIds = stage == null ? null : dataScope.stageClassIds(stage);
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("studentCount", studentMapper.selectCount(new LambdaQueryWrapper<Student>()
-                .and(q -> q.isNull(Student::getStatus).or().notIn(Student::getStatus, "毕业", "转出"))));
+        if (stagedIds == null) {
+            data.put("studentCount", studentMapper.selectCount(new LambdaQueryWrapper<Student>()
+                    .and(q -> q.isNull(Student::getStatus).or().notIn(Student::getStatus, "毕业", "转出"))));
+            data.put("classCount", clazzMapper.selectCount(null));
+            data.put("todayEvalCount", evaluationMapper.selectCount(new LambdaQueryWrapper<Evaluation>()
+                    .ge(Evaluation::getEvalTime, LocalDate.now().atStartOfDay())));
+        } else {
+            List<Long> sids = stagedIds.isEmpty() ? List.of()
+                    : studentMapper.selectList(new LambdaQueryWrapper<Student>()
+                            .select(Student::getId).in(Student::getClassId, stagedIds))
+                            .stream().map(Student::getId).toList();
+            data.put("studentCount", (long) sids.size());
+            data.put("classCount", (long) stagedIds.size());
+            data.put("todayEvalCount", sids.isEmpty() ? 0 : evaluationMapper.selectCount(
+                    new LambdaQueryWrapper<Evaluation>().in(Evaluation::getStudentId, sids)
+                            .ge(Evaluation::getEvalTime, LocalDate.now().atStartOfDay())));
+        }
         data.put("teacherCount", userMapper.selectCount(new LambdaQueryWrapper<User>()
                 .in(User::getRole, "ADMIN", "LEADER", "HEAD_TEACHER", "TEACHER").eq(User::getStatus, 1)));
-        data.put("classCount", clazzMapper.selectCount(null));
-        data.put("todayEvalCount", evaluationMapper.selectCount(new LambdaQueryWrapper<Evaluation>()
-                .ge(Evaluation::getEvalTime, LocalDate.now().atStartOfDay())));
         data.put("onlineCount", onlineTracker.online().size());
         data.put("dailyActive", onlineTracker.dailyCount());
         // 待我审批（批2-5）：管理员/领导账号双人审批，领导在 App 端处理
@@ -82,19 +103,26 @@ public class LeaderController {
         return ApiResponse.ok(data);
     }
 
-    /** AI 用量统计（复用管理端聚合口径：按日趋势 + 按教师） */
+    /** AI 用量统计（复用管理端聚合口径：按日趋势 + 按教师；批41 分管学段按学段内教师过滤） */
     @GetMapping("/ai-usage")
     public ApiResponse<Map<String, Object>> aiUsage(@RequestParam(defaultValue = "30") int days) {
         checkLeader();
         LocalDateTime since = LocalDateTime.now().minusDays(Math.min(Math.max(days, 1), 365));
+        Set<Long> involved = stageTeachers(dataScope.stageScopeOf(AuthUtil.current()));
+        List<Map<String, Object>> byTeacher = taskMapper.usageByTeacher(since);
+        if (involved != null) {
+            byTeacher = byTeacher.stream()
+                    .filter(r -> involved.contains(((Number) r.get("userId")).longValue()))
+                    .collect(Collectors.toList());
+        }
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("byDay", taskMapper.usageByDay(since));
-        data.put("byTeacher", taskMapper.usageByTeacher(since));
+        data.put("byTeacher", byTeacher);
         return ApiResponse.ok(data);
     }
 
     /**
-     * 教师使用情况全景（批2）：在职教职工 × 六类行为计数（报告生成/AI tokens/日常评价/成绩录入/微光发布/登录）。
+     * 教师使用情况全景（批2）：在职教职工 × 六类行为计数（报告生成/AI tokens/素养评价/成绩录入/微光发布/登录）。
      * 零活跃教师也返回（领导要看谁在用谁没用）；按总活跃降序。
      */
     @GetMapping("/teacher-usage")
@@ -134,6 +162,12 @@ public class LeaderController {
             }
         }
         List<Map<String, Object>> rows = new ArrayList<>(byUser.values());
+        // 批41：分管学段——只看学段内任教（任课或带班）的教师；校级账号（管理员/领导）不滤
+        Set<Long> involved = stageTeachers(dataScope.stageScopeOf(AuthUtil.current()));
+        if (involved != null) {
+            rows.removeIf(r -> !"ADMIN".equals(r.get("role")) && !"LEADER".equals(r.get("role"))
+                    && !involved.contains(((Number) r.get("teacherId")).longValue()));
+        }
         rows.sort((a, b) -> {
             long sa = active(a), sb = active(b);
             return sa != sb ? Long.compare(sb, sa) : String.valueOf(a.get("name")).compareTo(String.valueOf(b.get("name")));
@@ -154,7 +188,7 @@ public class LeaderController {
                                                          @RequestParam(defaultValue = "1") int page,
                                                          @RequestParam(defaultValue = "100") int size) {
         checkLeader();
-        return ApiResponse.ok(scoreService.scoreSummary(examId, subjectId,
+        return ApiResponse.ok(scoreService.scoreSummary(AuthUtil.current(), examId, subjectId,
                 Math.max(1, page), Math.min(Math.max(1, size), 200)));
     }
 
@@ -163,7 +197,7 @@ public class LeaderController {
     public ResponseEntity<byte[]> scoreSummaryExport(@RequestParam Long examId,
                                                      @RequestParam(required = false) Long subjectId) {
         checkLeader();
-        Exported f = scoreService.exportSummary(examId, subjectId);
+        Exported f = scoreService.exportSummary(AuthUtil.current(), examId, subjectId);
         String filename = URLEncoder.encode(f.filename(), StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
@@ -171,6 +205,26 @@ public class LeaderController {
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .contentLength(f.content().length)
                 .body(f.content());
+    }
+
+    /** 学段内任教教师集（任课或带班；null=不分学段） */
+    private Set<Long> stageTeachers(String stage) {
+        if (stage == null) {
+            return null;
+        }
+        List<Long> classIds = dataScope.stageClassIds(stage);
+        if (classIds.isEmpty()) {
+            return Set.of();
+        }
+        Set<Long> ids = teachMapper.selectList(new LambdaQueryWrapper<Teach>()
+                        .in(Teach::getClassId, classIds)).stream()
+                .map(Teach::getTeacherId).collect(Collectors.toSet());
+        clazzMapper.selectBatchIds(classIds).forEach(c -> {
+            if (c.getHeadTeacherId() != null) {
+                ids.add(c.getHeadTeacherId());
+            }
+        });
+        return ids;
     }
 
     /** 计数字段合并（rows 里 userId 不在教师集的跳过，如离职/家长误入） */

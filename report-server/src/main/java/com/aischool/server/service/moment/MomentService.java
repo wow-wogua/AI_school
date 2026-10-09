@@ -30,7 +30,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 微光信箱：教师随手拍 → MinIO → 关联多名学生。
+ * 微光时刻：教师随手拍 → MinIO → 关联多名学生。
  * 露出：班级页「本周微光」轮播 / 学生详情「TA的闪光时刻」/ 成长记录流（FeedService 混排）。
  */
 @Service
