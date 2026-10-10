@@ -29,7 +29,7 @@ public class ConductLedgerService {
     private final ConductAccountMapper conductAccountMapper;
     private final CoinLedgerService coinLedgerService;
 
-    /** 记事件增减并同步余额；学期落点与能量币同口径（resolveTerm 共用） */
+    /** 记事件增减并同步余额；学期落点与扬长币同口径（resolveTerm 共用） */
     public void apply(Long studentId, LocalDate date, String sourceType, Long sourceId,
                       BigDecimal delta, String reason, Long operatorId) {
         Term term = coinLedgerService.resolveTerm(date);
@@ -73,7 +73,7 @@ public class ConductLedgerService {
         return "D";
     }
 
-    /** 学期落点（与能量币同口径） */
+    /** 学期落点（与扬长币同口径） */
     public Long resolveTermId(LocalDate date) {
         return coinLedgerService.resolveTerm(date).getId();
     }

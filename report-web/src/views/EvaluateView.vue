@@ -89,7 +89,7 @@
 
     <el-card v-if="mode === 'stu' && studentIds.length">
       <template #header>
-        素养评价（一次评价同时写入九维 / 能量币 / 班年级均值，报告即时可见）
+        素养评价（一次评价同时写入九维 / 扬长币 / 班年级均值，报告即时可见）
         <el-tag v-if="studentIds.length > 1" type="warning" size="small" style="margin-left: 8px">
           已选 {{ studentIds.length }} 名学生，将为每人生成一条相同评价
         </el-tag>
@@ -138,7 +138,7 @@
         <el-table-column prop="score" label="分值" width="70" />
         <el-table-column prop="teacherName" label="评价人" width="90" />
         <el-table-column prop="remark" label="备注" min-width="120" />
-        <!-- 批40e 撤回：评价人/管理员可删（后端硬校验），九维/能量币/均值联动冲销 -->
+        <!-- 批40e 撤回：评价人/管理员可删（后端硬校验），九维/扬长币/均值联动冲销 -->
         <el-table-column label="操作" width="64">
           <template #default="{ row }">
             <el-button link size="small" type="danger" @click="del(row)">删除</el-button>
@@ -383,10 +383,10 @@ async function submit() {
   }
 }
 
-/** 批40e 撤回：删除单条评价（后端逆向冲销九维/周币/班年级均值/能量币/操行分联动） */
+/** 批40e 撤回：删除单条评价（后端逆向冲销九维/周币/班年级均值/扬长币/操行分联动） */
 async function del(row: any) {
   await ElMessageBox.confirm(
-    `删除评价「${row.title}」？九维累计、能量币、班年级均值将同步冲销`, '撤回评价',
+    `删除评价「${row.title}」？九维累计、扬长币、班年级均值将同步冲销`, '撤回评价',
     { type: 'warning' },
   )
   await api(`/api/evaluation/${row.id}`, { method: 'DELETE' })

@@ -2,32 +2,40 @@ package com.aischool.server.controller;
 
 import com.aischool.server.common.ApiResponse;
 import com.aischool.server.common.BizException;
+import com.aischool.server.entity.Clazz;
 import com.aischool.server.entity.CoinExpense;
+import com.aischool.server.entity.CoinIncome;
 import com.aischool.server.entity.ShopItem;
 import com.aischool.server.entity.Student;
 import com.aischool.server.entity.User;
+import com.aischool.server.mapper.ClazzMapper;
 import com.aischool.server.mapper.CoinExpenseMapper;
+import com.aischool.server.mapper.CoinIncomeMapper;
 import com.aischool.server.mapper.ShopItemMapper;
 import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.service.auth.PermissionService;
+import com.aischool.server.service.coin.CoinLedgerService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * 管理端：成长银行（仅管理员）——商品 CRUD/启停 + 兑换记录；操行分规则见 AdminIndicatorController。
+ * 管理端：成长银行（仅管理员）——商品 CRUD/启停 + 兑换记录 + 班级获奖按班发币；操行分规则见 AdminIndicatorController。
  */
 @RestController
 @RequestMapping("/api/admin/shop")
@@ -36,8 +44,11 @@ public class AdminShopController {
 
     private final ShopItemMapper shopItemMapper;
     private final CoinExpenseMapper coinExpenseMapper;
+    private final CoinIncomeMapper coinIncomeMapper;
     private final StudentMapper studentMapper;
     private final UserMapper userMapper;
+    private final ClazzMapper clazzMapper;
+    private final CoinLedgerService coinLedger;
     private final PermissionService permissionService;
 
     private void checkAdmin() {
@@ -158,6 +169,122 @@ public class AdminShopController {
         data.put("records", records);
         data.put("total", p.getTotal());
         return ApiResponse.ok(data);
+    }
+
+    // ───────────────── 批48：班级获奖按班发币（成长银行方案：双优班级8/优秀班5/达标班2 每生）─────────────────
+
+    /** 兑换方案固定档位（前端快捷按钮；后端只校验币值范围，称号文本自由） */
+    public static final Map<String, Integer> GRANT_TIERS = Map.of(
+            "双优班级", 8, "优秀文明班", 5, "学习习惯示范班", 5, "学习先进班", 5, "学习标兵班", 5, "达标文明班", 2);
+
+    @Data
+    public static class GrantReq {
+        @NotNull(message = "classId 不能为空")
+        private Long classId;
+        @NotBlank(message = "称号不能为空")
+        private String title;
+        @NotNull(message = "coin 不能为空")
+        private BigDecimal coin;
+    }
+
+    /** 按班发币：全班在读学生每生同额入账；batchId（毫秒时间戳）作 sourceId 供整批冲正。同班同日同称号防重发。 */
+    @PostMapping("/coin/grant")
+    @Transactional(rollbackFor = Exception.class)
+    public ApiResponse<Map<String, Object>> grant(@Validated @RequestBody GrantReq req) {
+        checkAdmin();
+        String title = req.getTitle().trim();
+        if (title.length() > 20) {
+            throw new BizException(400, "称号不能超过 20 字");
+        }
+        BigDecimal coin = req.getCoin();
+        if (coin.compareTo(BigDecimal.ONE) < 0 || coin.compareTo(BigDecimal.valueOf(50)) > 0) {
+            throw new BizException(400, "每生币数须在 1~50 之间");
+        }
+        Clazz clazz = clazzMapper.selectById(req.getClassId());
+        if (clazz == null) {
+            throw new BizException(404, "班级不存在");
+        }
+        List<Student> students = studentMapper.selectList(new LambdaQueryWrapper<Student>()
+                .eq(Student::getClassId, req.getClassId())
+                .eq(Student::getStatus, "在读"));
+        if (students.isEmpty()) {
+            throw new BizException(400, "该班级没有在读学生");
+        }
+        // 防重：今日同称号流水 ∩ 本班学生（流水只存学生/称号，不含班级；不影响同日多班获同称号）
+        List<Long> todaySids = coinIncomeMapper.selectList(new LambdaQueryWrapper<CoinIncome>()
+                        .eq(CoinIncome::getSourceType, "班级获奖")
+                        .eq(CoinIncome::getModule, title)
+                        .ge(CoinIncome::getCreateTime, LocalDate.now().atStartOfDay()))
+                .stream().map(CoinIncome::getStudentId).toList();
+        if (students.stream().anyMatch(s -> todaySids.contains(s.getId()))) {
+            throw new BizException(400, "该班今天已按「" + title + "」发过币，请勿重复操作");
+        }
+        long batchId = System.currentTimeMillis();
+        for (Student s : students) {
+            coinLedger.income(s.getId(), LocalDate.now(), "班级获奖", batchId, title, coin);
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("batchId", batchId);
+        m.put("count", students.size());
+        m.put("coin", coin);
+        m.put("title", title);
+        return ApiResponse.ok(m);
+    }
+
+    /** 发币记录（按 batchId 聚合，含冲正状态；联班级名/操作班级首个学生反查） */
+    @GetMapping("/coin/grant/list")
+    public ApiResponse<List<Map<String, Object>>> grantList() {
+        checkAdmin();
+        List<CoinIncome> rows = coinIncomeMapper.selectList(new LambdaQueryWrapper<CoinIncome>()
+                .eq(CoinIncome::getSourceType, "班级获奖")
+                .orderByDesc(CoinIncome::getId)
+                .last("LIMIT 2000"));
+        // 同批负行=已冲正；按 batchId 聚合取最近 20 批
+        Map<Long, List<CoinIncome>> byBatch = rows.stream()
+                .filter(r -> r.getSourceId() != null)
+                .collect(Collectors.groupingBy(CoinIncome::getSourceId, LinkedHashMap::new, Collectors.toList()));
+        List<Map<String, Object>> out = byBatch.values().stream().limit(20).map(batch -> {
+            CoinIncome first = batch.get(0);
+            boolean reversed = batch.stream().anyMatch(r -> r.getCoin().signum() < 0);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("batchId", first.getSourceId());
+            m.put("title", first.getModule().replaceFirst("^撤回-", ""));
+            m.put("coin", first.getCoin().abs());
+            m.put("count", batch.stream().filter(r -> r.getCoin().signum() > 0).count());
+            m.put("createTime", first.getCreateTime());
+            m.put("reversed", reversed);
+            // 班级名：取该批任一学生反查
+            Student s = batch.stream().filter(r -> r.getCoin().signum() > 0).findFirst()
+                    .map(r -> studentMapper.selectById(r.getStudentId())).orElse(null);
+            m.put("className", s != null && s.getClassId() != null
+                    ? Optional.ofNullable(clazzMapper.selectById(s.getClassId())).map(Clazz::getName).orElse("(已删除)") : "(已删除)");
+            return m;
+        }).toList();
+        return ApiResponse.ok(out);
+    }
+
+    /** 整批冲正（发错撤销）：对该批每生记负流水并扣回账户；重复冲正拒绝 */
+    @PostMapping("/coin/grant/reverse")
+    @Transactional(rollbackFor = Exception.class)
+    public ApiResponse<Map<String, Object>> grantReverse(@RequestBody Map<String, Long> body) {
+        checkAdmin();
+        Long batchId = body.get("batchId");
+        if (batchId == null) {
+            throw new BizException(400, "batchId 不能为空");
+        }
+        List<CoinIncome> rows = coinIncomeMapper.selectList(new LambdaQueryWrapper<CoinIncome>()
+                .eq(CoinIncome::getSourceType, "班级获奖")
+                .eq(CoinIncome::getSourceId, batchId));
+        if (rows.isEmpty()) {
+            throw new BizException(404, "发币批次不存在");
+        }
+        if (rows.stream().anyMatch(r -> r.getCoin().signum() < 0)) {
+            throw new BizException(400, "该批次已冲正过");
+        }
+        for (Long sid : rows.stream().map(CoinIncome::getStudentId).distinct().toList()) {
+            coinLedger.reverse(sid, "班级获奖", batchId);
+        }
+        return ApiResponse.ok(Map.of("batchId", batchId, "reversed", rows.size()));
     }
 
     private void copy(ItemReq req, ShopItem item) {

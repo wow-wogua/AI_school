@@ -14,7 +14,7 @@
     </div>
 
     <template v-if="student">
-      <!-- 双账本：操行分 / 能量币 -->
+      <!-- 双账本：操行分 / 扬长币 -->
       <div class="wallet">
         <div class="app-card tex-e w-cell conduct">
           <p class="w-label">操行分 · <b :class="'g-' + conduct.grade">{{ conduct.grade }} 级</b></p>
@@ -23,7 +23,7 @@
           <van-button size="small" plain color="#A8232B" class="w-btn" @click="openAdjust">手动调整</van-button>
         </div>
         <div class="app-card tex-d w-cell coin">
-          <p class="w-label">能量币 · 可用</p>
+          <p class="w-label">扬长币 · 可用</p>
           <strong class="c-gold">{{ coin.currentCoin }}</strong>
           <span class="w-sub">累计获得 {{ coin.totalCoin }}</span>
           <van-button size="small" color="#1F2A44" class="w-btn" @click="scrollToShelf">去兑换</van-button>
@@ -225,7 +225,7 @@ async function redeem(it: any) {
   try {
     await showConfirmDialog({
       title: '确认兑换',
-      message: `${student.value.name} 兑换「${it.name}」，扣 ${it.priceCoin} 能量币？`,
+      message: `${student.value.name} 兑换「${it.name}」，扣 ${it.priceCoin} 扬长币？`,
     })
   } catch { return }
   redeeming.value = it.id

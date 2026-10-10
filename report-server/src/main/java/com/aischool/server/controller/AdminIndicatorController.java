@@ -86,7 +86,7 @@ public class AdminIndicatorController {
         private String direction;
         private BigDecimal defaultScore;
         private String subjectScope;
-        private BigDecimal coinValue;     // NULL=能量币按 score 原值（默认）
+        private BigDecimal coinValue;     // NULL=扬长币按 score 原值（默认）
         private BigDecimal conductValue;  // NULL=不联动操行分（默认）
     }
 

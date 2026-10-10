@@ -9,7 +9,7 @@
       </div>
     </div>
 
-    <!-- 成长银行双账本（批3）：操行分 + 能量币 -->
+    <!-- 成长银行双账本（批3）：操行分 + 扬长币 -->
     <div class="app-sec">成长银行</div>
     <div class="wallet">
       <div class="app-card tex-e w-cell">
@@ -25,7 +25,7 @@
         </div>
       </div>
       <div class="app-card tex-d w-cell">
-        <p class="w-label">能量币 · 可用</p>
+        <p class="w-label">扬长币 · 可用</p>
         <strong class="c-gold">{{ wallet.coin?.currentCoin ?? 0 }}</strong>
         <span class="w-sub">累计获得 {{ wallet.coin?.totalCoin ?? 0 }}</span>
         <div v-if="(wallet.coin?.expenses ?? []).length" class="w-logs">
@@ -136,7 +136,7 @@ onMounted(async () => {
 .a-text span { font-size: 11px; color: var(--app-text-3); }
 .a-arrow { flex: none; color: var(--app-text-3); }
 
-/* 双账本卡（批3）：左操行右能量币，窄于 480px 纵排 */
+/* 双账本卡（批3）：左操行右扬长币，窄于 480px 纵排 */
 .wallet { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 480px) { .wallet { grid-template-columns: 1fr; } }
 .w-cell { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }

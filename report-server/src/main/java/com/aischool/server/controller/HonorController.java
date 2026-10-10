@@ -54,7 +54,7 @@ public class HonorController {
 
     @Data
     public static class ConfirmReq {
-        /** 确认时可选入账能量币 */
+        /** 确认时可选入账扬长币 */
         private BigDecimal coin;
     }
 
@@ -99,7 +99,7 @@ public class HonorController {
         return ApiResponse.ok();
     }
 
-    /** 确认生效（可选能量币入账）；家长不可确认——家长上传的由班主任确认 */
+    /** 确认生效（可选扬长币入账）；家长不可确认——家长上传的由班主任确认 */
     @PutMapping("/{id}/confirm")
     public ApiResponse<Map<String, Object>> confirm(@PathVariable Long id,
                                                     @Validated @RequestBody ConfirmReq req) {

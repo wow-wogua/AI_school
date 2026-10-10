@@ -30,7 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** 荣誉与证书：上传 →（AI 视觉识别 | 手动填写）→ 教师确认生效（可选能量币入账） */
+/** 荣誉与证书：上传 →（AI 视觉识别 | 手动填写）→ 教师确认生效（可选扬长币入账） */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -173,7 +173,7 @@ public class HonorService {
                 .set(Honor::getHonorDate, honorDate));
     }
 
-    /** 确认生效；coin>0 时入账能量币（荣誉日期为空则落当前学期） */
+    /** 确认生效；coin>0 时入账扬长币（荣誉日期为空则落当前学期） */
     public Map<String, Object> confirm(Long id, BigDecimal coin) {
         Honor h = requirePending(id);
         if (h.getName() == null || h.getName().isBlank()) {

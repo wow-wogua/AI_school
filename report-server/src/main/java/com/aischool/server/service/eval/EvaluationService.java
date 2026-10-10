@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
 
 /**
  * 过程性评价引擎（功能点 §5/§6）：一次评价同时写穿全部聚合表——
- * t_evaluation → t_grid_stat_term/week → t_coin_week(in_mine) → 能量币流水/账户 → 班/年级九维均值。
+ * t_evaluation → t_grid_stat_term/week → t_coin_week(in_mine) → 扬长币流水/账户 → 班/年级九维均值。
  * 报告只读聚合表（Java 无聚合代码），故写入必须与 ReportDataBuilder 的读取口径逐条对齐：
  * - 学期窗口 [start 00:00, end 00:00]（与 buildGrids 的过滤完全一致，聚合与报告永不分叉）
  * - kindCount = (title + 指标名) 去重组数（与 buildRecords 分组同构）
@@ -130,10 +130,10 @@ public class EvaluationService {
             gridStatWeekMapper.upsertIncrement(studentId, term.getId(), grid.getId(), weekNo, score);
         }
 
-        // ④ 周能量币（原子 upsert；只动本人的 in_mine，in_class/in_grade 是全组共现值，改动会波及他人报告）
+        // ④ 周扬长币（原子 upsert；只动本人的 in_mine，in_class/in_grade 是全组共现值，改动会波及他人报告）
         coinWeekMapper.upsertMineIncome(studentId, term.getId(), weekNo, score);
 
-        // ⑤ 能量币流水 + 账户（module=格名-指标名 与种子模块并列，display_order=99 不进收入 TOP5）
+        // ⑤ 扬长币流水 + 账户（module=格名-指标名 与种子模块并列，display_order=99 不进收入 TOP5）
         //    批3：指标配了 coin_value 按配置入账，NULL=按 score 原值（行为同旧版）
         BigDecimal coin = ind.getCoinValue() != null ? ind.getCoinValue() : score;
         coinLedger.income(studentId, evalTime.toLocalDate(), "评价", e.getId(),
@@ -178,8 +178,8 @@ public class EvaluationService {
     }
 
     /**
-     * 批40e 撤回普适：删除评价并逆向冲销全部聚合——九维学期/周累计、周能量币 in_mine、
-     * 班年级均值平移、能量币流水（负行留痕）、操行分联动（按原 log 行 delta 取负，指标改配置也不冲错）。
+     * 批40e 撤回普适：删除评价并逆向冲销全部聚合——九维学期/周累计、周扬长币 in_mine、
+     * 班年级均值平移、扬长币流水（负行留痕）、操行分联动（按原 log 行 delta 取负，指标改配置也不冲错）。
      * 聚合表全是增量式，负值即冲销；kindCount 基于明细表，先删行再算即回正。
      * 边界：联动生成的微光（EVAL_SYNC）无评价关联键，不自动删，教师可在微光模块手删。
      */
@@ -202,7 +202,7 @@ public class EvaluationService {
         boolean positive = e.getScore().signum() > 0;
         if (grid != null && term != null) {
             int weekNo = weekNo(term, e.getEvalTime());
-            // 周能量币 in_mine 与 evaluate 同口径（正负分都写），冲销移出 positive 判定
+            // 周扬长币 in_mine 与 evaluate 同口径（正负分都写），冲销移出 positive 判定
             coinWeekMapper.upsertMineIncome(e.getStudentId(), term.getId(), weekNo, e.getScore().negate());
             if (positive) {
                 gridStatTermMapper.upsertIncrement(e.getStudentId(), term.getId(), grid.getId(), e.getScore().negate(),
@@ -225,7 +225,7 @@ public class EvaluationService {
                 }
             }
         }
-        // 能量币冲正：按原入账行定位（无行=批3 前老数据没入过账，自然不冲）
+        // 扬长币冲正：按原入账行定位（无行=批3 前老数据没入过账，自然不冲）
         coinLedger.reverse(e.getStudentId(), "评价", id);
         // 操行分联动冲正：按原 log 行 delta 取负（无行=未联动）
         ConductLog conductOrigin = conductLogMapper.selectOne(new LambdaQueryWrapper<ConductLog>()

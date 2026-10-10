@@ -95,7 +95,7 @@
     <div style="flex:1.2"><span style="color:#B08A1E">班主任　</span><span th:text="${r.student.headTeacher}">李老师</span></div>
   </div>
   <!-- 五格统计：横向五等分 99pt×5 + 间隔 4pt -->
-  <th:block th:with="cells=${ {'素养评价','活动参与','获得荣誉','成长微光','成长币收入'} }">
+  <th:block th:with="cells=${ {'素养评价','活动参与','获得荣誉','成长微光','扬长币收入'} }">
     <div class="abs card" th:each="i : ${#numbers.sequence(0,4)}"
          th:style="|top:200pt;left:${44 + i * 103}pt;width:99pt;height:120pt;text-align:center|">
       <div style="padding-top:24pt;font-size:8.5pt;color:#8A93A6;letter-spacing:1pt" th:text="${cells[i]}">素养评价</div>

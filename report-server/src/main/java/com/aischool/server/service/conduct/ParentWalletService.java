@@ -16,7 +16,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** 家长端孩子双账本组装（批3）：操行分 + 能量币，只读 */
+/** 家长端孩子双账本组装（批3）：操行分 + 扬长币，只读 */
 @Service
 @RequiredArgsConstructor
 public class ParentWalletService {

@@ -18,7 +18,7 @@
     </div>
     <el-table :data="items" size="small">
       <el-table-column prop="name" label="商品" width="180" />
-      <el-table-column prop="priceCoin" label="兑换价(能量币)" width="120" />
+      <el-table-column prop="priceCoin" label="兑换价(扬长币)" width="120" />
       <el-table-column label="库存" width="90">
         <template #default="{ row }">{{ row.stock < 0 ? '不限' : row.stock }}</template>
       </el-table-column>
@@ -39,6 +39,46 @@
       </el-table-column>
     </el-table>
 
+    <h4>班级获奖按班发币（双优班级8/优秀班5/达标班2 每生；发错可在下方记录整批撤销）</h4>
+    <el-form :inline="true" label-width="70px">
+      <el-form-item label="班级">
+        <el-select v-model="grant.classId" filterable placeholder="选择班级" style="width: 190px">
+          <el-option v-for="c in classes" :key="c.id" :label="(c.gradeName ? c.gradeName + ' ' : '') + c.name" :value="c.id" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="称号">
+        <el-select v-model="grant.title" filterable allow-create default-first-option placeholder="选择或输入称号" style="width: 190px" @change="onTitleChange">
+          <el-option v-for="(coin, t) in TIERS" :key="t" :label="`${t}（${coin}币）`" :value="t" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="每生币数">
+        <el-input-number v-model="grant.coin" :min="1" :max="50" :step="1" controls-position="right" />
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" :loading="granting" @click="doGrant">按班发币</el-button>
+        <span class="hint">将为该班每位在读学生入账，流水可查</span>
+      </el-form-item>
+    </el-form>
+    <el-table v-if="grants.length" :data="grants" size="small" style="margin-bottom: 12px">
+      <el-table-column prop="createTime" label="时间" width="150">
+        <template #default="{ row }">{{ (row.createTime || '').slice(0, 16).replace('T', ' ') }}</template>
+      </el-table-column>
+      <el-table-column prop="className" label="班级" width="120" />
+      <el-table-column prop="title" label="称号" min-width="120" />
+      <el-table-column prop="coin" label="每生币数" width="90" />
+      <el-table-column prop="count" label="人数" width="70" />
+      <el-table-column label="状态" width="90">
+        <template #default="{ row }">
+          <el-tag :type="row.reversed ? 'info' : 'success'" size="small">{{ row.reversed ? '已撤销' : '正常' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="80">
+        <template #default="{ row }">
+          <el-button v-if="!row.reversed" link type="danger" @click="reverseGrant(row)">撤销</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
     <h4>兑换记录（批30：新兑换=待领取，实物发放后核销确认）</h4>
     <el-table :data="expenses" size="small">
       <el-table-column prop="createTime" label="时间" width="150">
@@ -46,7 +86,7 @@
       </el-table-column>
       <el-table-column prop="studentName" label="学生" width="100" />
       <el-table-column prop="item" label="商品" min-width="130" />
-      <el-table-column prop="coin" label="能量币" width="85" />
+      <el-table-column prop="coin" label="扬长币" width="85" />
       <el-table-column label="领取" width="90">
         <template #default="{ row }">
           <el-tag v-if="(row.status ?? 1) === 0" type="warning" size="small">待领取</el-tag>
@@ -99,6 +139,52 @@ const expensePage = ref(1)
 const dialog = ref(false)
 const form = ref<any>({})
 const formStock = ref(-1)
+
+// 批48：班级获奖按班发币（成长银行扬长币兑换方案档位）
+const TIERS: Record<string, number> = {
+  '双优班级': 8, '优秀文明班': 5, '学习习惯示范班': 5, '学习先进班': 5, '学习标兵班': 5, '达标文明班': 2,
+}
+const classes = ref<any[]>([])
+const grants = ref<any[]>([])
+const grant = ref<any>({ classId: null, title: '', coin: 5 })
+const granting = ref(false)
+
+async function loadClasses() {
+  classes.value = await api<any[]>('/api/admin/class/list') ?? []
+}
+
+function onTitleChange(t: string) {
+  if (TIERS[t] != null) grant.value.coin = TIERS[t]
+}
+
+async function doGrant() {
+  if (!grant.value.classId || !grant.value.title) {
+    ElMessage.warning('请先选择班级与称号')
+    return
+  }
+  const cls = classes.value.find((c: any) => c.id === grant.value.classId)
+  await ElMessageBox.confirm(
+    `将为「${cls?.name ?? '该班'}」每位在读学生按「${grant.value.title}」入账 ${grant.value.coin} 扬长币，确认发放？`, '按班发币')
+  granting.value = true
+  try {
+    const d = await api<any>('/api/admin/shop/coin/grant', {
+      method: 'POST', json: { classId: grant.value.classId, title: grant.value.title, coin: grant.value.coin } })
+    ElMessage.success(`已发放：${d.count} 名学生每人 ${d.coin} 币`)
+    await loadGrants()
+  } finally { granting.value = false }
+}
+
+async function reverseGrant(row: any) {
+  await ElMessageBox.confirm(
+    `撤销「${row.className} ${row.title}」这批发币（${row.count} 人每人扣回 ${row.coin} 币）？`, '整批撤销')
+  await api('/api/admin/shop/coin/grant/reverse', { method: 'POST', json: { batchId: row.batchId } })
+  ElMessage.success('已撤销')
+  await loadGrants()
+}
+
+async function loadGrants() {
+  grants.value = await api<any[]>('/api/admin/shop/coin/grant/list') ?? []
+}
 
 async function loadRule() {
   rule.value = await api<any>('/api/admin/conduct/rule') ?? rule.value
@@ -174,6 +260,6 @@ async function confirmPick(row: any) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadRule(), loadItems(), loadExpenses()])
+  await Promise.all([loadRule(), loadItems(), loadExpenses(), loadClasses(), loadGrants()])
 })
 </script>

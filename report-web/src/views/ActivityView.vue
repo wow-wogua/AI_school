@@ -59,7 +59,7 @@
         <el-table-column label="操作" width="110">
           <template #default="{ row }">
             <el-button link size="small" @click="openSignup(row)">编辑</el-button>
-            <!-- 批40e 撤回：误录可删，能量币入账自动冲正 -->
+            <!-- 批40e 撤回：误录可删，扬长币入账自动冲正 -->
             <el-button link size="small" type="danger" @click.stop="delSignup(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -112,9 +112,9 @@
           </el-form-item>
         </template>
         <el-form-item label="签到"><el-switch v-model="signupForm.checkin" /></el-form-item>
-        <el-form-item label="奖项"><el-input v-model="signupForm.award" placeholder="如：一等奖（附能量币必填）" /></el-form-item>
+        <el-form-item label="奖项"><el-input v-model="signupForm.award" placeholder="如：一等奖（附扬长币必填）" /></el-form-item>
         <el-form-item label="表现"><el-input v-model="signupForm.performance" /></el-form-item>
-        <el-form-item v-if="!signupForm.signupId" label="能量币">
+        <el-form-item v-if="!signupForm.signupId" label="扬长币">
           <el-input-number v-model="signupForm.coin" :min="0" :disabled="!signupForm.award" />
         </el-form-item>
       </el-form>
@@ -233,10 +233,10 @@ async function del(a: Activity) {
   await loadActivities()
 }
 
-/** 批40e 撤回：删除参与记录（带能量币的自动冲正扣回） */
+/** 批40e 撤回：删除参与记录（带扬长币的自动冲正扣回） */
 async function delSignup(s: Signup) {
   if (!current.value) return
-  await ElMessageBox.confirm(`删除 ${s.studentName} 的参与记录？已入账的能量币将自动冲销`, '撤回参与', { type: 'warning' })
+  await ElMessageBox.confirm(`删除 ${s.studentName} 的参与记录？已入账的扬长币将自动冲销`, '撤回参与', { type: 'warning' })
   await api(`/api/activity/${current.value.id}/signup/${s.signupId}`, { method: 'DELETE' })
   ElMessage.success('已删除')
   await loadSignups()
@@ -278,7 +278,7 @@ async function saveSignup() {
         performance: f.performance, coin: f.coin || undefined,
       },
     })
-    if (r.termId) ElMessage.success(`已记录，能量币已入账（学期 #${r.termId}）`)
+    if (r.termId) ElMessage.success(`已记录，扬长币已入账（学期 #${r.termId}）`)
   }
   signupVisible.value = false
   await loadSignups()

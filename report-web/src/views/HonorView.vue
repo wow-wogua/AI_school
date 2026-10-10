@@ -78,7 +78,7 @@
         <el-form-item label="日期">
           <el-date-picker v-model="editForm.honorDate" type="date" value-format="YYYY-MM-DD" />
         </el-form-item>
-        <el-form-item v-if="confirming" label="能量币">
+        <el-form-item v-if="confirming" label="扬长币">
           <el-input-number v-model="editForm.coin" :min="0" />
         </el-form-item>
       </el-form>
@@ -225,7 +225,7 @@ async function confirm() {
     method: 'PUT',
     json: { coin: f.coin || undefined },
   })
-  ElMessage.success(r.termId ? `已确认生效，能量币已入账（学期 #${r.termId}）` : '已确认生效')
+  ElMessage.success(r.termId ? `已确认生效，扬长币已入账（学期 #${r.termId}）` : '已确认生效')
   editVisible.value = false
   await load()
 }

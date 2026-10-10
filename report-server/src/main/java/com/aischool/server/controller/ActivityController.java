@@ -40,7 +40,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** 扬长课程（原活动管理，批40a 更名/批40e 七类改造）：课程 CRUD（管理员）+ 参与记录（管理员/本班班主任），获奖可附能量币入账 */
+/** 扬长课程（原活动管理，批40a 更名/批40e 七类改造）：课程 CRUD（管理员）+ 参与记录（管理员/本班班主任），获奖可附扬长币入账 */
 @RestController
 @RequestMapping("/api/activity")
 @RequiredArgsConstructor
@@ -82,7 +82,7 @@ public class ActivityController {
         private Boolean checkin;
         private String award;
         private String performance;
-        /** 能量币（>0 须填 award，入账一次） */
+        /** 扬长币（>0 须填 award，入账一次） */
         private BigDecimal coin;
     }
 
@@ -147,7 +147,7 @@ public class ActivityController {
         }
         if (signupMapper.selectCount(new LambdaQueryWrapper<ActivitySignup>()
                 .eq(ActivitySignup::getActivityId, id)) > 0) {
-            throw new BizException(400, "该活动已有参与记录（含能量币入账），不可删除");
+            throw new BizException(400, "该活动已有参与记录（含扬长币入账），不可删除");
         }
         Activity a = activityMapper.selectById(id);
         if (a != null && a.getCoverUrl() != null && !a.getCoverUrl().isBlank()) {
@@ -244,7 +244,7 @@ public class ActivityController {
         return ApiResponse.ok(rows);
     }
 
-    /** 录参与（报名/签到/获奖/表现），获奖可附能量币；币只在新增时入账一次 */
+    /** 录参与（报名/签到/获奖/表现），获奖可附扬长币；币只在新增时入账一次 */
     @PostMapping("/{id}/signup")
     public ApiResponse<Map<String, Object>> addSignup(@PathVariable Long id,
                                                       @Validated @RequestBody SignupReq req) {
@@ -255,7 +255,7 @@ public class ActivityController {
         checkWritable(req.getStudentId());
         boolean withCoin = req.getCoin() != null && req.getCoin().compareTo(BigDecimal.ZERO) > 0;
         if (withCoin && (req.getAward() == null || req.getAward().isBlank())) {
-            throw new BizException(400, "获奖才能附能量币，请先填奖项");
+            throw new BizException(400, "获奖才能附扬长币，请先填奖项");
         }
         ActivitySignup su = new ActivitySignup();
         su.setActivityId(id);
@@ -279,7 +279,7 @@ public class ActivityController {
         return ApiResponse.ok(data);
     }
 
-    /** 改参与记录（只动签到/奖项/表现；能量币改动请删除重录） */
+    /** 改参与记录（只动签到/奖项/表现；扬长币改动请删除重录） */
     @PutMapping("/{id}/signup/{signupId}")
     public ApiResponse<Void> updateSignup(@PathVariable Long id, @PathVariable Long signupId,
                                           @RequestBody SignupEditReq req) {
@@ -297,7 +297,7 @@ public class ActivityController {
         return ApiResponse.ok();
     }
 
-    /** 批40e 撤回普适：删除参与记录（撤回误录）；带能量币入账的自动冲正（负流水留痕+账户扣回） */
+    /** 批40e 撤回普适：删除参与记录（撤回误录）；带扬长币入账的自动冲正（负流水留痕+账户扣回） */
     @DeleteMapping("/{id}/signup/{signupId}")
     public ApiResponse<Void> deleteSignup(@PathVariable Long id, @PathVariable Long signupId) {
         ActivitySignup su = signupMapper.selectById(signupId);

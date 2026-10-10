@@ -15,7 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 能量币入账（活动/荣誉共用唯一入口）：写 t_coin_income 并同步 t_coin_account */
+/** 扬长币入账（活动/荣誉共用唯一入口）：写 t_coin_income 并同步 t_coin_account */
 @Service
 @RequiredArgsConstructor
 public class CoinLedgerService {
@@ -73,7 +73,7 @@ public class CoinLedgerService {
         }
     }
 
-    /** 学期落点推导（批3 起操行分账本共用，保证与能量币口径一致） */
+    /** 学期落点推导（批3 起操行分账本共用，保证与扬长币口径一致） */
     public Term resolveTerm(LocalDate date) {
         if (date != null) {
             Term hit = termMapper.selectOne(new LambdaQueryWrapper<Term>()
@@ -86,7 +86,7 @@ public class CoinLedgerService {
         Term current = termMapper.selectOne(new LambdaQueryWrapper<Term>()
                 .eq(Term::getIsCurrent, 1).last("LIMIT 1"));
         if (current == null) {
-            throw new BizException(500, "无可用学期，能量币无法入账");
+            throw new BizException(500, "无可用学期，扬长币无法入账");
         }
         return current;
     }

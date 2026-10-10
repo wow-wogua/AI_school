@@ -13,6 +13,7 @@ import com.aischool.server.mapper.StudentMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.aischool.server.security.UserPrincipal;
 import com.aischool.server.service.auth.DataScopeService;
+import com.aischool.server.service.coin.CoinLedgerService;
 import com.aischool.server.service.report.PdfStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -46,6 +49,7 @@ public class MomentService {
     private final UserMapper userMapper;
     private final DataScopeService dataScope;
     private final PdfStoreService pdfStore;
+    private final CoinLedgerService coinLedger;
 
     /** 创建一条微光：照片存 MinIO（moment/{classId}/{uuid}.{ext}）+ 主表 + 学生关联 */
     @Transactional
@@ -104,6 +108,10 @@ public class MomentService {
             ms.setMomentId(m.getId());
             ms.setStudentId(sid);
             momentStudentMapper.insert(ms);
+        }
+        // 批48（成长银行方案）：微光信箱被表扬一次+1 扬长币/人，仅手动发布（EVAL_SYNC 联动不重复发，评价已按 1分=1币 入账）
+        for (Long sid : studentIds) {
+            coinLedger.income(sid, LocalDate.now(), "微光", m.getId(), "微光信箱", BigDecimal.ONE);
         }
         return Map.of("momentId", m.getId());
     }
@@ -205,11 +213,20 @@ public class MomentService {
         if (!m.getTeacherId().equals(user.userId()) && !"ADMIN".equals(user.role())) {
             throw new BizException(403, "仅记录教师本人或管理员可删除");
         }
+        List<Long> studentIds = momentStudentMapper.selectList(new LambdaQueryWrapper<MomentStudent>()
+                        .eq(MomentStudent::getMomentId, id))
+                .stream().map(MomentStudent::getStudentId).toList();
         momentMapper.deleteById(id);
         momentStudentMapper.delete(new LambdaQueryWrapper<MomentStudent>()
                 .eq(MomentStudent::getMomentId, id));
         if (m.getPhotoUrl() != null) {   // EVAL_SYNC（加分同步）无照片对象可删
             pdfStore.delete(m.getPhotoUrl());
+        }
+        // 批48：删手动微光连带冲正已发的 1 扬长币（reverse 无行=本批之前的老数据没发过币，自然不冲）
+        if (!"EVAL_SYNC".equals(m.getSource())) {
+            for (Long sid : studentIds) {
+                coinLedger.reverse(sid, "微光", id);
+            }
         }
     }
 

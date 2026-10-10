@@ -56,7 +56,7 @@ public class ShopController {
         }
     }
 
-    /** 学生能量币余额 + 最近兑换记录（兑换前核账） */
+    /** 学生扬长币余额 + 最近兑换记录（兑换前核账） */
     @GetMapping("/account/{studentId}")
     public ApiResponse<Map<String, Object>> account(@PathVariable Long studentId) {
         dataScope.checkStudentAccess(AuthUtil.current(), studentId);
@@ -96,7 +96,7 @@ public class ShopController {
             }
         }
         if (coinAccountMapper.upsertExpense(req.getStudentId(), item.getPriceCoin()) == 0) {
-            throw new BizException(400, "能量币余额不足");
+            throw new BizException(400, "扬长币余额不足");
         }
         CoinExpense row = new CoinExpense();
         row.setStudentId(req.getStudentId());

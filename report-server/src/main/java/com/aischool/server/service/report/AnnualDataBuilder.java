@@ -106,7 +106,7 @@ public class AnnualDataBuilder {
         return m;
     }
 
-    /** 总览五格：评价/活动/荣誉/微光/成长币收入（区间内） */
+    /** 总览五格：评价/活动/荣誉/微光/扬长币收入（区间内） */
     private Map<String, Object> buildStats(Student student, List<Term> terms,
                                            LocalDate start, LocalDate end) {
         long evaluations = evaluationMapper.selectCount(new LambdaQueryWrapper<Evaluation>()
