@@ -49,7 +49,8 @@ import java.util.stream.Collectors;
  * ≤L1（默认 3 天）录入即生效；L1~L2（3~7 天）级长一级；L2~max（7~30 天）级长→学成中心主任→书记三级；
  * 超 max 走纸质（系统不受理）。书记=SECRETARY 角色（教师壳），任一级可审+终审；
  * 领导/管理员恒可代批（书记缺位流程不卡死）。
- * 数据同步：班主任/生活老师/门卫/级长及以上（任课教师不可见）；批准后门卫+生活老师+行政（学成中心主任）自动抄送。
+ * 数据同步：班主任/生活老师/门卫/级长及以上（任课教师不可见）；批准后门卫+生活老师+行政（学成中心主任）+
+ * 该班任课教师（批44② 知悉通知，仅通知不开放列表）自动抄送。
  * 流转轨迹 t_leave_flow_log（详情页时间线）；门卫离校/返校登记沿用。
  */
 @Service
@@ -136,7 +137,8 @@ public class StudentLeaveService {
         List<Long> parents = boundParentIds(studentId);
         notificationService.leaveRegister(parents, s.getName(), className, leaveType, range, user.realName());
         if (totalStep == 0) {
-            notificationService.leaveSyncGuard(s.getName(), className, leaveType, range);
+            notificationService.leaveSyncGuard(s.getName(), className, leaveType, range,
+                    c == null ? null : c.getId(), user.userId());
         } else {
             notifyStepTodo(l, s, c);
         }
@@ -224,7 +226,8 @@ public class StudentLeaveService {
         String className = c == null ? "" : c.getName();
         notificationService.leaveResult(boundParentIds(l.getStudentId()), s.getName(),
                 true, user.realName(), note);
-        notificationService.leaveSyncGuard(s.getName(), className, l.getLeaveType(), rangeOf(l));
+        notificationService.leaveSyncGuard(s.getName(), className, l.getLeaveType(), rangeOf(l),
+                c == null ? null : c.getId(), user.userId());
     }
 
     /** 驳回（终态；意见必填——家长须知道原因；任意级可驳） */

@@ -1,8 +1,10 @@
 package com.aischool.server.service.notify;
 
 import com.aischool.server.entity.Notification;
+import com.aischool.server.entity.Teach;
 import com.aischool.server.entity.User;
 import com.aischool.server.mapper.NotificationMapper;
+import com.aischool.server.mapper.TeachMapper;
 import com.aischool.server.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class NotificationService {
 
     private final NotificationMapper notificationMapper;
     private final UserMapper userMapper;
+    private final TeachMapper teachMapper;
     private final WecomService wecomService;
 
     /** 落一条通知（唯一写入口；异常吞掉只记日志） */
@@ -117,14 +120,27 @@ public class NotificationService {
         }
     }
 
-    /** 请假信息同步（批32 → 批39④）：批准后自动抄送门卫（出校核验）/生活老师/行政（学成中心主任），无需选择 */
-    public void leaveSyncGuard(String studentName, String className, String leaveType, String range) {
+    /**
+     * 请假信息同步（批32 → 批39④ → 批44②）：批准后自动抄送门卫（出校核验）/生活老师/行政（学成中心主任）/
+     * 该班任课教师（知悉即可，通知文本已含全部信息，无 link 不引导进请假列表——批31 收紧口径任课教师不可见）。
+     * excludeUserId=录入/审批教师本人（0 级班主任自录自批不再自扰）。
+     */
+    public void leaveSyncGuard(String studentName, String className, String leaveType, String range,
+                               Long classId, Long excludeUserId) {
         sendToRoles(List.of("GUARD"), Notification.LEAVE_NOTICE, "请假批准·出校核验",
                 className + " " + studentName + " 的" + leaveType + "（" + range + "）已批准，离校请核验登记", "/g/home");
         sendToRoles(List.of("DORM"), Notification.LEAVE_NOTICE, "请假同步（生活老师）",
                 className + " " + studentName + " 的" + leaveType + "（" + range + "）已批准，请知悉", "/leave");
         sendToRoles(List.of("DIRECTOR"), Notification.LEAVE_NOTICE, "请假批准（行政知悉）",
                 className + " " + studentName + " 的" + leaveType + "（" + range + "）已批准", "/leave");
+        if (classId != null) {
+            teachMapper.selectList(new LambdaQueryWrapper<Teach>().eq(Teach::getClassId, classId))
+                    .stream().map(Teach::getTeacherId).distinct()
+                    .filter(id -> !id.equals(excludeUserId))
+                    .forEach(id -> send(id, Notification.LEAVE_NOTICE, "请假同步（任课教师）",
+                            className + " " + studentName + " 的" + leaveType + "（" + range
+                                    + "）已批准，该时段您的课该生缺席，请知悉", null));
+        }
         wecomService.pushApprovals("【学生请假·门卫核验】" + className + " " + studentName
                 + " 的" + leaveType + "（" + range + "）已批准");
     }

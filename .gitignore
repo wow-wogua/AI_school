@@ -64,6 +64,10 @@ new/
 # 本地渲染用 Playwright 浏览器二进制（858M，本机下载，不入库）
 tools/ms-playwright/
 
+# 压测 k6 单 exe + 安装包（31M+，本机下载，不入库；scripts/perf/README 有安装说明）
+tools/k6*
+local/perf-results/
+
 # 参考素材（IP 手册等授权未确认，公开仓库不放）
 参考/
 数据需求.docx

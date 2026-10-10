@@ -101,6 +101,7 @@ cd ../report-web && npm install && npm run dev  # 前端 5173（vite 代理 /api
 - 前端 E2E 冒烟 108 断言全绿（桌面 1440 + 手机 390 双档：首登改密全流程/批量生成/预览下载/荣誉证书/时间轴/综合素质等）；移动端工作台另有 qa_*.mjs 质检脚本组
 - 空库首启自动种子；批量 PDF 中文渲染无方块（无掠影 52 页 / 含微光掠影 53 页）
 - 容器化实测：五容器 healthy、nginx:80 端到端、容器内渲染 PDF 中文无方块（2026-08-22）
+- k6 稳定性压测框架（`report-server/scripts/perf/`）：登录/通知/请假/报告等核心链路四档（smoke/load/soak/report），thresholds 卡 p95 与错误率，附 docker stats 资源采样；只压本地栈
 - 推送到 main 自动跑 CI（后端 mvn package + 前端 npm build）
 
 ## 开发与维护须知
