@@ -10,7 +10,6 @@ import com.aischool.server.security.AuthUtil;
 import com.aischool.server.service.auth.PermissionService;
 import com.aischool.server.service.civility.CivilityService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -89,17 +88,28 @@ public class CivilityController {
         return ApiResponse.ok(civilityService.rank(parseDate(from, "from"), parseDate(to, "to"), gradeId));
     }
 
-    /** 评选（按月冻结快照；重评覆盖） */
+    /** 评选（批46③ 周快照：week=yyyy-Www 重评覆盖；month 仅历史月份重评） */
     @PostMapping("/settle")
     public ApiResponse<List<Map<String, Object>>> settle(@Validated @RequestBody SettleReq req) {
         permissionService.checkAdminAccess("仅管理员可发起文明班评选");
+        if (req.getWeek() != null && !req.getWeek().isBlank()) {
+            return ApiResponse.ok(civilityService.settleWeek(req.getWeek().trim(), AuthUtil.current().userId()));
+        }
         return ApiResponse.ok(civilityService.settle(req.getMonth().trim(), AuthUtil.current().userId()));
     }
 
+    /** 已评选金银铜：week=指定周 / month=历史月；不带参数=全部周次（倒序） */
     @GetMapping("/awards")
-    public ApiResponse<List<Map<String, Object>>> awards(@RequestParam(required = false) String month) {
+    public ApiResponse<List<Map<String, Object>>> awards(@RequestParam(required = false) String week,
+                                                         @RequestParam(required = false) String month) {
         rejectParentGuard();
-        return ApiResponse.ok(civilityService.awards(month));
+        if (week != null && !week.isBlank()) {
+            return ApiResponse.ok(civilityService.awards("WEEK", week.trim()));
+        }
+        if (month != null && !month.isBlank()) {
+            return ApiResponse.ok(civilityService.awards("MONTH", month.trim()));
+        }
+        return ApiResponse.ok(civilityService.awards("WEEK", null));
     }
 
     // ───────── 批43：班级整体加减分（素养评价双轨之一，进文明班不进个人档案） ─────────
@@ -153,7 +163,7 @@ public class CivilityController {
 
     @Data
     public static class SettleReq {
-        @NotBlank(message = "month 不能为空")
-        private String month; // yyyy-MM
+        private String week;  // yyyy-Www（批46③ 现行口径）
+        private String month; // yyyy-MM（仅历史月份重评）
     }
 }

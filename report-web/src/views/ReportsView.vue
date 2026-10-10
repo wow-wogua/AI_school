@@ -106,7 +106,7 @@ function tagType(s: string) {
 async function init() {
   classes.value = await api('/api/meta/my-classes')
   terms.value = await api('/api/meta/terms')
-  termId.value = terms.value[0]?.id
+  termId.value = terms.value.find((t: any) => t.isCurrent === 1)?.id ?? terms.value[0]?.id
   reportPeriod.value = predictPeriod()
   if (auth.role === 'ADMIN') {
     grades.value = await api('/api/meta/grades')

@@ -91,7 +91,7 @@ watch(cur, (t, prev) => {
 async function init() {
   classes.value = await api('/api/meta/my-classes')
   terms.value = await api('/api/meta/terms')
-  termId.value = terms.value[0]?.id
+  termId.value = terms.value.find((t: any) => t.isCurrent === 1)?.id ?? terms.value[0]?.id
   if (classes.value.length) {
     classId.value = classes.value[0].id
     await loadStudents()

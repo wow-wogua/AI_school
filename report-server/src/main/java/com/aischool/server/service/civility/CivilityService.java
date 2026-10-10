@@ -53,8 +53,9 @@ import java.util.stream.Collectors;
  * （1 评价分=1 文明班分，正负都累加）；批43 再并入「班级整体加减分」（t_class_score，
  * 不落具体学生的班级层面记分）——检查日=该班有评价记录或班级记分的日期（当日基础 120）。
  * 新旧不混算：跨切换日的区间按切换日切分，两段各自口径加总；切换日前的历史打分保留进排名。
- * 排名按 [from,to] 区间自动聚合；评选=按月冻结排名快照（rank 1-3 即文明班金银铜），
- * 每月 1 日自动评选上月，管理端可手动重评。
+ * 排名按 [from,to] 区间自动聚合；批46③ 起评选=按周冻结排名快照（自然周周一~周日，
+ * rank 1-3 即文明班金银铜，周期标签如 2026-W41），每周一自动评选上周，管理端可手动重评；
+ * 月度评选停用（历史 MONTH 快照保留可查，仍可手动重评历史月份）。
  */
 @Slf4j
 @Service
@@ -411,7 +412,7 @@ public class CivilityService {
         return data;
     }
 
-    /** 评选（按月冻结快照）：rank 1-3=文明班金银铜；重评覆盖同月旧快照 */
+    /** 评选（按月冻结快照，批46 前的月度口径）：仅供历史月份重评，月度评选已停用不再自动新增 */
     @Transactional(rollbackFor = Exception.class)
     public List<Map<String, Object>> settle(String month, Long settleBy) {
         YearMonth ym;
@@ -423,18 +424,63 @@ public class CivilityService {
         if (ym.isAfter(YearMonth.now())) {
             throw new BizException(400, "不能评选未来月份");
         }
-        LocalDate from = ym.atDay(1), to = ym.atEndOfMonth();
+        return snapshot("MONTH", month, ym.atDay(1), ym.atEndOfMonth(), settleBy);
+    }
+
+    /**
+     * 批46③ 评选改周（自然周周一~周日）：week 形如 2026-W41（ISO 周编号）；
+     * 周区间=该 ISO 周的周一~周日，只允许评当前周及既往周。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public List<Map<String, Object>> settleWeek(String week, Long settleBy) {
+        LocalDate monday = parseWeekMonday(week);
+        if (monday.isAfter(LocalDate.now().with(java.time.DayOfWeek.MONDAY))) {
+            throw new BizException(400, "不能评选未来周");
+        }
+        return snapshot("WEEK", weekLabel(monday), monday, monday.plusDays(6), settleBy);
+    }
+
+    /** 周标签（yyyy-'W'ww，ISO 周）：周一所在的周编号年份+周次 */
+    static String weekLabel(LocalDate monday) {
+        int y = monday.get(java.time.temporal.WeekFields.ISO.weekBasedYear());
+        int w = monday.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear());
+        return y + "-W" + String.format("%02d", w);
+    }
+
+    /** 解析周标签为周一日期（非法即 400） */
+    private static LocalDate parseWeekMonday(String week) {
+        if (week == null || !week.matches("\\d{4}-W\\d{2}")) {
+            throw new BizException(400, "周格式须为 yyyy-Www（如 2026-W41）");
+        }
+        int y = Integer.parseInt(week.substring(0, 4));
+        int w = Integer.parseInt(week.substring(6));
+        if (w < 1 || w > 53) {
+            throw new BizException(400, "周次不合法");
+        }
+        LocalDate probe = LocalDate.of(y, 1, 4).with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        for (int i = 0; i < 53; i++) {
+            if (weekLabel(probe).equals(week)) {
+                return probe;
+            }
+            probe = probe.plusWeeks(1);
+        }
+        throw new BizException(400, "周次不存在：" + week);
+    }
+
+    /** 快照冻结（月/周共用）：rank 1-3=文明班金银铜；重评覆盖同周期旧快照 */
+    private List<Map<String, Object>> snapshot(String periodType, String periodValue,
+                                               LocalDate from, LocalDate to, Long settleBy) {
         List<Map<String, Object>> grades = (List<Map<String, Object>>) rank(from, to, null).get("grades");
         awardMapper.delete(new LambdaQueryWrapper<CivilityAward>()
-                .eq(CivilityAward::getPeriodType, "MONTH").eq(CivilityAward::getPeriodValue, month));
+                .eq(CivilityAward::getPeriodType, periodType).eq(CivilityAward::getPeriodValue, periodValue));
         List<Map<String, Object>> all = new ArrayList<>();
         for (Map<String, Object> g : grades) {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> classes = (List<Map<String, Object>>) g.get("classes");
             for (Map<String, Object> c : classes) {
                 CivilityAward a = new CivilityAward();
-                a.setPeriodType("MONTH");
-                a.setPeriodValue(month);
+                a.setPeriodType(periodType);
+                a.setPeriodValue(periodValue);
                 a.setClassId(((Number) c.get("classId")).longValue());
                 a.setGradeId(((Number) g.get("gradeId")).longValue());
                 a.setRankNo(((Number) c.get("rankNo")).intValue());
@@ -452,11 +498,11 @@ public class CivilityService {
         return all;
     }
 
-    /** 已评选结果（month 必填；只出文明班前三，全量名次在快照表） */
-    public List<Map<String, Object>> awards(String month) {
+    /** 已评选结果（只出文明班前三，全量名次在快照表）；月/周同表按 type 区分 */
+    public List<Map<String, Object>> awards(String periodType, String periodValue) {
         List<CivilityAward> rows = awardMapper.selectList(new LambdaQueryWrapper<CivilityAward>()
-                .eq(CivilityAward::getPeriodType, "MONTH")
-                .eq(month != null, CivilityAward::getPeriodValue, month)
+                .eq(periodType != null, CivilityAward::getPeriodType, periodType)
+                .eq(periodValue != null, CivilityAward::getPeriodValue, periodValue)
                 .orderByDesc(CivilityAward::getPeriodValue)
                 .orderByAsc(CivilityAward::getGradeId)
                 .orderByAsc(CivilityAward::getRankNo));
@@ -471,6 +517,7 @@ public class CivilityService {
                 .collect(Collectors.toMap(Grade::getId, Grade::getName, (a, b) -> a));
         return rows.stream().filter(a -> a.getRankNo() <= 3).<Map<String, Object>>map(a -> {
             Map<String, Object> m = new LinkedHashMap<>();
+            m.put("periodType", a.getPeriodType());
             m.put("periodValue", a.getPeriodValue());
             m.put("gradeName", gradeNames.getOrDefault(a.getGradeId(), ""));
             m.put("className", classNames.getOrDefault(a.getClassId(), ""));
@@ -480,15 +527,15 @@ public class CivilityService {
         }).toList();
     }
 
-    /** 每月 1 日 08:10 自动评选上月（无人值守；管理端可手动重评覆盖） */
-    @Scheduled(cron = "0 10 8 1 * ?")
+    /** 每周一 08:10 自动评选上周（自然周；无人值守；管理端可手动重评覆盖） */
+    @Scheduled(cron = "0 10 8 ? * MON")
     public void autoSettle() {
         try {
-            String last = YearMonth.now().minusMonths(1).toString();
-            int top = settle(last, null).size();
-            log.info("文明班月度自动评选完成：{} 文明班 {} 个", last, top);
+            String last = weekLabel(LocalDate.now().minusWeeks(1));
+            int top = settleWeek(last, null).size();
+            log.info("文明班周度自动评选完成：{} 文明班 {} 个", last, top);
         } catch (Exception e) {
-            log.warn("文明班月度自动评选失败：{}", e.getMessage());
+            log.warn("文明班周度自动评选失败：{}", e.getMessage());
         }
     }
 }

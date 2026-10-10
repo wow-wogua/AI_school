@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h4>文明班评比：打分流水（历史）+ 班级记分流水 + 自动排名 + 月度评选；细则见教师端「德育规范」页</h4>
+    <h4>文明班评比：打分流水（历史）+ 班级记分流水 + 自动排名 + 周度评选（每周一 08:10 自动评上周）；细则见教师端「德育规范」页</h4>
 
     <!-- 打分流水（批39⑥ 已下线，近 200 条历史，误录可删） -->
     <div class="bar">
@@ -79,17 +79,17 @@
       <el-table-column prop="className" label="班级" width="130" />
       <el-table-column prop="totalScore" label="总分" width="110" />
     </el-table>
-    <p class="tip">本月检查 {{ rankDays }} 天（有素养评价或班级记分记录的日子；无记录的班级当天不计）</p>
+    <p class="tip">区间检查 {{ rankDays }} 天（有素养评价或班级记分记录的日子；无记录的班级当天不计）</p>
 
-    <!-- 月度评选 -->
-    <h4 style="margin-top: 22px">文明班评选（按月冻结快照，重评覆盖；每月 1 日 08:10 自动评选上月）</h4>
+    <!-- 周度评选（批46③：月度停用改周） -->
+    <h4 style="margin-top: 22px">文明班评选（按周冻结快照，重评覆盖；每周一 08:10 自动评选上周各年级前三）</h4>
     <div class="bar">
-      <el-date-picker v-model="settleMonth" type="month" placeholder="选择月份" style="width: 160px"
-        value-format="YYYY-MM" :disabled-date="(d: Date) => d.getTime() > Date.now()" />
-      <el-button type="primary" size="small" @click="settle">评选该月</el-button>
+      <el-date-picker v-model="settleDate" type="date" placeholder="选择该周任意一天" style="width: 180px"
+        value-format="YYYY-MM-DD" :disabled-date="(d: Date) => d.getTime() > Date.now()" />
+      <el-button type="primary" size="small" @click="settle">评选该周</el-button>
     </div>
     <el-table :data="awards" size="small">
-      <el-table-column prop="periodValue" label="月份" width="100" />
+      <el-table-column prop="periodValue" label="周次" width="100" />
       <el-table-column prop="gradeName" label="年级" width="110" />
       <el-table-column label="名次" width="70">
         <template #default="{ row }">
@@ -120,13 +120,24 @@ const csRecords = ref<any[]>([])
 const now = new Date()
 const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-const rFrom = ref(fmt(new Date(now.getFullYear(), now.getMonth(), 1)))
+// 批46③：默认本周（自然周周一~今天）
+const monday = (d: Date) => { const r = new Date(d); r.setDate(r.getDate() - ((r.getDay() + 6) % 7)); return r }
+const rFrom = ref(fmt(monday(now)))
 const rTo = ref(fmt(now))
 const rGrade = ref<number | ''>('')
 const rankRows = ref<any[]>([])
 const rankDays = ref(0)
 
-const settleMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+// ISO 周标签（yyyy-Www，与后端 WeekFields.ISO 一致：本周年份=该周周四所在年）
+function isoWeekLabel(d: Date): string {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const dayNum = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum)
+  const yearStart = Date.UTC(date.getUTCFullYear(), 0, 1)
+  const week = Math.ceil(((date.getTime() - yearStart) / 86400000 + 1) / 7)
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+}
+const settleDate = ref(fmt(now))
 const awards = ref<any[]>([])
 
 async function loadRecords() {
@@ -175,9 +186,10 @@ async function delCs(row: any) {
 }
 
 async function settle() {
-  if (!settleMonth.value) return
-  const tops = await api<any[]>('/api/civility/settle', { method: 'POST', json: { month: settleMonth.value } })
-  ElMessage.success(`已评选 ${settleMonth.value}：文明班 ${tops.length} 个（各年级前三）`)
+  if (!settleDate.value) { ElMessage.warning('请先选择该周任意一天'); return }
+  const week = isoWeekLabel(new Date(settleDate.value))
+  const tops = await api<any[]>('/api/civility/settle', { method: 'POST', json: { week } })
+  ElMessage.success(`已评选 ${week}：文明班 ${tops.length} 个（各年级前三）`)
   await loadAwards()
 }
 
