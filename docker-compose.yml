@@ -1,6 +1,8 @@
 # 一键全栈（项目根执行：docker compose up -d --build）
 # 首次启动 mysql 自动导入 deploy/schema.sql + seed.sql（仅空数据卷时执行一次）
 # 日志轮转：单容器最多 3 份 × 50MB，防止日志无限增长吃满磁盘
+# 项目名显式钉死：数据卷名 ai_school_* 与所在目录无关（镜像化部署换目录不换卷）
+name: ai_school
 x-default-logging: &default-logging
   driver: json-file
   options:
