@@ -142,7 +142,6 @@ const sections = computed(() => {
     ] },
     { label: '校园事务', items: [
       { name: '通知公告', icon: 'volume-o', to: '/notices', bg: '#CA8A04' },
-      ...(auth.role === 'HEAD_TEACHER' ? [{ name: '班级管理', icon: 'setting-o', to: '/my-class', bg: '#0EA5E9' }] : []),
     ] },
     { label: '我的成长', items: [
       { name: '我的成长', icon: 'award-o', to: '/my-growth', bg: '#0F766E' },

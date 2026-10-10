@@ -51,10 +51,8 @@ public class AdminOaController {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("sealApprovers", approverView("seal", names));
         out.put("goodsApprovers", approverView("goods", names));
-        out.put("leaveApprovers", approverView("leave", names));
         out.put("venueApprovers", approverView("venue", names));
         out.put("goodsLevels", oaService.levels("GOODS"));
-        out.put("leaveLevels", oaService.levels("LEAVE"));
         out.put("venueLevels", oaService.levels("VENUE"));
         // 批43① 采购：五级或签（每级多人）+ 抄送人
         List<List<Map<String, Object>>> purchase = new java.util.ArrayList<>();
@@ -95,7 +93,7 @@ public class AdminOaController {
     private Map<Long, String> approverNames() {
         List<Long> ids = new java.util.ArrayList<>();
         for (int i = 1; i <= 3; i++) {
-            for (String type : List.of("seal", "goods", "leave", "venue")) {
+            for (String type : List.of("seal", "goods", "venue")) {
                 String v = oaService.cfgOf("oa_" + type + "_l" + i);
                 if (!v.isEmpty()) {
                     ids.add(Long.parseLong(v));
@@ -125,13 +123,10 @@ public class AdminOaController {
         for (int i = 1; i <= 3; i++) {
             oaService.setCfg("oa_seal_l" + i, idStr(req.getSealApprovers(), i));
             oaService.setCfg("oa_goods_l" + i, idStr(req.getGoodsApprovers(), i));
-            oaService.setCfg("oa_leave_l" + i, idStr(req.getLeaveApprovers(), i));
             oaService.setCfg("oa_venue_l" + i, idStr(req.getVenueApprovers(), i));
         }
         int goodsLevels = Math.max(1, Math.min(3, req.getGoodsLevels() == null ? 1 : req.getGoodsLevels()));
         oaService.setCfg("oa_goods_levels", String.valueOf(goodsLevels));
-        int leaveLevels = Math.max(1, Math.min(3, req.getLeaveLevels() == null ? 1 : req.getLeaveLevels()));
-        oaService.setCfg("oa_leave_levels", String.valueOf(leaveLevels));
         int venueLevels = Math.max(1, Math.min(3, req.getVenueLevels() == null ? 1 : req.getVenueLevels()));
         oaService.setCfg("oa_venue_levels", String.valueOf(venueLevels));
         // 批43① 采购：五级或签（逗号分隔多人）+ 抄送人（前端未传足 5 位按空级处理）
@@ -356,8 +351,6 @@ public class AdminOaController {
         private List<Long> sealApprovers; // [l1,l2,l3] 空位=null
         private Integer goodsLevels;
         private List<Long> goodsApprovers;
-        private Integer leaveLevels; // 批10
-        private List<Long> leaveApprovers;
         private Integer venueLevels; // 批11
         private List<Long> venueApprovers;
         private List<List<Long>> purchaseApprovers; // 批43① 五级或签 [l1[],l2[],…,l5[]]（不足 5 位按空补）

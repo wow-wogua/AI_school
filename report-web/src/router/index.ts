@@ -55,7 +55,6 @@ const router = createRouter({
     { path: '/leave', component: () => import('../views/StudentLeaveView.vue'), meta: { layout: 'sub', title: '学生请假' } },
     // 宿管查询（批27）：全体教师按宿舍楼/房/床查学生
     { path: '/dorm', component: () => import('../views/DormView.vue'), meta: { layout: 'sub', title: '宿舍查询' } },
-    { path: '/my-class', component: () => import('../views/MyClassView.vue'), meta: { layout: 'sub', title: '班级管理' } },
     // 意见反馈（批8.5）：教师/家长共用组件，双路由分流（家长被锁 /p/*）
     { path: '/feedback', component: () => import('../views/FeedbackView.vue'), meta: { layout: 'sub', title: '意见反馈' } },
     // 消息通知（批29，批37 由「通知中心」正名）：审批/请假/注册待办与结果，点击直达处理页；同款双路由分流

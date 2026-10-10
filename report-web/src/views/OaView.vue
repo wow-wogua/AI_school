@@ -8,9 +8,6 @@
       <button class="start-btn goods" type="button" @click="openNew('GOODS')">
         <van-icon name="shopping-cart-o" /><span>物资申领</span>
       </button>
-      <button class="start-btn leave" type="button" @click="openNew('LEAVE')">
-        <van-icon name="clock-o" /><span>教师请假</span>
-      </button>
       <button class="start-btn venue" type="button" @click="openNew('VENUE')">
         <van-icon name="location-o" /><span>场地申请</span>
       </button>
@@ -86,16 +83,6 @@
             :rules="[{ required: true, message: '请填写事由' }]" />
           <van-field :model-value="useDate" is-link readonly label="使用日期" placeholder="选择日期（可选）"
             @click="openDate('use')" />
-        </template>
-        <template v-else-if="newType === 'LEAVE'">
-          <van-field :model-value="leaveType" is-link readonly label="请假类型" placeholder="选择类型（必选）"
-            @click="leaveOpen = true" />
-          <van-field :model-value="leaveStart" is-link readonly label="开始日期" placeholder="必选"
-            @click="openDate('start')" />
-          <van-field :model-value="leaveEnd" is-link readonly label="结束日期" placeholder="必选"
-            @click="openDate('end')" />
-          <van-field v-model="newTitle" type="textarea" rows="2" autosize label="事由"
-            placeholder="例如：家中急事需请假一天" />
         </template>
         <template v-else-if="newType === 'VENUE'">
           <van-field :model-value="venueName" is-link readonly label="场地" placeholder="选择场地（必选）"
@@ -251,14 +238,9 @@
       </template>
     </van-popup>
 
-    <!-- 物资/类型/日期选择器 -->
+    <!-- 物资/日期选择器 -->
     <van-popup v-model:show="goodsOpen" position="bottom" round>
       <van-picker title="选择物资" :columns="goodsColumns" @confirm="onGoods" @cancel="goodsOpen = false" />
-    </van-popup>
-    <van-popup v-model:show="leaveOpen" position="bottom" round>
-      <van-picker title="请假类型" :columns="LEAVE_TYPES"
-        @confirm="(ev: any) => { leaveType = ev.selectedOptions?.[0]?.text || ''; leaveOpen = false }"
-        @cancel="leaveOpen = false" />
     </van-popup>
     <van-popup v-model:show="venueOpen" position="bottom" round>
       <van-picker title="选择场地" :columns="venueColumns" @confirm="onVenue" @cancel="venueOpen = false" />
@@ -355,15 +337,10 @@ const pickLine = ref(0)
 const newLines = ref<{ goodsId: number; name: string; qty: string }[]>([{ goodsId: 0, name: '', qty: '' }])
 const submitting = ref(false)
 
-/* 日期五字段共用一个 picker（use=公章使用日期 / start·end=请假起止 / venue=场地使用日期 / expect=采购期望交付） */
+/* 日期三字段共用一个 picker（use=公章使用日期 / venue=场地使用日期 / expect=采购期望交付） */
 const dateOpen = ref(false)
-const dateField = ref<'use' | 'start' | 'end' | 'venue' | 'expect'>('use')
+const dateField = ref<'use' | 'venue' | 'expect'>('use')
 const dateBuf = ref<string[]>([])
-const leaveType = ref('')
-const leaveStart = ref('')
-const leaveEnd = ref('')
-const leaveOpen = ref(false)
-const LEAVE_TYPES = ['事假', '病假', '婚假', '产假', '其他'].map((t) => ({ text: t, value: t }))
 const venues = ref<{ id: number; name: string; location: string; capacity: number | null }[]>([])
 const venueOpen = ref(false)
 const venueId = ref(0)
@@ -414,12 +391,12 @@ function tagOf(t: string) {
   return ({ SEAL: 'primary', GOODS: 'warning', LEAVE: 'success', VENUE: 'default', PURCHASE: 'primary' } as Record<string, string>)[t] || 'primary'
 }
 const dateTitle = computed(() =>
-  ({ use: '使用日期', start: '开始日期', end: '结束日期', venue: '使用日期', expect: '期望交付日期' } as Record<string, string>)[dateField.value])
+  ({ use: '使用日期', venue: '使用日期', expect: '期望交付日期' } as Record<string, string>)[dateField.value])
 
-function openDate(field: 'use' | 'start' | 'end' | 'venue' | 'expect') {
+function openDate(field: 'use' | 'venue' | 'expect') {
   dateField.value = field
-  const v = field === 'use' ? useDate.value : field === 'start' ? leaveStart.value
-    : field === 'end' ? leaveEnd.value : field === 'expect' ? purExpectDate.value : venueDate.value
+  const v = field === 'use' ? useDate.value
+    : field === 'expect' ? purExpectDate.value : venueDate.value
   if (v) {
     dateBuf.value = v.split('-')
   } else { // 空 model 的 van-date-picker 会落 min-date（2020），须预置今天
@@ -431,8 +408,6 @@ function openDate(field: 'use' | 'start' | 'end' | 'venue' | 'expect') {
 function onDateOk() {
   const v = dateBuf.value.join('-')
   if (dateField.value === 'use') useDate.value = v
-  else if (dateField.value === 'start') leaveStart.value = v
-  else if (dateField.value === 'end') leaveEnd.value = v
   else if (dateField.value === 'expect') purExpectDate.value = v
   else venueDate.value = v
   dateOpen.value = false
@@ -451,9 +426,6 @@ function openNew(type: string) {
   newType.value = type
   newTitle.value = ''
   useDate.value = ''
-  leaveType.value = ''
-  leaveStart.value = ''
-  leaveEnd.value = ''
   venueId.value = 0
   venueName.value = ''
   venueDate.value = ''
@@ -488,18 +460,6 @@ async function doSubmit() {
     submitting.value = true
     try {
       await api('/api/oa/submit', { method: 'POST', json: { formType: 'SEAL', title: newTitle.value, useDate: useDate.value } })
-    } finally { submitting.value = false }
-  } else if (newType.value === 'LEAVE') {
-    if (!leaveType.value) { showToast('请选择请假类型'); return }
-    if (!leaveStart.value || !leaveEnd.value) { showToast('请选择起止日期'); return }
-    if (leaveEnd.value < leaveStart.value) { showToast('结束日期不能早于开始日期'); return }
-    if (!newTitle.value.trim()) { showToast('请填写请假事由'); return }
-    submitting.value = true
-    try {
-      await api('/api/oa/submit', {
-        method: 'POST',
-        json: { formType: 'LEAVE', title: newTitle.value, leaveType: leaveType.value, startDate: leaveStart.value, endDate: leaveEnd.value },
-      })
     } finally { submitting.value = false }
   } else if (newType.value === 'VENUE') {
     if (!venueId.value) { showToast('请选择场地'); return }
@@ -704,7 +664,6 @@ onMounted(load)
 .start-btn .van-icon { font-size: 21px; }
 .start-btn.seal { background: linear-gradient(150deg, #8C1D23, #A8232B); }
 .start-btn.goods { background: linear-gradient(150deg, #B45309, #D97706); }
-.start-btn.leave { background: linear-gradient(150deg, #047857, #0D9467); }
 .start-btn.venue { background: linear-gradient(150deg, #1E40AF, #3B82F6); }
 .start-btn.purchase { background: linear-gradient(150deg, #6D28D9, #8B5CF6); }
 

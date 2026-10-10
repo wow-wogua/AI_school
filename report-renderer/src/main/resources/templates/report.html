@@ -98,7 +98,7 @@
   <!-- 校徽 + 校名 -->
   <img class="abs" th:src="${imgLogo}" style="top:70pt;left:50%;transform:translateX(-50%);width:62pt;height:62pt" alt=""/>
   <div class="abs" style="top:148pt;left:0;width:100%;text-align:center;font-size:20pt;font-weight:bold;color:#1F2A44;letter-spacing:3pt;margin-right:-3pt" th:text="${r.school.name}">佛山市南海区石实实验学校</div>
-  <div class="abs" style="top:182pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2.2pt;margin-right:-2.2pt">SHISHI EXPERIMENTAL SCHOOL · EST. 2000</div>
+  <div class="abs" style="top:182pt;left:0;width:100%;text-align:center;font-size:8.5pt;color:#8A93A6;letter-spacing:2.2pt;margin-right:-2.2pt">SHISHI EXPERIMENTAL SCHOOL · EST. 1999</div>
   <!-- 主标题 -->
   <div class="abs" style="top:287pt;left:222.5pt;width:150pt;height:1pt;background:rgba(201,162,39,.55)"></div>
   <div class="abs" style="top:297pt;left:0;width:100%;text-align:center;font-size:33pt;font-weight:bold;color:#1F2A44;letter-spacing:7pt;margin-right:-7pt">学生成长报告册</div>
@@ -162,7 +162,7 @@
     <div th:each="p : ${r.school.philosophy}" style="display:flex;align-items:baseline;margin-bottom:25.5pt">
       <div style="flex:none;width:96pt;text-align:right;font-size:12pt;font-weight:bold;color:#B08A1E;font-family:var(--serif)" th:text="${p[0]}">办学使命</div>
       <div style="flex:none;width:.7pt;height:15pt;background:rgba(201,162,39,.6);margin:0 18pt;position:relative;top:2pt"></div>
-      <div style="flex:1;font-size:12pt;line-height:16.5pt;color:#1F2A44" th:text="${p[1]}">为每一位学生的终身发展提供最适合的教育</div>
+      <div style="flex:1;font-size:12pt;line-height:16.5pt;color:#1F2A44;white-space:pre-line" th:text="${p[1]}">为每一位学生的终身发展提供最适合的教育</div>
     </div>
   </div>
   <!-- 校训石装裱位（校方实拍「任重道远 毋忘奋斗」；img_idea_bg 已按 399:215 裁好直填） -->
@@ -177,14 +177,47 @@
   <div class="t16" style="top:97pt">学校风采</div>
   <img class="abs" th:src="${imgIconL}" style="top:100pt;left:229pt;width:13pt;height:15pt" alt=""/>
   <img class="abs" th:src="${imgIconR}" style="top:100pt;left:353pt;width:13pt;height:15pt" alt=""/>
-  <div class="abs" style="top:166.6pt;left:79pt;width:436pt;text-indent:0;font-size:12pt;color:#2C3E50;line-height:22.6pt"
+  <div class="abs" style="top:166.6pt;left:79pt;width:436pt;text-indent:0;font-size:12pt;color:#2C3E50;line-height:22.6pt;text-align:justify"
        th:text="${r.school.intro}">学校简介</div>
-  <!-- 照片装裱位：金线圆角框，等校方公众号新照片到位直接换图 -->
-  <div class="abs" style="top:271pt;left:136pt;width:323pt;height:215pt;border:1pt solid rgba(201,162,39,.65);border-radius:6pt;overflow:hidden;box-shadow:0 2pt 8pt rgba(31,42,68,.10)">
-    <img th:src="${imgPhoto1}" style="width:100%;height:100%;object-fit:cover" alt=""/>
+  <!-- 实力/卓越/特色/赋能 四小节（批45②：docx 20261008《石实实验学校》转写精编；学校级静态文案，改内容直接编辑此处） -->
+  <div class="abs" style="top:290pt;left:79pt;width:436pt">
+    <div style="margin-bottom:11pt">
+      <div style="display:flex;align-items:center;margin-bottom:4pt">
+        <span style="width:6pt;height:6pt;background:#C9A227;margin-right:7pt"></span>
+        <span style="font-size:11.5pt;font-weight:bold;color:#B08A1E;font-family:var(--serif)">实力 · 名师领航</span>
+      </div>
+      <div style="font-size:10.5pt;line-height:17.5pt;color:#2C3E50;text-align:justify">现有专任教师280人，其中正高级教师4人、特级教师2人、博士2人；设立拔尖人才培养研究院、少科院大沥分院，以名师团队领航学生成长。</div>
+    </div>
+    <div style="margin-bottom:11pt">
+      <div style="display:flex;align-items:center;margin-bottom:4pt">
+        <span style="width:6pt;height:6pt;background:#C9A227;margin-right:7pt"></span>
+        <span style="font-size:11.5pt;font-weight:bold;color:#B08A1E;font-family:var(--serif)">卓越 · 拔尖引领</span>
+      </div>
+      <div style="font-size:10.5pt;line-height:17.5pt;color:#2C3E50;text-align:justify">历年累计培养清华北大学子40人，连续两年蝉联佛山大市唯一清北保送资格；信息学竞赛CSP一等奖人数居佛山第一，拔尖人才培养成果卓著。</div>
+    </div>
+    <div style="margin-bottom:11pt">
+      <div style="display:flex;align-items:center;margin-bottom:4pt">
+        <span style="width:6pt;height:6pt;background:#C9A227;margin-right:7pt"></span>
+        <span style="font-size:11.5pt;font-weight:bold;color:#B08A1E;font-family:var(--serif)">特色 · 扬长教育</span>
+      </div>
+      <div style="font-size:10.5pt;line-height:17.5pt;color:#2C3E50;text-align:justify">构建“两主两翼三阶八域”课程体系，每年开设上百门大学式自选课程，出现校园“抢课”现象；人人有舞台、个个可出彩，培育“五有”好少年。</div>
+    </div>
+    <div>
+      <div style="display:flex;align-items:center;margin-bottom:4pt">
+        <span style="width:6pt;height:6pt;background:#C9A227;margin-right:7pt"></span>
+        <span style="font-size:11.5pt;font-weight:bold;color:#B08A1E;font-family:var(--serif)">赋能 · 硬件一流</span>
+      </div>
+      <div style="font-size:10.5pt;line-height:17.5pt;color:#2C3E50;text-align:justify">2026年建成4000㎡科创楼，携手华南理工大学博士团队打造科创课程；图书馆被誉为“广东省最美阅读空间”，智慧校园全面升级。</div>
+    </div>
   </div>
-  <div class="abs" style="top:516pt;left:136pt;width:323pt;height:216pt;border:1pt solid rgba(201,162,39,.65);border-radius:6pt;overflow:hidden;box-shadow:0 2pt 8pt rgba(31,42,68,.10)">
-    <img th:src="${imgPhoto2}" style="width:100%;height:100%;object-fit:cover" alt=""/>
+  <!-- 照片装裱位（批45③：体艺节晚会 + 最美阅读空间图书馆，自「学校介绍照片」裁剪 3:2） -->
+  <div class="abs" style="top:566pt;left:79pt;width:436pt;display:flex;justify-content:space-between">
+    <div style="width:210pt;height:140pt;border:1pt solid rgba(201,162,39,.65);border-radius:6pt;overflow:hidden;box-shadow:0 2pt 8pt rgba(31,42,68,.10)">
+      <img th:src="${imgPhoto1}" style="width:100%;height:100%;object-fit:cover" alt=""/>
+    </div>
+    <div style="width:210pt;height:140pt;border:1pt solid rgba(201,162,39,.65);border-radius:6pt;overflow:hidden;box-shadow:0 2pt 8pt rgba(31,42,68,.10)">
+      <img th:src="${imgPhoto2}" style="width:100%;height:100%;object-fit:cover" alt=""/>
+    </div>
   </div>
 </div>
 
