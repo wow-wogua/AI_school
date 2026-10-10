@@ -98,7 +98,8 @@ public class PortraitService {
     public String materialize(String gender, Map<String, Object> growthSymbol,
                               List<Map<String, Object>> grids, List<Map<String, Object>> activities) {
         try {
-            boolean meng = gender != null && "女".equals(gender.trim());
+            // gender 库内口径为 M/F（名册导入链落库），兼容历史中文值
+            boolean meng = gender != null && ("F".equalsIgnoreCase(gender.trim()) || "女".equals(gender.trim()));
             String assetKey = meng ? ASSET_MENG : ASSET_SHI;
             byte[] base = assetService.readAssetBytes(assetKey);
             if (base == null) {
