@@ -34,20 +34,6 @@
         </template>
       </div>
       <div class="cfg-row">
-        <span class="lbl">请假审批</span>
-        <el-select v-model="leaveLevels" style="width: 90px">
-          <el-option :value="1" label="1 级" />
-          <el-option :value="2" label="2 级" />
-          <el-option :value="3" label="3 级" />
-        </el-select>
-        <template v-for="i in leaveLevels" :key="i">
-          <span class="lv">{{ ['一', '二', '三'][i - 1] }}级</span>
-          <el-select v-model="leave[i - 1]" filterable clearable placeholder="选择审批人" style="width: 160px">
-            <el-option v-for="t in teachers" :key="t.id" :label="t.realName" :value="t.id" />
-          </el-select>
-        </template>
-      </div>
-      <div class="cfg-row">
         <span class="lbl">场地审批</span>
         <el-select v-model="venueLevels" style="width: 90px">
           <el-option :value="1" label="1 级" />
@@ -85,7 +71,6 @@
       <el-select v-model="qType" clearable placeholder="类型" style="width: 130px" @change="load">
         <el-option value="SEAL" label="公章使用申请" />
         <el-option value="GOODS" label="物资申领" />
-        <el-option value="LEAVE" label="教师请假" />
         <el-option value="VENUE" label="场地申请" />
         <el-option value="PURCHASE" label="采购申请" />
       </el-select>
@@ -185,10 +170,8 @@ import { api } from '../../api/http'
 const teachers = ref<any[]>([])
 const seal = ref<(number | undefined)[]>([undefined, undefined, undefined])
 const goods = ref<(number | undefined)[]>([undefined, undefined, undefined])
-const leave = ref<(number | undefined)[]>([undefined, undefined, undefined])
 const venue = ref<(number | undefined)[]>([undefined, undefined, undefined])
 const goodsLevels = ref(1)
-const leaveLevels = ref(1)
 const venueLevels = ref(1)
 // 批43① 采购：五级或签（每级多人）+ 抄送人
 const purchase = ref<number[][]>([[], [], [], [], []])
@@ -209,13 +192,11 @@ const detailJson = computed<any>(() => {
 const detailLines = computed(() => (detail.value?.formType === 'GOODS' ? detailJson.value : []))
 
 async function loadCfg() {
-  const c = await api<{ sealApprovers: ({ id: number; name: string } | null)[]; goodsApprovers: ({ id: number; name: string } | null)[]; leaveApprovers: ({ id: number; name: string } | null)[]; venueApprovers: ({ id: number; name: string } | null)[]; goodsLevels: number; leaveLevels: number; venueLevels: number; purchaseApprovers: { id: number; name: string }[][]; purchaseCc: { id: number; name: string }[] }>('/api/admin/oa/config')
+  const c = await api<{ sealApprovers: ({ id: number; name: string } | null)[]; goodsApprovers: ({ id: number; name: string } | null)[]; venueApprovers: ({ id: number; name: string } | null)[]; goodsLevels: number; venueLevels: number; purchaseApprovers: { id: number; name: string }[][]; purchaseCc: { id: number; name: string }[] }>('/api/admin/oa/config')
   seal.value = (c.sealApprovers || []).map((x) => x?.id)
   goods.value = (c.goodsApprovers || []).map((x) => x?.id)
-  leave.value = (c.leaveApprovers || []).map((x) => x?.id)
   venue.value = (c.venueApprovers || []).map((x) => x?.id)
   goodsLevels.value = c.goodsLevels || 1
-  leaveLevels.value = c.leaveLevels || 1
   venueLevels.value = c.venueLevels || 1
   purchase.value = [0, 1, 2, 3, 4].map((i) => (c.purchaseApprovers?.[i] ?? []).map((x) => x.id))
   purchaseCc.value = (c.purchaseCc || []).map((x) => x.id)
@@ -224,7 +205,6 @@ async function loadCfg() {
 async function saveCfg() {
   if (seal.value.some((v) => !v)) { ElMessage.warning('公章三级审批人须配齐'); return }
   if (goods.value.slice(0, goodsLevels.value).some((v) => !v)) { ElMessage.warning('物资审批人须按级数配齐'); return }
-  if (leave.value.slice(0, leaveLevels.value).some((v) => !v)) { ElMessage.warning('请假审批人须按级数配齐'); return }
   if (venue.value.slice(0, venueLevels.value).some((v) => !v)) { ElMessage.warning('场地审批人须按级数配齐'); return }
   if (purchase.value.some((lv) => !lv.length)) { ElMessage.warning('采购五级审批人须每级至少配一人'); return }
   saving.value = true
@@ -233,7 +213,6 @@ async function saveCfg() {
       method: 'PUT',
       json: {
         sealApprovers: seal.value, goodsApprovers: goods.value, goodsLevels: goodsLevels.value,
-        leaveApprovers: leave.value, leaveLevels: leaveLevels.value,
         venueApprovers: venue.value, venueLevels: venueLevels.value,
         purchaseApprovers: purchase.value, purchaseCc: purchaseCc.value,
       },
